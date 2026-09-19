@@ -55,10 +55,10 @@ const ContactPage = () => {
     },
     {
       title: '电子邮件',
-      content: 'contact@caifusi.com',
+      content: 'contact@youthgain.com',
       icon: <FaEnvelope className="text-blue-600" size={36} />,
       action: '发送邮件',
-      actionLink: 'mailto:contact@caifusi.com'
+      actionLink: 'mailto:contact@youthgain.com'
     },
     {
       title: '公司地址',

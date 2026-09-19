@@ -2,7 +2,7 @@
 chcp 65001 >nul
 cls
 echo ================================================
-echo   财赋思应用 简化版启动程序
+echo   青盈应用 简化版启动程序
 echo ================================================
 echo.
 echo 这是一个简化的启动脚本，只启动必要的服务
@@ -11,10 +11,10 @@ echo.
 set SCRIPT_DIR=%~dp0
 
 echo [1/2] 启动后端服务...
-start cmd /k "title 财赋思-后端服务 && color 0A && cd /d %SCRIPT_DIR%.. && cd backend && python run_dev.py"
+start cmd /k "title 青盈-后端服务 && color 0A && cd /d %SCRIPT_DIR%.. && cd backend && python run_dev.py"
 
 echo [2/2] 启动代理服务器...
-start cmd /k "title 财赋思-代理服务器 && color 0B && cd /d %SCRIPT_DIR% && node proxy\proxy-server.js 3000 5001"
+start cmd /k "title 青盈-代理服务器 && color 0B && cd /d %SCRIPT_DIR% && node proxy\proxy-server.js 3000 5001"
 
 echo.
 echo ================================================

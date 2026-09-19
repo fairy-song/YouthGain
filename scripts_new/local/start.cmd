@@ -2,7 +2,7 @@
 chcp 65001 >nul
 cls
 echo ================================================
-echo   财赋思应用 本地启动程序
+echo   青盈应用 本地启动程序
 echo ================================================
 echo.
 
@@ -27,11 +27,11 @@ if not exist "%ROOT_DIR%\node_modules\express" (
 )
 
 echo [2/3] 启动后端服务...
-start "财赋思-后端服务" /D "%ROOT_DIR%\backend" cmd /k "color 0A & python run_dev_enhanced.py"
+start "青盈-后端服务" /D "%ROOT_DIR%\backend" cmd /k "color 0A & python run_dev_enhanced.py"
 
 echo [3/3] 启动代理服务器...
 copy /Y "%ROOT_DIR%\scripts\proxy\proxy-server.js" "%SCRIPT_DIR%\" >nul
-start "财赋思-代理服务器" /D "%ROOT_DIR%" cmd /k "color 0B & node %SCRIPT_DIR%proxy-server.js %FRONTEND_PORT% %BACKEND_PORT%"
+start "青盈-代理服务器" /D "%ROOT_DIR%" cmd /k "color 0B & node %SCRIPT_DIR%proxy-server.js %FRONTEND_PORT% %BACKEND_PORT%"
 
 echo.
 echo ================================================

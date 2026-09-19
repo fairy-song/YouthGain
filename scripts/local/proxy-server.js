@@ -74,7 +74,7 @@ function showFallbackPage() {
         <!DOCTYPE html>
         <html>
           <head>
-            <title>财赋思应用 - 开发模式</title>
+            <title>青盈应用 - 开发模式</title>
             <meta charset="utf-8">
             <style>
               body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
@@ -89,7 +89,7 @@ function showFallbackPage() {
           </head>
           <body>
             <div class="container">
-              <h1>财赋思应用 - 开发模式</h1>
+              <h1>青盈应用 - 开发模式</h1>
               <div class="info">
                 <p class="success">✓ 代理服务器已成功启动!</p>
                 <p>所有 /api 请求已被代理到后端服务: <b>http://localhost:${BACKEND_PORT}</b></p>
@@ -128,7 +128,7 @@ startReactDev();
 app.listen(FRONTEND_PORT, () => {
   console.log(`
 ================================================
-  财赋思应用代理服务器已启动
+  青盈应用代理服务器已启动
 ================================================
 
 - 前端开发服务器: http://localhost:${REACT_DEV_PORT}

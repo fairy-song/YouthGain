@@ -254,7 +254,7 @@ const Layout = () => {
               onMouseLeave={() => setBrandHovered(false)}
             >
               <span className={brandHovered ? 'animate__animated animate__rubberBand' : ''}>
-                财赋思
+                青盈
               </span>
             </Navbar.Brand>
 
@@ -370,7 +370,7 @@ const Layout = () => {
                     <Card.Title
                       className="fs-3 fw-semibold mb-3 text-warning animate__animated animate__fadeIn"
                     >
-                      财赋思
+                      青盈
                     </Card.Title>
                     <Card.Text className="text-light opacity-75">
                       你的AI金融心智教练
@@ -513,7 +513,7 @@ const Layout = () => {
             <hr className="my-4 opacity-25" />
 
             <div className="text-center text-light opacity-75">
-              <p className="mb-0">© {new Date().getFullYear()} 财赋思. 保留所有权利。</p>
+              <p className="mb-0">© {new Date().getFullYear()} 青盈. 保留所有权利。</p>
             </div>
           </Container>
         </footer>

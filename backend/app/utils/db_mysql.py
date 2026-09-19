@@ -22,7 +22,7 @@ class MySQLHelper:
                 config['port'] = current_app.config.get('MYSQL_PORT', 3306)
                 config['user'] = current_app.config.get('MYSQL_USER', 'root')
                 config['password'] = current_app.config.get('MYSQL_PASSWORD', '')
-                config['database'] = current_app.config.get('MYSQL_DB', 'caifusi')
+                config['database'] = current_app.config.get('MYSQL_DB', 'youthgain')
                 return config
         except RuntimeError:
             # 不在 Flask 应用上下文中，回退至直接读取环境变量
@@ -32,7 +32,7 @@ class MySQLHelper:
         config['port'] = int(os.environ.get('MYSQL_PORT', 3306))
         config['user'] = os.environ.get('MYSQL_USER', 'root')
         config['password'] = os.environ.get('MYSQL_PASSWORD', '')
-        config['database'] = os.environ.get('MYSQL_DB', 'caifusi')
+        config['database'] = os.environ.get('MYSQL_DB', 'youthgain')
         return config
 
     @classmethod
@@ -184,7 +184,7 @@ class MySQLHelper:
                             for stmt in statements:
                                 if stmt.strip():
                                     cursor.execute(stmt)
-                        logger.info("✓ 数据库表结构初始化及初始演示数据导入成功！")
+                        logger.info("[OK] 数据库表结构初始化及初始演示数据导入成功！")
                     except Exception as e:
                         logger.error(f"运行 schema.sql 语句时出错: {e}")
                     finally:

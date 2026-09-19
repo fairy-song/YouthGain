@@ -2,7 +2,7 @@
 chcp 65001 >nul
 cls
 echo ================================================
-echo   财赋思应用 Sunny-Ngrok内网穿透
+echo   青盈应用 Sunny-Ngrok内网穿透
 echo ================================================
 echo.
 
@@ -19,7 +19,7 @@ if not exist "%SCRIPT_DIR%\sunnyNgrok" (
 )
 
 echo [1/2] 启动内网穿透...
-start "财赋思-内网穿透" /D "%SCRIPT_DIR%\sunnyNgrok" cmd /k "color 0E & sunny.exe clientid 隧道id -p %PORT%"
+start "青盈-内网穿透" /D "%SCRIPT_DIR%\sunnyNgrok" cmd /k "color 0E & sunny.exe clientid 隧道id -p %PORT%"
 
 echo.
 echo [2/2] 正在获取域名信息...

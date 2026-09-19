@@ -104,9 +104,9 @@ function App() {
     <AuthProvider>
       <RedirectHandler />
       <Routes>
-        {/* 重定向Caifusi路径到主页 */}
-        <Route path="/Caifusi/*" element={<Navigate to="/" replace />} />
-        <Route path="Caifusi/*" element={<Navigate to="/" replace />} />
+        {/* 重定向YouthGain路径到主页 */}
+        <Route path="/YouthGain/*" element={<Navigate to="/" replace />} />
+        <Route path="YouthGain/*" element={<Navigate to="/" replace />} />
         
         {/* 公共路由 */}
         <Route path="/" element={<Layout />}>

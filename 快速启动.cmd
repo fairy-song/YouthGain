@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 chcp 65001 >nul
 echo ================================================
-echo    财赋思应用 - 快速启动
+echo    青盈应用 - 快速启动
 echo ================================================
 echo.
 
@@ -108,7 +108,7 @@ echo.
 
 REM 启动后端服务
 echo [启动] 正在启动后端服务...
-start "财赋思-后端" cmd /k "cd /d "%~dp0backend" && %PYTHON_CMD% run_dev_enhanced.py"
+start "青盈-后端" cmd /k "cd /d "%~dp0backend" && %PYTHON_CMD% run_dev_enhanced.py"
 
 REM 等待后端启动
 echo [等待] 等待后端服务启动（5秒）...
@@ -116,7 +116,7 @@ timeout /t 5 /nobreak >nul
 
 REM 启动前端静态服务
 echo [启动] 正在启动前端静态服务...
-start "财赋思-前端" cmd /k "cd /d "%~dp0" && "!NODE_CMD!" simple-static-server.js 3000 5001"
+start "青盈-前端" cmd /k "cd /d "%~dp0" && "!NODE_CMD!" simple-static-server.js 3000 5001"
 
 REM 等待前端启动
 echo [等待] 等待前端服务启动（5秒）...

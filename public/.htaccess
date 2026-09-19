@@ -1,7 +1,7 @@
 RewriteEngine On
 RewriteBase /
 RewriteRule ^index\.html$ - [L]
-RewriteRule ^Caifusi(/.*)?$ /#/ [R=302,L]
+RewriteRule ^YouthGain(/.*)?$ /#/ [R=302,L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME} !-l

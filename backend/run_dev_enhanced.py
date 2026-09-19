@@ -11,7 +11,7 @@ if sys.platform == 'win32':
     sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
     sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
-print("=== 财赋思后端服务启动 (增强版) ===")
+print("=== 青盈后端服务启动 (增强版) ===")
 
 # 设置全局状态标识
 MODEL_INITIALIZED = False
@@ -23,7 +23,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
-logger = logging.getLogger('caifusi-backend')
+logger = logging.getLogger('youthgain-backend')
 logger.info("正在启动后端服务...")
 
 # 添加项目根目录到系统路径
@@ -31,23 +31,27 @@ try:
     current_dir = Path(__file__).parent
     project_root = current_dir.parent
     sys.path.insert(0, str(project_root))
-    print(f"✓ 系统路径设置成功")
+    print(f"[OK] 系统路径设置成功")
     logger.info(f"系统路径: {sys.path}")
 except Exception as e:
     print(f"✕ 设置路径出错: {e}")
     logger.error(f"设置路径出错: {e}", exc_info=True)
 
 # 加载环境变量
+# 优先 .env.local（与 README 和 快速启动.cmd 保持一致），回退到 .env
 from dotenv import load_dotenv
-env_path = project_root / '.env'
+env_path = project_root / '.env.local'
+if not env_path.exists():
+    env_path = project_root / '.env'
 if env_path.exists():
     load_dotenv(env_path)
-    logger.info(f"成功加载 .env 文件: {env_path}")
+    logger.info(f"成功加载环境变量文件: {env_path}")
 else:
-    logger.warning(f"未能找到 .env 文件: {env_path}")
+    logger.warning(f"未找到 .env.local 或 .env，将使用默认配置: {project_root}")
 
-# 设置环境变量
-os.environ["DEV_MODE"] = "true"
+# 开发启动器默认开启认证绕过。注意：本文件仅供本地开发使用，
+# 部署请改用 run.py，并在 .env.local 中保持 DEV_MODE=false。
+os.environ.setdefault("DEV_MODE", "true")
 # 增加新环境变量，强制立即初始化模型
 os.environ["INITIALIZE_MODEL_ON_START"] = "true"
 # 禁用自动加载.env文件，避免编码问题
@@ -65,7 +69,7 @@ def monitor_model_initialization():
     # 最长等待5分钟
     for _ in range(300):
         if MODEL_INITIALIZED:
-            print("\r✓ AI模型初始化完成!                 ")
+            print("\r[OK] AI模型初始化完成!                 ")
             MODEL_READY_EVENT.set()
             return
             
@@ -95,7 +99,7 @@ try:
     # 方式1: 标准导入方式
     logger.info("尝试标准导入方式...")
     from backend.app import create_app
-    print("✓ 应用模块导入成功")
+    print("[OK] 应用模块导入成功")
     logger.info("应用模块导入成功")
 
     # 创建应用实例
@@ -105,11 +109,11 @@ try:
     # 应用路由补丁
     app = patch_app_routes(app)
 
-    print("✓ 应用实例创建成功")
+    print("[OK] 应用实例创建成功")
     logger.info("应用实例创建成功")
-    print("✓ 开发模式已启用")
-    print("✓ 使用智谱AI GLM-4模型")
-    print(f"✓ API地址: http://localhost:5001")
+    print("[OK] 开发模式已启用")
+    print("[OK] 使用智谱AI GLM-4模型")
+    print(f"[OK] API地址: http://localhost:5001")
     logger.info(f"API地址: http://0.0.0.0:5001")
     
     # 标记模型已初始化
@@ -139,7 +143,7 @@ except ImportError as e:
         # 应用路由补丁
         app = patch_app_routes(app)
         
-        print("✓ 备用导入成功")
+        print("[OK] 备用导入成功")
         logger.info("备用导入成功")
         
         # 标记模型已初始化

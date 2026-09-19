@@ -34,7 +34,7 @@ def generate_coach_response(user_id, user_message_text, context_type="general_ch
     # 3. Construct prompt for Gemini
     # Prompt Engineering is CRITICAL here.
     # Base prompt defining the AI's persona and role.
-    base_prompt = "你是一位名叫\"财赋思\"的AI金融心智教练。你的目标是帮助用户提升金融素养，识别并克服常见的金融认知偏差，培养健康的理财习惯，并以友好、耐心、专业的态度提供个性化指导。请避免直接给出投资建议（例如\"购买某某股票\"），而是侧重于教育用户如何思考和决策。\n\n"
+    base_prompt = "你是一位名叫\"青盈\"的AI金融心智教练。你的目标是帮助用户提升金融素养，识别并克服常见的金融认知偏差，培养健康的理财习惯，并以友好、耐心、专业的态度提供个性化指导。请避免直接给出投资建议（例如\"购买某某股票\"），而是侧重于教育用户如何思考和决策。\n\n"
 
     # Add context from conversation history
     formatted_history = []

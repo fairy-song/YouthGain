@@ -2,41 +2,15 @@
 Dashboard数据API路由
 提供用户仪表盘所需的各类数据
 """
-from flask import Blueprint, request, jsonify, current_app
-from app.services.auth_service import verify_firebase_token
+from flask import Blueprint, request, jsonify
+from app.services.auth_service import require_auth
 from app.services.user_profile_service import user_profile_service
 from app.services.user_data_service import user_data_service
-from functools import wraps
 
 dashboard_bp = Blueprint('dashboard_bp', __name__)
 
-# 认证装饰器
-def authenticate(f):
-    """验证Firebase ID token"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # 检查是否处于开发模式
-        if current_app.config.get('DEV_MODE'):
-            kwargs['user_info'] = {'uid': 'test_user_id', 'email': 'test@example.com'}
-            return f(*args, **kwargs)
-        
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return jsonify({"error": "需要授权令牌"}), 401
-        
-        id_token = auth_header.split('Bearer ')[1]
-        user_info, error = verify_firebase_token(id_token)
-        
-        if error:
-            return jsonify({"error": f"认证失败: {error}"}), 401
-        
-        kwargs['user_info'] = user_info
-        return f(*args, **kwargs)
-    
-    return decorated_function
-
 @dashboard_bp.route('/overview', methods=['GET'])
-@authenticate
+@require_auth
 def get_dashboard_overview(user_info):
     """
     获取仪表盘概览数据
@@ -76,7 +50,7 @@ def get_dashboard_overview(user_info):
         }), 500
 
 @dashboard_bp.route('/financial-health', methods=['GET'])
-@authenticate
+@require_auth
 def get_financial_health(user_info):
     """
     获取详细的财务健康度数据
@@ -110,7 +84,7 @@ def get_financial_health(user_info):
         }), 500
 
 @dashboard_bp.route('/goals', methods=['GET'])
-@authenticate
+@require_auth
 def get_user_goals(user_info):
     """
     获取用户的财务目标列表
@@ -143,7 +117,7 @@ def get_user_goals(user_info):
         }), 500
 
 @dashboard_bp.route('/goals', methods=['POST'])
-@authenticate
+@require_auth
 def create_goal(user_info):
     """
     创建新的财务目标
@@ -179,7 +153,7 @@ def create_goal(user_info):
         }), 500
 
 @dashboard_bp.route('/goals/<goal_id>', methods=['PUT'])
-@authenticate
+@require_auth
 def update_goal(user_info, goal_id):
     """
     更新财务目标
@@ -219,7 +193,7 @@ def update_goal(user_info, goal_id):
         }), 500
 
 @dashboard_bp.route('/goals/<goal_id>', methods=['DELETE'])
-@authenticate
+@require_auth
 def delete_goal(user_info, goal_id):
     """
     删除财务目标
@@ -251,7 +225,7 @@ def delete_goal(user_info, goal_id):
         }), 500
 
 @dashboard_bp.route('/statistics', methods=['GET'])
-@authenticate
+@require_auth
 def get_statistics(user_info):
     """
     获取用户统计数据
@@ -272,7 +246,7 @@ def get_statistics(user_info):
         }), 500
 
 @dashboard_bp.route('/recommendations', methods=['GET'])
-@authenticate
+@require_auth
 def get_recommendations(user_info):
     """
     获取个性化建议

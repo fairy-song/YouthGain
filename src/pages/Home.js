@@ -298,7 +298,7 @@ const Home = () => {
                 </h1>
 
                 <p className="lead mb-5 text-light mx-auto animate__animated animate__fadeIn animate__delay-2s" style={{ maxWidth: '800px', fontSize: '1.25rem', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
-                  财赋思 - AI金融心智教练。通过人工智能技术，帮助您培养健康的财务习惯，提升金融素养，做出更明智的财务决策。现在就开启您的下一代财务成长之旅。
+                  青盈 - AI金融心智教练。通过人工智能技术，帮助您培养健康的财务习惯，提升金融素养，做出更明智的财务决策。现在就开启您的下一代财务成长之旅。
                 </p>
 
                 <div className="d-flex gap-4 justify-content-center flex-wrap animate__animated animate__fadeInUp animate__delay-3s" style={{ position: 'relative', zIndex: 10 }}>
@@ -352,7 +352,7 @@ const Home = () => {
             <EnhancedBadge bg="primary" className="mb-3">
               <span className="fw-medium text-white">为什么选择我们</span>
             </EnhancedBadge>
-            <h2 className="display-5 fw-bold mb-4">财赋思的优势</h2>
+            <h2 className="display-5 fw-bold mb-4">青盈的优势</h2>
             <p className="lead text-muted mx-auto" style={{ maxWidth: '700px' }}>
               我们结合人工智能和金融心理学，帮助您建立健康的财务习惯，做出更明智的财务决策。
             </p>
@@ -434,7 +434,7 @@ const Home = () => {
                       <img src="https://images.unsplash.com/photo-1557862921-37829c790f19?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1471&q=80" alt="用户头像" className="rounded-circle" width="80" height="80" />
                     </div>
                     <div className="testimonial-content">
-                      <p className="fs-5 mb-3">"财赋思AI教练帮助我理清了我的财务状况，并制定了切实可行的储蓄计划。现在我每个月都能存下一笔钱，为未来做准备。"</p>
+                      <p className="fs-5 mb-3">"青盈AI教练帮助我理清了我的财务状况，并制定了切实可行的储蓄计划。现在我每个月都能存下一笔钱，为未来做准备。"</p>
                       <h5 className="mb-1">张小明</h5>
                       <p className="text-muted mb-0">自由职业者，上海</p>
                     </div>
@@ -452,7 +452,7 @@ const Home = () => {
                       </div>
                     </div>
                     <div className="testimonial-content">
-                      <p className="fs-5 mb-3">"通过财赋思的心智评估，我发现自己有冲动消费的习惯。AI教练提供的建议帮助我克服了这个问题，现在我能更理性地消费了。"</p>
+                      <p className="fs-5 mb-3">"通过青盈的心智评估，我发现自己有冲动消费的习惯。AI教练提供的建议帮助我克服了这个问题，现在我能更理性地消费了。"</p>
                       <h5 className="mb-1">李雯</h5>
                       <p className="text-muted mb-0">市场经理，北京</p>
                     </div>
@@ -470,7 +470,7 @@ const Home = () => {
                       </div>
                     </div>
                     <div className="testimonial-content">
-                      <p className="fs-5 mb-3">"作为一个投资新手，我曾经对金融市场感到恐惧。财赋思的AI教练通过简单易懂的方式解释了基本概念，让我有信心开始我的投资之旅。"</p>
+                      <p className="fs-5 mb-3">"作为一个投资新手，我曾经对金融市场感到恐惧。青盈的AI教练通过简单易懂的方式解释了基本概念，让我有信心开始我的投资之旅。"</p>
                       <h5 className="mb-1">刘志强</h5>
                       <p className="text-muted mb-0">软件工程师，深圳</p>
                     </div>
@@ -488,7 +488,7 @@ const Home = () => {
                       </div>
                     </div>
                     <div className="testimonial-content">
-                      <p className="fs-5 mb-3">"财赋思帮助我设定了合理的财务目标，并持续提供指导。一年后，我成功攒下了首付款，即将实现购房梦想，感谢这个平台！"</p>
+                      <p className="fs-5 mb-3">"青盈帮助我设定了合理的财务目标，并持续提供指导。一年后，我成功攒下了首付款，即将实现购房梦想，感谢这个平台！"</p>
                       <h5 className="mb-1">赵美娟</h5>
                       <p className="text-muted mb-0">教师，成都</p>
                     </div>
@@ -506,7 +506,7 @@ const Home = () => {
                       </div>
                     </div>
                     <div className="testimonial-content">
-                      <p className="fs-5 mb-3">"退休计划一直是我担心的问题，但财赋思AI教练为我量身定制了长期规划，现在我对未来充满信心。推荐给所有想要财务自由的人！"</p>
+                      <p className="fs-5 mb-3">"退休计划一直是我担心的问题，但青盈AI教练为我量身定制了长期规划，现在我对未来充满信心。推荐给所有想要财务自由的人！"</p>
                       <h5 className="mb-1">王建国</h5>
                       <p className="text-muted mb-0">企业管理者，广州</p>
                     </div>
@@ -610,7 +610,7 @@ const Home = () => {
         <Container className="py-5">
           <h2 className="display-5 fw-bold mb-4">准备好提升您的财务智慧了吗？</h2>
           <p className="lead mb-5 mx-auto" style={{ maxWidth: '700px' }}>
-            加入财赋思，开启您的财务成长之旅。现在注册，即可免费获得财务健康评估！
+            加入青盈，开启您的财务成长之旅。现在注册，即可免费获得财务健康评估！
           </p>
 
           {currentUser ? (

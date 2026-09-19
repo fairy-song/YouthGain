@@ -1,6 +1,6 @@
-# 财赋思 - 部署指南
+# 青盈 - 部署指南
 
-本文档提供将财赋思项目部署到GitHub Pages的详细步骤。
+本文档提供将青盈项目部署到GitHub Pages的详细步骤。
 
 ## 1. GitHub Pages配置
 
@@ -32,7 +32,7 @@
    由于GitHub Pages只能托管静态内容，您需要将后端API部署到单独的服务器:
    
    a. **部署后端**:
-      - 将`caifusi_project/backend`目录部署到支持Python的服务器
+      - 将`youthgain_project/backend`目录部署到支持Python的服务器
       - 确保安装所有依赖: `pip install -r requirements.txt`
       - 启动后端服务: `python app.py`或使用WSGI服务器
    
@@ -40,7 +40,7 @@
       - 确保后端配置了CORS设置，允许来自`xiaocow666.github.io`的请求
    
    c. **更新API地址**:
-      - 修改`caifusi_project/frontend/src/services/api.js`文件中的API地址:
+      - 修改`youthgain_project/frontend/src/services/api.js`文件中的API地址:
         ```javascript
         if (isGitHubPages) {
           baseUrl = 'https://你的API服务器地址';  // 修改为您的实际API地址
@@ -48,14 +48,14 @@
         ```
       - 重新构建前端并更新`docs`目录:
         ```bash
-        cd caifusi_project/frontend
+        cd youthgain_project/frontend
         npm run build
         # 将build目录内容复制到项目根目录的docs文件夹
         ```
 
 ## 3. 测试部署
 
-1. 访问`https://xiaocow666.github.io/Caifusi/`检查前端是否正常加载
+1. 访问`https://xiaocow666.github.io/YouthGain/`检查前端是否正常加载
 2. 测试与后端的连接，确保API请求正常工作
 3. 如遇到跨域问题，检查后端CORS配置
 

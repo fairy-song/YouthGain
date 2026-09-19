@@ -12,7 +12,7 @@ const TeamPage = () => {
       image: 'https://randomuser.me/api/portraits/men/32.jpg',
       bio: '金融科技领域连续创业者，前某大型银行AI实验室负责人，在金融科技和人工智能领域拥有超过15年经验。清华大学金融学博士，致力于通过科技提升大众金融素养。',
       linkedin: '#',
-      email: 'mingyuan.li@caifusi.com',
+      email: 'mingyuan.li@youthgain.com',
       education: '清华大学 金融学博士'
     },
     {
@@ -20,9 +20,9 @@ const TeamPage = () => {
       name: '王思颖',
       role: 'CTO & 算法专家',
       image: 'https://randomuser.me/api/portraits/women/44.jpg',
-      bio: '人工智能及机器学习专家，在多个国际AI大赛中获奖。负责财赋思核心算法和AI模型的开发。曾任职于BAT等一线科技公司，拥有多项AI相关专利。',
+      bio: '人工智能及机器学习专家，在多个国际AI大赛中获奖。负责青盈核心算法和AI模型的开发。曾任职于BAT等一线科技公司，拥有多项AI相关专利。',
       linkedin: '#',
-      email: 'siying.wang@caifusi.com',
+      email: 'siying.wang@youthgain.com',
       education: '北京大学 计算机科学博士'
     },
     {
@@ -32,7 +32,7 @@ const TeamPage = () => {
       image: 'https://randomuser.me/api/portraits/men/45.jpg',
       bio: '拥有15年金融教育经验的资深专家，曾任某知名金融机构培训总监。专注于普惠金融教育，开发了多套适合不同层次人群的金融素养课程体系。',
       linkedin: '#',
-      email: 'rui.zhang@caifusi.com',
+      email: 'rui.zhang@youthgain.com',
       education: '复旦大学 经济学硕士'
     },
     {
@@ -42,7 +42,7 @@ const TeamPage = () => {
       image: 'https://randomuser.me/api/portraits/women/68.jpg',
       bio: '资深用户体验设计师，专注于金融科技产品的交互设计。曾主导多个大型金融科技产品的设计工作，擅长将复杂的金融概念转化为直观易用的界面。',
       linkedin: '#',
-      email: 'jiayi.chen@caifusi.com',
+      email: 'jiayi.chen@youthgain.com',
       education: '中央美术学院 设计学硕士'
     },
     {
@@ -52,7 +52,7 @@ const TeamPage = () => {
       image: 'https://randomuser.me/api/portraits/men/55.jpg',
       bio: '数字营销专家，在金融科技领域拥有丰富的市场推广经验。擅长内容营销和用户增长策略，曾帮助多家创业公司实现快速用户增长。',
       linkedin: '#',
-      email: 'peng.zhao@caifusi.com',
+      email: 'peng.zhao@youthgain.com',
       education: '上海交通大学 工商管理硕士'
     },
     {
@@ -62,7 +62,7 @@ const TeamPage = () => {
       image: 'https://randomuser.me/api/portraits/women/33.jpg',
       bio: '拥有10年客户服务和运营经验，致力于提升用户体验和满意度。擅长建立高效的客户服务体系，曾获得行业最佳客户服务团队奖。',
       linkedin: '#',
-      email: 'meiling.lin@caifusi.com',
+      email: 'meiling.lin@youthgain.com',
       education: '浙江大学 管理学学士'
     },
   ];
@@ -102,13 +102,13 @@ const TeamPage = () => {
           <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">我们的故事</h2>
           <div className="max-w-3xl mx-auto">
             <p className="text-lg text-gray-700 mb-6">
-              财赋思（CaiFuSi）成立于2022年，是一家专注于金融素养教育和个人财务规划的科技公司。我们的创始团队由来自金融、科技和教育领域的专业人士组成，怀揣着同一个使命：通过人工智能技术，让金融教育变得更加个性化、实用和普及。
+              青盈（YouthGain）成立于2022年，是一家专注于金融素养教育和个人财务规划的科技公司。我们的创始团队由来自金融、科技和教育领域的专业人士组成，怀揣着同一个使命：通过人工智能技术，让金融教育变得更加个性化、实用和普及。
             </p>
             <p className="text-lg text-gray-700 mb-6">
               在创立初期，我们深入研究了中国居民的财务状况和金融行为习惯，发现许多人在面对金融决策时常感到困惑和无助。传统的金融教育往往过于理论化，难以应用到实际生活中。因此，我们决定开发一款AI金融教练，能够根据每个人的具体情况提供量身定制的建议和指导。
             </p>
             <p className="text-lg text-gray-700">
-              经过两年的发展，财赋思已经服务了超过10万名用户，帮助他们建立健康的财务习惯，做出更明智的理财决策。我们的愿景是成为中国领先的金融素养教育平台，让每个人都能掌握必要的金融知识和技能，实现财务自由。
+              经过两年的发展，青盈已经服务了超过10万名用户，帮助他们建立健康的财务习惯，做出更明智的理财决策。我们的愿景是成为中国领先的金融素养教育平台，让每个人都能掌握必要的金融知识和技能，实现财务自由。
             </p>
           </div>
         </div>

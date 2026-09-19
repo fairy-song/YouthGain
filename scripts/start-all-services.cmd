@@ -2,7 +2,7 @@
 chcp 65001 >nul
 cls
 echo ================================================
-echo   财赋思应用 服务启动程序 (简化版)
+echo   青盈应用 服务启动程序 (简化版)
 echo ================================================
 echo.
 
@@ -27,10 +27,10 @@ if not exist "%SCRIPT_DIR%..\node_modules\express" (
 
 echo [2/3] 启动后端服务...
 echo [提示] 使用增强版后端服务来解决AI服务响应问题
-start cmd /k "title 财赋思-后端服务 && color 0A && cd /d %SCRIPT_DIR%.. && cd backend && python run_dev_enhanced.py"
+start cmd /k "title 青盈-后端服务 && color 0A && cd /d %SCRIPT_DIR%.. && cd backend && python run_dev_enhanced.py"
 
 echo [3/3] 启动代理服务器...
-start cmd /k "title 财赋思-代理服务器 && color 0B && cd /d %SCRIPT_DIR% && node proxy\proxy-server.js %FRONTEND_PORT% %BACKEND_PORT%"
+start cmd /k "title 青盈-代理服务器 && color 0B && cd /d %SCRIPT_DIR% && node proxy\proxy-server.js %FRONTEND_PORT% %BACKEND_PORT%"
 
 echo.
 echo ================================================

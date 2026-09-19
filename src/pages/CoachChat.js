@@ -267,7 +267,7 @@ const CoachChat = () => {
               <EnhancedBadge bg="primary" className="mb-3">
                 <span className="fw-medium text-white">AI金融教练</span>
               </EnhancedBadge>
-              <h1 className="display-5 fw-bold mb-3">财赋思 AI 教练对话</h1>
+              <h1 className="display-5 fw-bold mb-3">青盈 AI 教练对话</h1>
               <p className="lead text-muted">
                 与您的AI金融心智教练进行对话，获取个性化财务建议和指导。
               </p>
@@ -306,7 +306,7 @@ const CoachChat = () => {
                   <FaRobot className="text-primary" size={20} />
                 </div>
                 <div>
-                  <h5 className="mb-0 fw-bold">财赋思 AI 教练</h5>
+                  <h5 className="mb-0 fw-bold">青盈 AI 教练</h5>
                   <small className="text-white-50">您的个人金融顾问</small>
                 </div>
               </Card.Header>

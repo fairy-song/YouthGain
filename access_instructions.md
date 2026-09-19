@@ -1,4 +1,4 @@
-# 财赋思应用访问说明
+# 青盈应用访问说明
 
 ## 快速启动
 
@@ -28,9 +28,9 @@
 
 ### 1. 页面显示404错误
 
-- 确保URL末尾添加`/#/`而不是`/Caifusi`
+- 确保URL末尾添加`/#/`而不是`/YouthGain`
 - 正确格式: `https://6baebd64.r11.vip.cpolar.cn/#/`
-- 错误格式: `https://6baebd64.r11.vip.cpolar.cn/Caifusi`
+- 错误格式: `https://6baebd64.r11.vip.cpolar.cn/YouthGain`
 
 ### 2. 端口被占用
 

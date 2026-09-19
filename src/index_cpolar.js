@@ -6,8 +6,8 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 
 // 处理URL路径问题
-const basePath = window.location.pathname.endsWith('/Caifusi') ? 
-  window.location.pathname.replace('/Caifusi', '') : 
+const basePath = window.location.pathname.endsWith('/YouthGain') ? 
+  window.location.pathname.replace('/YouthGain', '') : 
   window.location.pathname;
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
@@ -21,7 +21,7 @@ root.render(
 
 // 检测是否通过cpolar访问并处理重定向
 if (window.location.hostname.includes('cpolar')) {
-  if (window.location.pathname.includes('/Caifusi')) {
+  if (window.location.pathname.includes('/YouthGain')) {
     window.location.replace(window.location.origin + '/#/');
   }
 }

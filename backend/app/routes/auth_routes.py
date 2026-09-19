@@ -1,5 +1,5 @@
-from flask import Blueprint, request, jsonify, current_app
-from app.services.auth_service import verify_firebase_token
+from flask import Blueprint, request, jsonify
+from app.services.auth_service import is_dev_bypass_enabled, verify_firebase_token
 # from app.services.firestore_service import get_user_profile # Already handled in verify_firebase_token
 
 auth_bp = Blueprint('auth_bp', __name__)
@@ -11,7 +11,7 @@ def verify_token_route():
     This can also serve as a login/session creation endpoint.
     """
     # 开发模式下的模拟认证
-    if current_app.config.get('DEV_MODE'):
+    if is_dev_bypass_enabled():
         return jsonify({
             "message": "Token verified successfully (DEV MODE)",
             "user": {
@@ -49,7 +49,7 @@ def verify_token_route():
 @auth_bp.route('/me', methods=['GET'])
 def get_current_user():
     # 开发模式下的模拟用户
-    if current_app.config.get('DEV_MODE'):
+    if is_dev_bypass_enabled():
         return jsonify({
             "user": {
                 "displayName": "测试用户",

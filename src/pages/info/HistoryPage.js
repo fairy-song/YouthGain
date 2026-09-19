@@ -9,7 +9,7 @@ const HistoryPage = () => {
       year: 2022,
       quarter: '一季度',
       title: '公司成立',
-      description: '财赋思在北京成立，核心团队由来自金融、科技和教育领域的专业人士组成，致力于利用AI技术提升大众金融素养。',
+      description: '青盈在北京成立，核心团队由来自金融、科技和教育领域的专业人士组成，致力于利用AI技术提升大众金融素养。',
       icon: <FaFlag className="text-blue-600" />
     },
     {
@@ -30,14 +30,14 @@ const HistoryPage = () => {
       year: 2022,
       quarter: '四季度',
       title: '测试版上线',
-      description: '财赋思App测试版上线，邀请1000名用户参与内测，收集大量有价值的用户反馈，为产品迭代奠定基础。',
+      description: '青盈App测试版上线，邀请1000名用户参与内测，收集大量有价值的用户反馈，为产品迭代奠定基础。',
       icon: <FaUsers className="text-blue-600" />
     },
     {
       year: 2023,
       quarter: '一季度',
       title: '正式版发布',
-      description: '财赋思App正式版发布，提供个性化财务健康评估、AI教练互动和金融知识学习等核心功能，首月用户突破1万。',
+      description: '青盈App正式版发布，提供个性化财务健康评估、AI教练互动和金融知识学习等核心功能，首月用户突破1万。',
       icon: <FaStar className="text-blue-600" />
     },
     {
@@ -90,7 +90,7 @@ const HistoryPage = () => {
       {/* 页面标题 */}
       <InfoPageHeader 
         title="发展历程" 
-        subtitle="见证财赋思从创立到现在的成长轨迹"
+        subtitle="见证青盈从创立到现在的成长轨迹"
         category="about"
       />
       
@@ -99,7 +99,7 @@ const HistoryPage = () => {
         <div className="bg-white rounded-lg shadow-md p-8 mb-16">
           <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">我们的发展历程</h2>
           <p className="text-lg text-gray-700 mb-6 max-w-3xl mx-auto">
-            财赋思（CaiFuSi）自2022年创立以来，一直致力于通过科技手段提升大众的金融素养和理财能力。在短短几年间，我们从一个创新想法成长为行业内具有一定影响力的金融科技教育品牌，见证了无数用户财务健康的改善和财务理念的提升。
+            青盈（YouthGain）自2022年创立以来，一直致力于通过科技手段提升大众的金融素养和理财能力。在短短几年间，我们从一个创新想法成长为行业内具有一定影响力的金融科技教育品牌，见证了无数用户财务健康的改善和财务理念的提升。
           </p>
           
           {/* 关键数据展示 */}

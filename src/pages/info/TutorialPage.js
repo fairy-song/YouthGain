@@ -30,7 +30,7 @@ const TutorialPage = () => {
     {
       id: 1,
       title: '如何注册和设置您的账户',
-      description: '本教程指导您完成财赋思账户的注册流程和初始设置，包括个人资料完善和偏好设置。',
+      description: '本教程指导您完成青盈账户的注册流程和初始设置，包括个人资料完善和偏好设置。',
       category: 'getting-started',
       difficulty: 'beginner',
       type: 'video',
@@ -176,7 +176,7 @@ const TutorialPage = () => {
       {/* 页面标题 */}
       <InfoPageHeader 
         title="使用教程" 
-        subtitle="学习如何充分利用财赋思的功能，提升您的金融素养"
+        subtitle="学习如何充分利用青盈的功能，提升您的金融素养"
         category="resources"
       />
       

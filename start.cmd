@@ -2,7 +2,7 @@
 chcp 65001 >nul
 cls
 echo ================================================
-echo   财赋思应用 主菜单
+echo   青盈应用 主菜单
 echo ================================================
 echo.
 echo  请选择要运行的服务:
@@ -17,7 +17,7 @@ set /p choice=请输入选项 (0-3):
 if "%choice%"=="1" (
     echo.
     echo [启动] 前端代理服务器...
-    start "财赋思前端" /D "%~dp0" cmd /k "color 0B & node scripts\local\proxy-server.js 3000 5001"
+    start "青盈前端" /D "%~dp0" cmd /k "color 0B & node scripts\local\proxy-server.js 3000 5001"
     echo 前端服务已启动，请访问: http://localhost:3000
     pause
     exit
@@ -26,7 +26,7 @@ if "%choice%"=="1" (
 if "%choice%"=="2" (
     echo.
     echo [启动] 后端服务...
-    start "财赋思后端" /D "%~dp0backend" cmd /k "color 0A & python run_dev_enhanced.py"
+    start "青盈后端" /D "%~dp0backend" cmd /k "color 0A & python run_dev_enhanced.py"
     echo 后端服务已启动，API地址: http://localhost:5001
     pause
     exit
@@ -35,10 +35,10 @@ if "%choice%"=="2" (
 if "%choice%"=="3" (
     echo.
     echo [1/2] 启动后端服务...
-    start "财赋思后端" /D "%~dp0backend" cmd /k "color 0A & python run_dev_enhanced.py"
+    start "青盈后端" /D "%~dp0backend" cmd /k "color 0A & python run_dev_enhanced.py"
     
     echo [2/2] 启动前端代理服务... 
-    start "财赋思前端" /D "%~dp0" cmd /k "color 0B & node scripts\local\proxy-server.js 3000 5001"
+    start "青盈前端" /D "%~dp0" cmd /k "color 0B & node scripts\local\proxy-server.js 3000 5001"
     
     echo.
     echo 所有服务已启动:

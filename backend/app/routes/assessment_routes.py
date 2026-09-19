@@ -1,5 +1,7 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify
 import logging
+
+from app.services.auth_service import require_auth
 
 logger = logging.getLogger('assessment_routes')
 
@@ -12,46 +14,8 @@ def _get_user_data_service():
     return user_data_service
 
 
-def _verify_token(id_token):
-    """Lazy-load and call verify_firebase_token."""
-    from app.services.auth_service import verify_firebase_token
-    return verify_firebase_token(id_token)
-
-
-def authenticate(f):
-    """Decorator to verify Firebase ID token."""
-    from functools import wraps
-
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        import os
-        is_dev = os.environ.get('DEV_MODE') == 'true' or current_app.config.get('DEV_MODE')
-        
-        if is_dev:
-            kwargs['user_info'] = {'uid': 'test_user_id', 'email': 'test@example.com'}
-            return f(*args, **kwargs)
-
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return jsonify({"error": "Authorization token is required"}), 401
-
-        id_token = auth_header.split('Bearer ')[1]
-        try:
-            user_info, error = _verify_token(id_token)
-        except Exception as e:
-            return jsonify({"error": f"Authentication failed: {str(e)}"}), 401
-
-        if error:
-            return jsonify({"error": f"Authentication failed: {error}"}), 401
-
-        kwargs['user_info'] = user_info
-        return f(*args, **kwargs)
-
-    return decorated_function
-
-
 @assessment_bp.route('/submit', methods=['POST'])
-@authenticate
+@require_auth
 def submit_assessment(user_info):
     """
     提交财务心智评估结果，支持多维度评分和详细分析
@@ -114,7 +78,7 @@ def submit_assessment(user_info):
 
 
 @assessment_bp.route('/results', methods=['GET'])
-@authenticate
+@require_auth
 def get_results(user_info):
     """
     Retrieve the latest assessment result for the current user.
@@ -137,7 +101,7 @@ def get_results(user_info):
 
 
 @assessment_bp.route('/history', methods=['GET'])
-@authenticate
+@require_auth
 def get_history(user_info):
     """
     Retrieve all historical assessment records for the current user,
@@ -175,7 +139,7 @@ def get_history(user_info):
 
 
 @assessment_bp.route('/latest', methods=['GET'])
-@authenticate
+@require_auth
 def get_latest(user_info):
     """
     Retrieve the most recent assessment record for the current user.

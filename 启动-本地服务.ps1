@@ -1,7 +1,7 @@
-# 财赋思应用启动脚本 - 本地服务
+# 青盈应用启动脚本 - 本地服务
 Clear-Host
 Write-Host "================================================"
-Write-Host "   财赋思应用 本地启动程序 (PowerShell版)"
+Write-Host "   青盈应用 本地启动程序 (PowerShell版)"
 Write-Host "================================================"
 Write-Host ""
 
@@ -80,7 +80,7 @@ if (hasBuildFolder) {
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>财赋思应用 - API代理</title>
+        <title>青盈应用 - API代理</title>
         <style>
           body { font-family: 'Microsoft YaHei', Arial, sans-serif; padding: 20px; }
           .container { max-width: 800px; margin: 0 auto; }
@@ -90,7 +90,7 @@ if (hasBuildFolder) {
       </head>
       <body>
         <div class="container">
-          <h1>财赋思应用 - API代理服务器</h1>
+          <h1>青盈应用 - API代理服务器</h1>
           <div class="status">代理服务器正在运行，API 请求将被转发到: \${BACKEND_API}</div>
           <div class="warning">未找到前端构建文件。这是API代理服务器的默认页面。</div>
           <p>后端状态: <span id="backend-status">检查中...</span></p>
@@ -117,7 +117,7 @@ if (hasBuildFolder) {
 app.listen(FRONTEND_PORT, () => {
   console.log(`启动代理服务器，前端端口: \${FRONTEND_PORT}，后端端口: \${BACKEND_PORT}`);
   console.log('================================================');
-  console.log(`  财赋思应用代理服务器已启动`);
+  console.log(`  青盈应用代理服务器已启动`);
   console.log('================================================');
   console.log(`- 前端页面: http://localhost:\${FRONTEND_PORT}`);
   console.log(`- 后端API: \${BACKEND_API}/api`);

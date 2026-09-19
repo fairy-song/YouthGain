@@ -1,5 +1,5 @@
 /**
- * 财赋思应用代理服务器
+ * 青盈应用代理服务器
  * 提供API代理和静态文件托管
  */
 
@@ -50,7 +50,7 @@ if (hasBuildFolder) {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>财赋思应用 - API代理</title>
+        <title>青盈应用 - API代理</title>
         <style>
           body {
             font-family: 'Microsoft YaHei', Arial, sans-serif;
@@ -94,7 +94,7 @@ if (hasBuildFolder) {
       </head>
       <body>
         <div class="container">
-          <h1>财赋思应用 - API代理服务器</h1>
+          <h1>青盈应用 - API代理服务器</h1>
           
           <div class="status">
             <strong>状态:</strong> 代理服务器正在运行
@@ -135,7 +135,7 @@ if (hasBuildFolder) {
 app.listen(FRONTEND_PORT, () => {
   console.log(`启动代理服务器，前端端口: ${FRONTEND_PORT}，后端端口: ${BACKEND_PORT}`);
   console.log('================================================');
-  console.log(`  财赋思应用代理服务器已启动`);
+  console.log(`  青盈应用代理服务器已启动`);
   console.log('================================================');
   console.log(`- 前端页面: http://localhost:${FRONTEND_PORT}`);
   console.log(`- 后端API: ${BACKEND_API}/api`);

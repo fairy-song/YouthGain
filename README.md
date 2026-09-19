@@ -1,4 +1,4 @@
-# 🌟 财赋思 (Caifusi) - AI金融心智教练
+# 🌟 青盈 (YouthGain) - AI金融心智教练
 
 ![应用版本](https://img.shields.io/badge/version-1.0.0-blue)
 ![构建状态](https://img.shields.io/badge/build-passing-brightgreen)
@@ -6,7 +6,7 @@
 ![后端服务](https://img.shields.io/badge/Flask-Python-darkgreen)
 ![AI平台](https://img.shields.io/badge/AI-Zhipu(GLM--4)-purple)
 
-财赋思是一款**基于人工智能的金融心智教练应用**，旨在帮助用户培养健康的财务心态，提升金融决策能力，并实现个人财务目标。本项目不仅提供丰富的金融知识，还深度整合了情绪引导与压力管理策略。
+青盈是一款**基于人工智能的金融心智教练应用**，旨在帮助用户培养健康的财务心态，提升金融决策能力，并实现个人财务目标。本项目不仅提供丰富的金融知识，还深度整合了情绪引导与压力管理策略。
 
 ---
 
@@ -94,7 +94,7 @@ pip install -r requirements.txt
 
 ## 🌐 线上演示
 
-一键体验最新 Alpha 尝鲜版 (前端页面展示)：[财赋思 - 线上体验](https://XiaoCow666.github.io/Caifusi/)
+一键体验最新 Alpha 尝鲜版 (前端页面展示)：[青盈 - 线上体验](https://XiaoCow666.github.io/YouthGain/)
 *(注：在线构建版本受限于网络请求，体验全功能需自行搭建并正确配置线上 API 代理服务器)*
 
 ## 📄 社区支持与开源许可

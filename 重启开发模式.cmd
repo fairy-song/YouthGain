@@ -38,7 +38,7 @@ echo.
 
 REM 启动后端
 echo [启动] 正在启动后端服务...
-start "财赋思-后端(开发模式)" cmd /k "cd /d "%~dp0backend" && python run_dev_enhanced.py"
+start "青盈-后端(开发模式)" cmd /k "cd /d "%~dp0backend" && python run_dev_enhanced.py"
 
 REM 等待后端启动
 echo [等待] 等待后端服务启动（5秒）...
@@ -47,7 +47,7 @@ timeout /t 5 /nobreak >nul
 REM 启动前端开发服务器
 echo [启动] 正在启动前端开发服务器...
 echo [提示] 首次启动可能需要较长时间...
-start "财赋思-前端(开发模式)" cmd /k "cd /d "%~dp0" && npm start"
+start "青盈-前端(开发模式)" cmd /k "cd /d "%~dp0" && npm start"
 
 echo.
 echo ================================================

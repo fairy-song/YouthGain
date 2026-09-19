@@ -1,11 +1,11 @@
 -- ==========================================
--- 财赋思 (Cái Fù Sī) - MySQL 数据库初始化脚本
+-- 青盈 YouthGain - MySQL 数据库初始化脚本
 -- 适用范围：数据库实验、大创答辩、本地持久化展示
 -- ==========================================
 
 -- 1. 创建数据库（如果不存在）
-CREATE DATABASE IF NOT EXISTS `caifusi` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `caifusi`;
+CREATE DATABASE IF NOT EXISTS `youthgain` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `youthgain`;
 
 -- 2. 移除旧表以确保重新初始化（可选，如需清空请取消注释）
 -- SET FOREIGN_KEY_CHECKS = 0;
@@ -92,5 +92,5 @@ ON DUPLICATE KEY UPDATE `title` = VALUES(`title`);
 
 -- 3. 插入初始AI对话问候
 INSERT INTO `coach_messages` (`user_id`, `sender`, `text`)
-VALUES ('test_user_id', 'assistant', '你好！我是你的AI金融心智教练“财赋思”。我已经准备好帮助你分析你的财务观念、制定合理的储蓄目标并规划理财方案。今天有什么想聊的吗？')
+VALUES ('test_user_id', 'assistant', '你好！我是你的AI金融心智教练“青盈”。我已经准备好帮助你分析你的财务观念、制定合理的储蓄目标并规划理财方案。今天有什么想聊的吗？')
 ON DUPLICATE KEY UPDATE `text` = VALUES(`text`);
