@@ -4,7 +4,7 @@
  */
 
 // API基础URL（根据环境自动选择）
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5001';
+const API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : 'http://127.0.0.1:5001';
 
 // 检查健康状态
 async function checkHealth() {

@@ -43,10 +43,12 @@ def create_app():
     from .routes.coach_routes import coach_bp
     from .routes.dashboard_routes import dashboard_bp
     from .routes.assessment_routes import assessment_bp
+    from .routes.decision_routes import decision_bp
 
     app.register_blueprint(coach_bp, url_prefix='/api/coach')
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
     app.register_blueprint(assessment_bp, url_prefix='/api/assessment')
+    app.register_blueprint(decision_bp, url_prefix='/api/decision')
 
     @app.route('/api/health', methods=['GET'])
     def health_check():

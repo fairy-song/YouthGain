@@ -122,7 +122,40 @@ class UserDataService:
                     last_id = MySQLHelper.execute_update(sql, params)
                     data['id'] = last_id
                     return True, "消息数据保存成功"
-                
+
+                elif data_type == 'transactions':
+                    txn_id = data.get('id') or str(uuid.uuid4())
+                    # 对外的字段名是 date（与 decision_engine.Transaction 对齐），
+                    # 数据库列名为 spent_at，避免与 MySQL 的 DATE 类型关键字混淆。
+                    spent_at = data.get('date') or data.get('spent_at')
+                    if not spent_at:
+                        return False, "消费日期 (date) 不能为空"
+                    regret = data.get('regret')
+                    sql = """
+                        INSERT INTO transactions
+                        (id, user_id, amount, category, merchant, note, hour, spent_at, regret, timestamp)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                        ON DUPLICATE KEY UPDATE
+                        amount = VALUES(amount), category = VALUES(category),
+                        merchant = VALUES(merchant), note = VALUES(note),
+                        hour = VALUES(hour), spent_at = VALUES(spent_at),
+                        regret = VALUES(regret)
+                    """
+                    params = (
+                        txn_id,
+                        user_id,
+                        data.get('amount', 0.0),
+                        data.get('category', ''),
+                        data.get('merchant') or None,
+                        data.get('note') or None,
+                        data.get('hour'),
+                        spent_at,
+                        None if regret is None else (1 if regret else 0),
+                    )
+                    MySQLHelper.execute_update(sql, params)
+                    data['id'] = txn_id
+                    return True, "消费记录保存成功"
+
                 else:
                     return False, f"未知的 MySQL 数据存储类型: {data_type}"
 
@@ -227,7 +260,28 @@ class UserDataService:
                             'timestamp': row['timestamp'].isoformat() if row['timestamp'] else None
                         })
                     return result[-limit:] if limit else result, None
-                
+
+                elif data_type == 'transactions':
+                    # 按消费日期倒序：决策引擎与界面都关心"最近花了什么"，
+                    # 而 timestamp 只是写入时间，批量导入时并不反映真实先后。
+                    sql = ("SELECT * FROM transactions WHERE user_id = %s "
+                           "ORDER BY spent_at DESC, timestamp DESC LIMIT %s")
+                    rows = MySQLHelper.execute_query(sql, (user_id, limit))
+                    result = []
+                    for row in rows:
+                        result.append({
+                            'id': row['id'],
+                            'amount': row['amount'],
+                            'category': row['category'],
+                            'merchant': row['merchant'] or '',
+                            'note': row['note'] or '',
+                            'hour': row['hour'],
+                            'date': row['spent_at'].isoformat() if row['spent_at'] else None,
+                            'regret': None if row['regret'] is None else bool(row['regret']),
+                            'timestamp': row['timestamp'].isoformat() if row['timestamp'] else None,
+                        })
+                    return result, None
+
                 else:
                     return [], None
 
@@ -296,6 +350,35 @@ class UserDataService:
                     if affected > 0:
                         return True, "目标更新成功"
                     return False, "目标更新失败或数据未改变"
+
+                elif data_type == 'transactions':
+                    if not updates:
+                        return True, "没有更新内容"
+
+                    allowed = ('amount', 'category', 'merchant', 'note', 'hour', 'spent_at', 'regret')
+                    fields = []
+                    params = []
+                    for k, v in updates.items():
+                        # 对外的 date 字段对应数据库列 spent_at
+                        column = 'spent_at' if k == 'date' else k
+                        if column not in allowed:
+                            continue
+                        if column == 'regret':
+                            v = None if v is None else (1 if v else 0)
+                        fields.append(f"{column} = %s")
+                        params.append(v)
+
+                    if not fields:
+                        return True, "没有可更新的合法字段"
+
+                    sql = f"UPDATE transactions SET {', '.join(fields)} WHERE id = %s AND user_id = %s"
+                    params.extend([data_id, user_id])
+
+                    affected = MySQLHelper.execute_update(sql, params)
+                    if affected > 0:
+                        return True, "消费记录更新成功"
+                    return False, "消费记录更新失败或数据未改变"
+
                 else:
                     return False, f"MySQL 暂不支持动态更新该类型数据: {data_type}"
 
@@ -345,6 +428,12 @@ class UserDataService:
                     if affected > 0:
                         return True, "评估数据删除成功"
                     return False, "评估数据不存在或删除失败"
+                elif data_type == 'transactions':
+                    sql = "DELETE FROM transactions WHERE id = %s AND user_id = %s"
+                    affected = MySQLHelper.execute_update(sql, (data_id, user_id))
+                    if affected > 0:
+                        return True, "消费记录删除成功"
+                    return False, "消费记录不存在或删除失败"
                 else:
                     return False, f"MySQL 暂不支持删除该类型数据: {data_type}"
 

@@ -6,9 +6,13 @@ import axios from 'axios';
 const isGitHubPages = window.location.hostname === 'xiaocow666.github.io';
 
 // 默认的API基础URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 
-                    (isGitHubPages ? 
-                     'https://你的API服务器地址' : 'http://localhost:5001/api');
+//
+// 注意：本地开发一律写 127.0.0.1 而不是 localhost。
+// Windows 上 localhost 会优先解析为 IPv6 的 ::1，而后端监听在 IPv4 的 0.0.0.0，
+// 每次都先连接超时再回退，实测使每个请求多花约 2 秒（127.0.0.1 只要 5 毫秒）。
+const API_BASE_URL = process.env.REACT_APP_API_URL ||
+                    (isGitHubPages ?
+                     'https://你的API服务器地址' : 'http://127.0.0.1:5001/api');
 
 // 创建axios实例
 const api = axios.create({
@@ -59,7 +63,7 @@ async function fetchApi(endpoint, options = {}) {
   } else if (process.env.NODE_ENV === 'production') {
     baseUrl = '';  // 在其他生产环境中使用相对路径
   } else {
-    baseUrl = 'http://localhost:5001';  // 开发环境
+    baseUrl = 'http://127.0.0.1:5001';  // 开发环境
   }
   
   // 确保endpoint格式正确
@@ -194,7 +198,7 @@ export const sendMessageToCoach = async (data) => {
     } else if (process.env.NODE_ENV === 'production') {
       baseUrl = process.env.REACT_APP_API_URL || '';
     } else {
-      baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+      baseUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5001';
     }
     
     const url = `${baseUrl}/api/coach/chat`;
@@ -347,6 +351,102 @@ export const getAssessmentHistory = async () => {
   }
 };
 
+// ============================================================
+// Decision APIs —— 决策引擎
+// 所有数值由后端 decision_engine 以纯函数算出，前端只做展示，不参与计算
+// ============================================================
+
+/**
+ * 获取完整决策报告。
+ * @param {Object} params
+ * @param {number} [params.monthlyIncome] 月收入（元），默认 2000
+ * @param {number} [params.incomeDay] 每月发生活费的日子（1-31）
+ * @returns {Object} { has_data, transaction_count, report, warnings }
+ */
+export const getDecisionReport = async ({ monthlyIncome, incomeDay } = {}) => {
+  try {
+    const params = {};
+    if (monthlyIncome !== undefined) params.monthly_income = monthlyIncome;
+    if (incomeDay !== undefined) params.income_day = incomeDay;
+
+    const response = await api.get('/decision/report', { params });
+    return response.data.data;
+  } catch (error) {
+    console.error('获取决策报告失败:', error);
+    throw error;
+  }
+};
+
+/**
+ * 计算单笔消费的机会成本——用于记录当下的即时反馈。
+ * @param {number} amount 消费金额
+ * @param {number} [monthlyIncome] 月收入
+ * @returns {Object} { amount, delay_days, surplus_ratio, message }
+ * @throws 用户入不敷出时后端返回 409，此处会抛出 error.response.data
+ */
+export const getOpportunityCost = async (amount, monthlyIncome) => {
+  try {
+    const body = { amount };
+    if (monthlyIncome !== undefined) body.monthly_income = monthlyIncome;
+
+    const response = await api.post('/decision/opportunity-cost', body);
+    return response.data.data;
+  } catch (error) {
+    console.error('计算机会成本失败:', error);
+    throw error;
+  }
+};
+
+/** 获取消费记录列表（按消费日期倒序）。 */
+export const listTransactions = async (limit = 200) => {
+  try {
+    const response = await api.get('/decision/transactions', { params: { limit } });
+    return response.data.data;
+  } catch (error) {
+    console.error('获取消费记录失败:', error);
+    throw error;
+  }
+};
+
+/**
+ * 新增一笔消费记录。
+ * @param {Object} data 必填 amount / category / date(YYYY-MM-DD)，可选 merchant / note / hour
+ */
+export const createTransaction = async (data) => {
+  try {
+    const response = await api.post('/decision/transactions', data);
+    return response.data.data;
+  } catch (error) {
+    console.error('保存消费记录失败:', error);
+    throw error;
+  }
+};
+
+/** 删除一笔消费记录。 */
+export const deleteTransaction = async (transactionId) => {
+  try {
+    const response = await api.delete(`/decision/transactions/${transactionId}`);
+    return response.data;
+  } catch (error) {
+    console.error('删除消费记录失败:', error);
+    throw error;
+  }
+};
+
+/**
+ * 提交事后回访结果——"这笔消费，现在回头看值吗"。
+ * 后悔率是行为改变最强的预测因子之一，也是「后悔集中」模式识别的输入。
+ */
+export const submitRegret = async (transactionId, regret) => {
+  try {
+    const response = await api.put(`/decision/transactions/${transactionId}/regret`, { regret });
+    return response.data;
+  } catch (error) {
+    console.error('提交回访结果失败:', error);
+    throw error;
+  }
+};
+
 // 导出API服务
 const apiService = {
   loginUser,
@@ -367,7 +467,14 @@ const apiService = {
   // Assessment APIs
   submitAssessmentNew,
   getLatestAssessment,
-  getAssessmentHistory
+  getAssessmentHistory,
+  // Decision APIs
+  getDecisionReport,
+  getOpportunityCost,
+  listTransactions,
+  createTransaction,
+  deleteTransaction,
+  submitRegret
 };
 
 export default apiService;

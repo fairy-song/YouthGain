@@ -76,6 +76,26 @@ CREATE TABLE IF NOT EXISTS `coach_messages` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI教练对话记录表';
 
 
+-- 7. 创建消费记录表
+-- 这是决策引擎的数据来源。spent_at 为消费发生日期，timestamp 为记录写入时间，
+-- 两者不可混用：行为分析看的是 spent_at，审计与排序看的是 timestamp。
+CREATE TABLE IF NOT EXISTS `transactions` (
+    `id` VARCHAR(64) NOT NULL COMMENT '记录ID (UUID)',
+    `user_id` VARCHAR(64) NOT NULL COMMENT '关联的用户ID',
+    `amount` DOUBLE NOT NULL COMMENT '消费金额（元），必须大于 0',
+    `category` VARCHAR(64) NOT NULL COMMENT '消费类别，如 外卖/食堂/交通',
+    `merchant` VARCHAR(128) DEFAULT NULL COMMENT '商户名，可选（用于后续自动分类）',
+    `note` VARCHAR(255) DEFAULT NULL COMMENT '用户备注，可选',
+    `hour` TINYINT DEFAULT NULL COMMENT '消费发生的小时 0-23，可选（用于深夜消费识别）',
+    `spent_at` DATE NOT NULL COMMENT '消费发生日期',
+    `regret` TINYINT(1) DEFAULT NULL COMMENT '回访结果: 1=后悔 0=不后悔 NULL=未回访',
+    `timestamp` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+    PRIMARY KEY (`id`),
+    CONSTRAINT `fk_transactions_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+    INDEX `idx_transactions_user` (`user_id`, `spent_at` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户消费记录表';
+
+
 -- ==========================================
 -- 插入初始演示数据 (用于本地测试与检查)
 -- ==========================================
