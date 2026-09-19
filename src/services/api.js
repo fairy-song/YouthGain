@@ -3,7 +3,7 @@ import axios from 'axios';
 // 这里是API服务模块，用于处理与后端的通信
 
 // 检查是否在GitHub Pages环境
-const isGitHubPages = window.location.hostname === 'xiaocow666.github.io';
+const isGitHubPages = window.location.hostname === 'fairy-song.github.io';
 
 // 默认的API基础URL
 //

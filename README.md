@@ -94,7 +94,7 @@ pip install -r requirements.txt
 
 ## 🌐 线上演示
 
-一键体验最新 Alpha 尝鲜版 (前端页面展示)：[青盈 - 线上体验](https://XiaoCow666.github.io/YouthGain/)
+一键体验最新 Alpha 尝鲜版 (前端页面展示)：[青盈 - 线上体验](https://fairy-song.github.io/YouthGain/)
 *(注：在线构建版本受限于网络请求，体验全功能需自行搭建并正确配置线上 API 代理服务器)*
 
 ## 📄 社区支持与开源许可

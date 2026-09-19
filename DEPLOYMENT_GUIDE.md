@@ -37,7 +37,7 @@
       - 启动后端服务: `python app.py`或使用WSGI服务器
    
    b. **配置CORS**:
-      - 确保后端配置了CORS设置，允许来自`xiaocow666.github.io`的请求
+      - 确保后端配置了CORS设置，允许来自`fairy-song.github.io`的请求
    
    c. **更新API地址**:
       - 修改`youthgain_project/frontend/src/services/api.js`文件中的API地址:
@@ -55,7 +55,7 @@
 
 ## 3. 测试部署
 
-1. 访问`https://xiaocow666.github.io/YouthGain/`检查前端是否正常加载
+1. 访问`https://fairy-song.github.io/YouthGain/`检查前端是否正常加载
 2. 测试与后端的连接，确保API请求正常工作
 3. 如遇到跨域问题，检查后端CORS配置
 

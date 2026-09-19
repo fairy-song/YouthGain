@@ -15,7 +15,7 @@ def create_app():
     allowed_origins = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "https://xiaocow666.github.io",  # GitHub Pages
+        "https://fairy-song.github.io",  # GitHub Pages
     ]
     extra_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '')
     if extra_origins:
