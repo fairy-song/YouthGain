@@ -88,7 +88,7 @@ const TeamPage = () => {
   ];
 
   return (
-    <div className="team-page bg-gray-50 min-h-screen pb-20">
+    <div className="team-page bg-neutral-50 min-h-screen pb-20">
       {/* 页面标题 */}
       <InfoPageHeader 
         title="团队介绍" 
@@ -99,26 +99,26 @@ const TeamPage = () => {
       {/* 公司简介 */}
       <div className="container mx-auto px-4">
         <div className="bg-white rounded-lg shadow-md p-8 mb-16">
-          <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">我们的故事</h2>
+          <h2 className="text-3xl font-bold text-center mb-8 text-neutral-800">我们的故事</h2>
           <div className="max-w-3xl mx-auto">
-            <p className="text-lg text-gray-700 mb-6">
+            <p className="text-lg text-neutral-700 mb-6">
               青盈（YouthGain）成立于2022年，是一家专注于金融素养教育和个人财务规划的科技公司。我们的创始团队由来自金融、科技和教育领域的专业人士组成，怀揣着同一个使命：通过人工智能技术，让金融教育变得更加个性化、实用和普及。
             </p>
-            <p className="text-lg text-gray-700 mb-6">
+            <p className="text-lg text-neutral-700 mb-6">
               在创立初期，我们深入研究了中国居民的财务状况和金融行为习惯，发现许多人在面对金融决策时常感到困惑和无助。传统的金融教育往往过于理论化，难以应用到实际生活中。因此，我们决定开发一款AI金融教练，能够根据每个人的具体情况提供量身定制的建议和指导。
             </p>
-            <p className="text-lg text-gray-700">
+            <p className="text-lg text-neutral-700">
               经过两年的发展，青盈已经服务了超过10万名用户，帮助他们建立健康的财务习惯，做出更明智的理财决策。我们的愿景是成为中国领先的金融素养教育平台，让每个人都能掌握必要的金融知识和技能，实现财务自由。
             </p>
           </div>
         </div>
         
         {/* 核心团队 */}
-        <h2 className="text-3xl font-bold text-center mb-10 text-gray-800">核心团队</h2>
+        <h2 className="text-3xl font-bold text-center mb-10 text-neutral-800">核心团队</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
           {teamMembers.map(member => (
             <div key={member.id} className="bg-white rounded-lg shadow-md overflow-hidden transform transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
-              <div className="h-64 bg-gray-200 overflow-hidden">
+              <div className="h-64 bg-neutral-200 overflow-hidden">
                 <img 
                   src={member.image} 
                   alt={member.name} 
@@ -126,18 +126,18 @@ const TeamPage = () => {
                 />
               </div>
               <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-800">{member.name}</h3>
-                <p className="text-blue-600 font-medium mb-4">{member.role}</p>
-                <p className="text-gray-700 mb-4">{member.bio}</p>
-                <div className="flex items-center text-gray-500 mb-4">
+                <h3 className="text-xl font-bold text-neutral-800">{member.name}</h3>
+                <p className="text-primary-700 font-medium mb-4">{member.role}</p>
+                <p className="text-neutral-700 mb-4">{member.bio}</p>
+                <div className="flex items-center text-neutral-500 mb-4">
                   <FaGraduationCap className="mr-2" />
                   <span>{member.education}</span>
                 </div>
                 <div className="flex space-x-3">
-                  <a href={member.linkedin} className="text-blue-600 hover:text-blue-800">
+                  <a href={member.linkedin} className="text-primary-700 hover:text-primary-800">
                     <FaLinkedin size={20} />
                   </a>
-                  <a href={`mailto:${member.email}`} className="text-blue-600 hover:text-blue-800">
+                  <a href={`mailto:${member.email}`} className="text-primary-700 hover:text-primary-800">
                     <FaEnvelope size={20} />
                   </a>
                 </div>
@@ -147,7 +147,7 @@ const TeamPage = () => {
         </div>
         
         {/* 顾问团队 */}
-        <h2 className="text-3xl font-bold text-center mb-10 text-gray-800">专家顾问</h2>
+        <h2 className="text-3xl font-bold text-center mb-10 text-neutral-800">专家顾问</h2>
         <div className="space-y-8 mb-16">
           {advisors.map(advisor => (
             <div key={advisor.id} className="bg-white rounded-lg shadow-md overflow-hidden p-6 flex flex-col md:flex-row items-center">
@@ -161,10 +161,10 @@ const TeamPage = () => {
                 </div>
               </div>
               <div className="w-full md:w-3/4 text-center md:text-left">
-                <h3 className="text-xl font-bold text-gray-800">{advisor.name}</h3>
-                <p className="text-blue-600 font-medium mb-2">{advisor.role}</p>
-                <p className="text-gray-700 mb-3">{advisor.bio}</p>
-                <div className="flex items-center text-gray-500 justify-center md:justify-start">
+                <h3 className="text-xl font-bold text-neutral-800">{advisor.name}</h3>
+                <p className="text-primary-700 font-medium mb-2">{advisor.role}</p>
+                <p className="text-neutral-700 mb-3">{advisor.bio}</p>
+                <div className="flex items-center text-neutral-500 justify-center md:justify-start">
                   <FaGraduationCap className="mr-2" />
                   <span>{advisor.education}</span>
                 </div>
@@ -174,7 +174,7 @@ const TeamPage = () => {
         </div>
         
         {/* 使命和愿景 */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg shadow-lg p-10">
+        <div className="bg-gradient-to-r from-primary-700 to-primary-900 text-white rounded-lg shadow-lg p-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div className="p-6 bg-white/10 rounded-lg backdrop-blur-sm">
               <h3 className="text-2xl font-bold mb-4">我们的使命</h3>

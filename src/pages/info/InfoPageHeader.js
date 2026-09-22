@@ -2,16 +2,21 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 const InfoPageHeader = ({ title, subtitle, category }) => {
-  // 根据类别设置不同的主题色
-  let bgColor = 'from-blue-600 to-blue-800';
-  let badgeColor = 'bg-blue-500';
-  
+  // 根据类别设置不同的主题色。
+  //
+  // 渐变一律用 700→900 档：这几档配白字才够对比度（>=4.5:1）。
+  // 浅档（400/500/600）作为大面积背景时白字只有 2-3:1，读不清。
+  // 徽章反过来：底色用 500 档提亮做点缀，文字用深色。
+  let bgColor = 'from-primary-700 to-primary-900';
+  let badgeColor = 'bg-primary-500 text-neutral-950';
+
   if (category === 'resources') {
-    bgColor = 'from-green-600 to-green-800';
-    badgeColor = 'bg-green-500';
+    // 资源中心用辅助蓝，与「关于我们」的品牌绿区分开——两个绿色页头会撞车
+    bgColor = 'from-secondary-700 to-secondary-900';
+    badgeColor = 'bg-secondary-500 text-neutral-950';
   } else if (category === 'legal') {
-    bgColor = 'from-gray-600 to-gray-800';
-    badgeColor = 'bg-gray-500';
+    bgColor = 'from-neutral-600 to-neutral-800';
+    badgeColor = 'bg-neutral-500 text-white';
   }
 
   return (
@@ -24,13 +29,13 @@ const InfoPageHeader = ({ title, subtitle, category }) => {
             <span className="mx-2">/</span>
             <span className="text-white">{title}</span>
           </div>
-          
+
           {/* 页面标题 */}
           <h1 className="text-4xl font-bold mb-4">{title}</h1>
-          
+
           {/* 可选徽章 */}
           {category && (
-            <span className={`${badgeColor} text-white text-xs px-3 py-1 rounded-full uppercase tracking-wide mb-4`}>
+            <span className={`${badgeColor} text-xs px-3 py-1 rounded-full uppercase tracking-wide mb-4`}>
               {category === 'about' && '关于我们'}
               {category === 'resources' && '资源中心'}
               {category === 'legal' && '法律条款'}

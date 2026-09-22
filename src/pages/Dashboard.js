@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Container, Row, Col, Card, Button, Badge, ProgressBar, Form, Spinner, Alert } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import { FaChartLine, FaPiggyBank, FaWallet, FaExchangeAlt, FaRobot, FaCoins, FaChartPie, FaMoneyBillWave, FaLightbulb, FaExclamationTriangle, FaCalculator } from 'react-icons/fa';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import { getDecisionReport, listTransactions, getOpportunityCost } from '../services/api';
+import { FaChartLine, FaPiggyBank, FaWallet, FaExchangeAlt, FaRobot, FaCoins, FaChartPie, FaMoneyBillWave, FaLightbulb, FaExclamationTriangle, FaCalculator, FaMicrophone } from 'react-icons/fa';
+import { getDecisionReport, listTransactions, getOpportunityCost, createTransaction, submitRegret, getUserGoals, createGoal, deleteGoal } from '../services/api';
+import VoiceBillModal from '../components/VoiceBillModal';
 
 // 增强型徽章组件
 const EnhancedBadge = ({ children, bg, className = '' }) => {
@@ -36,6 +36,39 @@ const Dashboard = () => {
   const [costResult, setCostResult] = useState(null);
   const [costError, setCostError] = useState('');
 
+  // 月收入：用户可设置，localStorage 记忆（后端暂未提供画像持久化，先落在本地）
+  const [monthlyIncome, setMonthlyIncome] = useState(() => {
+    const saved = localStorage.getItem('monthlyIncome');
+    return saved && !isNaN(Number(saved)) ? Number(saved) : DEFAULT_MONTHLY_INCOME;
+  });
+
+  // 语音记账弹窗开关
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
+
+  // 记账表单状态
+  const [recordForm, setRecordForm] = useState({
+    amount: '',
+    category: '餐饮',
+    date: new Date().toISOString().slice(0, 10),
+    merchant: '',
+    note: '',
+    hour: '',
+  });
+  const [recordResult, setRecordResult] = useState(null); // 记账成功后的机会成本即时反馈
+  const [recordError, setRecordError] = useState('');
+  const [savingRecord, setSavingRecord] = useState(false);
+
+  // 储蓄目标管理状态
+  const [goals, setGoals] = useState([]);
+  const [goalForm, setGoalForm] = useState({
+    title: '',
+    target_amount: '',
+    current_amount: '0',
+    deadline: '',
+  });
+  const [goalError, setGoalError] = useState('');
+  const [savingGoal, setSavingGoal] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -43,14 +76,16 @@ const Dashboard = () => {
       setLoading(true);
       setError('');
       try {
-        // 报告与流水并发拉取，两者互不依赖
-        const [reportData, txnData] = await Promise.all([
-          getDecisionReport({ monthlyIncome: DEFAULT_MONTHLY_INCOME }),
-          listTransactions(20),
+        // 报告、流水与目标并发拉取，三者互不依赖
+        const [reportData, txnData, goalData] = await Promise.all([
+          getDecisionReport({ monthlyIncome }),
+          listTransactions(50),
+          getUserGoals().catch(() => ({ data: { goals: [] } })), // 目标读取失败不阻塞看板
         ]);
         if (cancelled) return;
         setReport(reportData);
         setTransactions(txnData.transactions || []);
+        setGoals((goalData && goalData.data && goalData.data.goals) || []);
       } catch (e) {
         if (cancelled) return;
         setError(e?.response?.data?.message || e?.message || '加载数据失败，请确认后端服务已启动');
@@ -61,7 +96,7 @@ const Dashboard = () => {
 
     load();
     return () => { cancelled = true; };
-  }, []);
+  }, [monthlyIncome]); // 月收入变化时重新拉取报告（机会成本/结余都依赖它）
 
   // 试算机会成本——回答"这笔钱花了会怎样"
   const handleCostCheck = async (event) => {
@@ -76,12 +111,150 @@ const Dashboard = () => {
     }
 
     try {
-      const result = await getOpportunityCost(amount, DEFAULT_MONTHLY_INCOME);
+      const result = await getOpportunityCost(amount, monthlyIncome);
       setCostResult(result);
     } catch (e) {
       // 用户入不敷出时后端返回 409，把原因原样告诉用户，
       // 而不是显示"计算失败"这种没有信息量的提示。
       setCostError(e?.response?.data?.message || e?.message || '计算失败');
+    }
+  };
+
+  // 记一笔消费：保存记录 → 立即给出机会成本反馈 → 刷新报告与流水
+  const handleRecordTransaction = async (event) => {
+    event.preventDefault();
+    setRecordError('');
+    setRecordResult(null);
+
+    const amount = parseFloat(recordForm.amount);
+    if (isNaN(amount) || amount <= 0) {
+      setRecordError('请输入大于 0 的金额');
+      return;
+    }
+    const category = recordForm.category.trim();
+    if (!category) {
+      setRecordError('请输入消费类别');
+      return;
+    }
+
+    setSavingRecord(true);
+    try {
+      const payload = {
+        amount,
+        category,
+        date: recordForm.date,
+        merchant: recordForm.merchant.trim(),
+        note: recordForm.note.trim(),
+      };
+      // 小时字段可选，填写后才传给后端（用于深夜消费模式识别）
+      if (recordForm.hour !== '') payload.hour = parseInt(recordForm.hour, 10);
+      await createTransaction(payload);
+
+      // 即时反馈：这笔消费相当于多少天结余（后端确定性计算，前端不参与数值计算）
+      try {
+        const cost = await getOpportunityCost(amount, monthlyIncome);
+        setRecordResult(cost);
+      } catch (costErr) {
+        // 入不敷出时后端返回 409：记账已成功，只提示机会成本暂无法计算
+        setRecordResult({
+          unavailable: true,
+          message: costErr?.response?.data?.message || '机会成本暂时无法计算',
+        });
+      }
+
+      // 刷新报告与流水，让看板数字立刻更新
+      const [reportData, txnData] = await Promise.all([
+        getDecisionReport({ monthlyIncome }),
+        listTransactions(50),
+      ]);
+      setReport(reportData);
+      setTransactions(txnData.transactions || []);
+
+      // 清空金额、商户、备注与时段，保留类别和日期方便连续记账
+      setRecordForm((f) => ({ ...f, amount: '', merchant: '', note: '', hour: '' }));
+    } catch (err) {
+      setRecordError(err?.response?.data?.message || err?.message || '保存失败，请确认后端服务已启动');
+    } finally {
+      setSavingRecord(false);
+    }
+  };
+
+  // 消费回访："这笔消费，现在回头看值吗"
+  const handleRegret = async (transactionId, regret) => {
+    try {
+      await submitRegret(transactionId, regret);
+      const txnData = await listTransactions(50);
+      setTransactions(txnData.transactions || []);
+    } catch (err) {
+      alert(err?.response?.data?.message || err?.message || '提交回访失败');
+    }
+  };
+
+  // 创建储蓄目标（后端要求 title / target_amount / deadline 必填）
+  const handleGoalCreate = async (event) => {
+    event.preventDefault();
+    setGoalError('');
+
+    const target = parseFloat(goalForm.target_amount);
+    if (!goalForm.title.trim() || isNaN(target) || target <= 0) {
+      setGoalError('请填写目标名称和大于 0 的目标金额');
+      return;
+    }
+    if (!goalForm.deadline) {
+      setGoalError('请填写截止日期（用于判断目标能否按期达成）');
+      return;
+    }
+
+    setSavingGoal(true);
+    try {
+      const payload = {
+        title: goalForm.title.trim(),
+        target_amount: target,
+        current_amount: parseFloat(goalForm.current_amount) || 0,
+        deadline: goalForm.deadline,
+      };
+      await createGoal(payload);
+
+      // 清空表单并刷新目标列表与报告（目标可达性随之变化）
+      setGoalForm({ title: '', target_amount: '', current_amount: '0', deadline: '' });
+      const goalData = await getUserGoals();
+      setGoals((goalData && goalData.data && goalData.data.goals) || []);
+      const reportData = await getDecisionReport({ monthlyIncome });
+      setReport(reportData);
+    } catch (err) {
+      setGoalError(err?.response?.data?.message || err?.message || '创建目标失败');
+    } finally {
+      setSavingGoal(false);
+    }
+  };
+
+  // 删除储蓄目标（先确认，避免误删）
+  const handleGoalDelete = async (goalId) => {
+    if (!window.confirm('确定删除这个目标吗？')) return;
+    try {
+      await deleteGoal(goalId);
+      const goalData = await getUserGoals();
+      setGoals((goalData && goalData.data && goalData.data.goals) || []);
+      const reportData = await getDecisionReport({ monthlyIncome });
+      setReport(reportData);
+    } catch (err) {
+      alert(err?.response?.data?.message || err?.message || '删除目标失败');
+    }
+  };
+
+  // 语音记账保存成功后刷新看板（报告/流水/目标并发拉取）
+  const reloadAll = async () => {
+    try {
+      const [reportData, txnData, goalData] = await Promise.all([
+        getDecisionReport({ monthlyIncome }),
+        listTransactions(50),
+        getUserGoals().catch(() => ({ data: { goals: [] } })),
+      ]);
+      setReport(reportData);
+      setTransactions(txnData.transactions || []);
+      setGoals((goalData && goalData.data && goalData.data.goals) || []);
+    } catch (e) {
+      setError(e?.response?.data?.message || e?.message || '刷新数据失败');
     }
   };
 
@@ -114,13 +287,13 @@ const Dashboard = () => {
         
         {/* 金融相关元素 */}
         <div className="finance-icon finance-icon-1">
-          <FaCoins size={24} color="rgba(78, 115, 223, 0.15)" />
+          <FaCoins size={24} color="rgba(var(--yg-primary-rgb), 0.15)" />
         </div>
         <div className="finance-icon finance-icon-2">
-          <FaChartPie size={36} color="rgba(72, 187, 120, 0.15)" />
+          <FaChartPie size={36} color="rgba(var(--yg-success-rgb), 0.15)" />
         </div>
         <div className="finance-icon finance-icon-3">
-          <FaMoneyBillWave size={32} color="rgba(255, 193, 7, 0.15)" />
+          <FaMoneyBillWave size={32} color="rgba(var(--yg-accent-rgb), 0.15)" />
         </div>
       </div>
 
@@ -154,6 +327,154 @@ const Dashboard = () => {
             {report.message || '暂无消费记录。记录第一笔消费后即可生成分析报告。'}
           </Alert>
         )}
+
+        {/* 月收入设置：机会成本/结余计算的输入，失焦保存到 localStorage */}
+        <Row className="mb-4">
+          <Col md={4}>
+            <Card className="border-0 rounded-4 shadow-sm">
+              <Card.Body className="p-3 d-flex align-items-center gap-3">
+                <div className="icon-container bg-primary-light rounded-circle d-flex align-items-center justify-content-center">
+                  <FaWallet className="text-primary" />
+                </div>
+                <div className="flex-grow-1">
+                  <div className="text-muted small">月收入（元）</div>
+                  <Form.Control
+                    type="number"
+                    min="0"
+                    step="100"
+                    defaultValue={monthlyIncome}
+                    onBlur={(e) => {
+                      // 清空时不生效，避免误把月收入改成 0
+                      if (e.target.value === '') return;
+                      const v = Number(e.target.value);
+                      if (!isNaN(v) && v >= 0 && v !== monthlyIncome) {
+                        setMonthlyIncome(v);
+                        localStorage.setItem('monthlyIncome', String(v));
+                      }
+                    }}
+                    style={{ maxWidth: 160 }}
+                  />
+                </div>
+                <span className="text-muted small" style={{ maxWidth: 110 }}>机会成本按此计算</span>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* 记一笔消费 —— 产品核心闭环的入口：记录当下即反馈 */}
+        <Row className="mb-5">
+          <Col md={12}>
+            <Card className="border-0 rounded-4 shadow-sm dashboard-card">
+              <Card.Body className="p-4">
+                <div className="d-flex align-items-center mb-3">
+                  <div className="icon-container bg-success-light rounded-circle d-flex align-items-center justify-content-center me-3">
+                    <FaPiggyBank className="text-success" />
+                  </div>
+                  <h5 className="card-title mb-0">记一笔消费</h5>
+                  <span className="text-muted small ms-2">记录后立即告诉你这笔钱相当于几天结余</span>
+                  <Button
+                    variant="outline-success"
+                    size="sm"
+                    className="rounded-pill ms-auto"
+                    onClick={() => setShowVoiceModal(true)}
+                  >
+                    <FaMicrophone className="me-1" />语音录入
+                  </Button>
+                </div>
+                <Form onSubmit={handleRecordTransaction}>
+                  <Row className="g-3">
+                    <Col md={2}>
+                      <Form.Control
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        required
+                        placeholder="金额（元）"
+                        value={recordForm.amount}
+                        onChange={(e) => setRecordForm({ ...recordForm, amount: e.target.value })}
+                      />
+                    </Col>
+                    <Col md={2}>
+                      <Form.Select
+                        value={recordForm.category}
+                        onChange={(e) => setRecordForm({ ...recordForm, category: e.target.value })}
+                      >
+                        <option>餐饮</option>
+                        <option>交通</option>
+                        <option>购物</option>
+                        <option>娱乐</option>
+                        <option>学习</option>
+                        <option>房租</option>
+                        <option>话费</option>
+                        <option>医疗</option>
+                        <option>其他</option>
+                      </Form.Select>
+                    </Col>
+                    <Col md={2}>
+                      <Form.Control
+                        type="date"
+                        required
+                        value={recordForm.date}
+                        onChange={(e) => setRecordForm({ ...recordForm, date: e.target.value })}
+                      />
+                    </Col>
+                    <Col md={2}>
+                      <Form.Control
+                        type="text"
+                        placeholder="商户（可选）"
+                        value={recordForm.merchant}
+                        onChange={(e) => setRecordForm({ ...recordForm, merchant: e.target.value })}
+                      />
+                    </Col>
+                    <Col md={2}>
+                      <Form.Select
+                        value={recordForm.hour}
+                        onChange={(e) => setRecordForm({ ...recordForm, hour: e.target.value })}
+                      >
+                        <option value="">时段（可选）</option>
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <option key={i} value={i}>{i} 时</option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                    <Col md={2} className="d-flex align-items-center">
+                      <Button type="submit" variant="success" className="rounded-pill w-100" disabled={savingRecord}>
+                        {savingRecord ? '保存中…' : '记一笔'}
+                      </Button>
+                    </Col>
+                  </Row>
+                  <Row className="mt-2">
+                    <Col md={8}>
+                      <Form.Control
+                        type="text"
+                        placeholder="备注（可选，例如：和室友吃饭）"
+                        value={recordForm.note}
+                        onChange={(e) => setRecordForm({ ...recordForm, note: e.target.value })}
+                      />
+                    </Col>
+                  </Row>
+                </Form>
+
+                {recordError && <Alert variant="danger" className="mt-3 mb-0 small">{recordError}</Alert>}
+
+                {recordResult && !recordResult.unavailable && (
+                  <div className="mt-3 p-3 rounded-4 bg-success-light">
+                    <div className="d-flex align-items-baseline gap-2 flex-wrap">
+                      <span className="display-6 fw-bold text-success">¥{recordResult.amount}</span>
+                      <span className="fw-medium">
+                        相当于你 <b className="fs-4">{Math.round(recordResult.delay_days)} 天</b> 的结余
+                      </span>
+                    </div>
+                    <p className="text-muted small mb-0">{recordResult.message}</p>
+                  </div>
+                )}
+                {recordResult && recordResult.unavailable && (
+                  <Alert variant="warning" className="mt-3 mb-0 small">{recordResult.message}</Alert>
+                )}
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
 
         <Row className="g-4 mb-5">
           <Col md={4}>
@@ -273,7 +594,122 @@ const Dashboard = () => {
             </Card>
           </Col>
         </Row>
-        
+
+        {/* 储蓄目标管理 —— 设定目标，让每笔消费都有参照 */}
+        <Row className="g-4 mb-5">
+          <Col md={5}>
+            <Card className="h-100 border-0 rounded-4 shadow-sm dashboard-card">
+              <Card.Body className="p-4">
+                <div className="d-flex align-items-center mb-3">
+                  <div className="icon-container bg-warning-light rounded-circle d-flex align-items-center justify-content-center me-3">
+                    <FaWallet className="text-warning" />
+                  </div>
+                  <h5 className="card-title mb-0">设定储蓄目标</h5>
+                </div>
+                <Form onSubmit={handleGoalCreate}>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="small text-muted">目标名称</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="例如：换新手机"
+                      value={goalForm.title}
+                      onChange={(e) => setGoalForm({ ...goalForm, title: e.target.value })}
+                    />
+                  </Form.Group>
+                  <Row>
+                    <Col>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="small text-muted">目标金额（元）</Form.Label>
+                        <Form.Control
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="8000"
+                          value={goalForm.target_amount}
+                          onChange={(e) => setGoalForm({ ...goalForm, target_amount: e.target.value })}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="small text-muted">已存金额（元）</Form.Label>
+                        <Form.Control
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0"
+                          value={goalForm.current_amount}
+                          onChange={(e) => setGoalForm({ ...goalForm, current_amount: e.target.value })}
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="small text-muted">截止日期</Form.Label>
+                    <Form.Control
+                      type="date"
+                      required
+                      value={goalForm.deadline}
+                      onChange={(e) => setGoalForm({ ...goalForm, deadline: e.target.value })}
+                    />
+                  </Form.Group>
+                  {goalError && <Alert variant="danger" className="small py-2">{goalError}</Alert>}
+                  <Button type="submit" variant="warning" className="rounded-pill px-4" disabled={savingGoal}>
+                    {savingGoal ? '保存中…' : '创建目标'}
+                  </Button>
+                </Form>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={7}>
+            <Card className="h-100 border-0 rounded-4 shadow-sm dashboard-card">
+              <Card.Body className="p-4">
+                <div className="d-flex align-items-center mb-3">
+                  <div className="icon-container bg-warning-light rounded-circle d-flex align-items-center justify-content-center me-3">
+                    <FaCoins className="text-warning" />
+                  </div>
+                  <h5 className="card-title mb-0">我的目标</h5>
+                </div>
+                {goals.length === 0 ? (
+                  <p className="text-muted mb-0">
+                    还没有设定目标。设定一个目标后，每次消费都会显示它让你离目标更远了多少天。
+                  </p>
+                ) : (
+                  <div className="d-flex flex-column gap-3">
+                    {goals.map((g) => {
+                      const target = Number(g.target_amount) || 0;
+                      const current = Number(g.current_amount) || 0;
+                      const progress = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+                      const statusLabel = g.status === 'active' ? '进行中' : g.status === 'completed' ? '已完成' : '已取消';
+                      return (
+                        <div key={g.id} className="border rounded-3 p-3">
+                          <div className="d-flex align-items-center justify-content-between mb-2">
+                            <strong>{g.title}</strong>
+                            <div className="d-flex align-items-center gap-2">
+                              <Badge pill bg={g.status === 'active' ? 'warning' : 'success'} text={g.status === 'active' ? 'dark' : 'white'}>
+                                {statusLabel}
+                              </Badge>
+                              <Button size="sm" variant="outline-danger" onClick={() => handleGoalDelete(g.id)}>
+                                删除
+                              </Button>
+                            </div>
+                          </div>
+                          <ProgressBar now={progress} variant="warning" className="mb-2" />
+                          <div className="d-flex justify-content-between text-muted small">
+                            <span>已存 ¥{current.toLocaleString()} / ¥{target.toLocaleString()}</span>
+                            <span>{progress}%</span>
+                          </div>
+                          {g.deadline && <div className="text-muted small mt-1">截止：{g.deadline}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+
         {/* 机会成本试算 + 行为模式发现 —— 产品核心机制 */}
         <Row className="g-4 mb-5">
           <Col md={5}>
@@ -367,12 +803,13 @@ const Dashboard = () => {
                         <th scope="col">日期</th>
                         <th scope="col">类别</th>
                         <th scope="col" className="text-end">金额</th>
+                        <th scope="col">回访</th>
               </tr>
             </thead>
             <tbody>
               {transactions.length === 0 ? (
                 <tr>
-                  <td colSpan="3" className="text-center text-muted py-4">
+                  <td colSpan="4" className="text-center text-muted py-4">
                     还没有消费记录
                   </td>
                 </tr>
@@ -391,6 +828,23 @@ const Dashboard = () => {
                     </td>
                     <td className="text-end fw-medium text-danger">
                       -¥{t.amount.toLocaleString()}
+                    </td>
+                    <td>
+                      {t.regret === null || t.regret === undefined ? (
+                        // 未回访：提供"值/不值"两个按钮，回访结果用于后悔率统计与"后悔集中"模式识别
+                        <div className="d-flex gap-1">
+                          <Button size="sm" variant="outline-success" className="py-0 px-2" onClick={() => handleRegret(t.id, false)}>
+                            值
+                          </Button>
+                          <Button size="sm" variant="outline-danger" className="py-0 px-2" onClick={() => handleRegret(t.id, true)}>
+                            不值
+                          </Button>
+                        </div>
+                      ) : t.regret ? (
+                        <Badge bg="danger" className="rounded-pill px-2 py-1">后悔</Badge>
+                      ) : (
+                        <Badge bg="success" className="rounded-pill px-2 py-1">值得</Badge>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -427,6 +881,14 @@ const Dashboard = () => {
         </Row>
       </Container>
       
+      {/* 语音记账 + AI 消费评估弹窗 */}
+      <VoiceBillModal
+        show={showVoiceModal}
+        onClose={() => setShowVoiceModal(false)}
+        onSaved={reloadAll}
+        monthlyIncome={monthlyIncome}
+      />
+
       {/* 自定义CSS */}
       <style jsx>{`
         .dashboard-page {
@@ -444,12 +906,12 @@ const Dashboard = () => {
           height: 100%;
           overflow: hidden;
           z-index: -2;
-          background: linear-gradient(120deg, #f0f8ff 0%, #e6f2ff 100%);
+          background: linear-gradient(120deg, var(--yg-wash-from) 0%, var(--yg-wash-to) 100%);
         }
         
         .floating-shape {
           position: absolute;
-          background: rgba(78, 115, 223, 0.05);
+          background: rgba(var(--yg-primary-rgb), 0.05);
           border-radius: 50%;
           animation: float 15s infinite ease-in-out;
         }
@@ -468,7 +930,7 @@ const Dashboard = () => {
           top: 30%;
           right: -100px;
           animation-delay: 2s;
-          background: rgba(34, 74, 190, 0.05);
+          background: rgba(var(--yg-primary-rgb), 0.05);
         }
         
         .shape3 {
@@ -477,7 +939,7 @@ const Dashboard = () => {
           bottom: -125px;
           left: 20%;
           animation-delay: 4s;
-          background: rgba(92, 159, 247, 0.05);
+          background: rgba(var(--yg-primary-rgb), 0.05);
         }
         
         @keyframes float {
@@ -588,44 +1050,44 @@ const Dashboard = () => {
         
         /* 背景色和文本色 */
         .bg-primary-light {
-          background-color: rgba(78, 115, 223, 0.1);
+          background-color: rgba(var(--yg-primary-rgb), 0.1);
         }
         
         .bg-success-light {
-          background-color: rgba(72, 187, 120, 0.1);
+          background-color: rgba(var(--yg-success-rgb), 0.1);
         }
         
         .bg-info-light {
-          background-color: rgba(66, 153, 225, 0.1);
+          background-color: rgba(var(--yg-secondary-rgb), 0.1);
         }
         
         .bg-warning-light {
-          background-color: rgba(255, 193, 7, 0.1);
+          background-color: rgba(var(--yg-accent-rgb), 0.1);
         }
         
         .bg-danger-light {
-          background-color: rgba(220, 53, 69, 0.1);
+          background-color: rgba(var(--yg-danger-rgb), 0.1);
         }
         
         .bg-secondary-light {
-          background-color: rgba(108, 117, 125, 0.1);
+          background-color: rgba(var(--yg-muted-rgb), 0.1);
         }
         
         .bg-gradient-primary {
-          background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+          background: linear-gradient(135deg, var(--yg-primary-text) 0%, var(--yg-primary-deep) 100%);
         }
         
         /* 按钮发光效果 */
         .btn-glow {
           position: relative;
           overflow: hidden;
-          box-shadow: 0 0 10px rgba(78, 115, 223, 0.3);
+          box-shadow: 0 0 10px rgba(var(--yg-primary-rgb), 0.3);
           transition: all 0.3s ease;
           border: none;
         }
         
         .btn-glow:hover {
-          box-shadow: 0 0 20px rgba(78, 115, 223, 0.5);
+          box-shadow: 0 0 20px rgba(var(--yg-primary-rgb), 0.5);
           transform: translateY(-2px);
         }
       `}</style>

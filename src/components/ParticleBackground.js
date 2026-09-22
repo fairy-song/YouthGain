@@ -120,7 +120,7 @@ const ParticleBackground = () => {
                 let dx = (Math.random() - 0.5) * 1.5;
                 let dy = (Math.random() - 0.5) * 1.5;
                 // Tech colors: Blues, Cyans, Purples
-                const colors = ['rgba(78, 115, 223, 0.7)', 'rgba(54, 185, 204, 0.7)', 'rgba(111, 66, 193, 0.7)', 'rgba(255, 255, 255, 0.8)'];
+                const colors = ['rgba(var(--yg-primary-rgb), 0.7)', 'rgba(54, 185, 204, 0.7)', 'rgba(111, 66, 193, 0.7)', 'rgba(255, 255, 255, 0.8)'];
                 let color = colors[Math.floor(Math.random() * colors.length)];
 
                 particles.push(new Particle(x, y, dx, dy, size, color));

@@ -158,4 +158,285 @@ code {
     transform: scale(20, 20);
     opacity: 0;
   }
+}
+
+/* ============================================================
+   Bootstrap 主题覆盖
+   ============================================================
+
+   本项目用预编译的 bootstrap.min.css（没有 sass 依赖），
+   但 Bootstrap 5.3 的配色全部走 CSS 自定义属性，所以纯 CSS 就能覆盖。
+
+   本块必须晚于 bootstrap.min.css 加载 —— 见 src/index.js 的引入顺序。
+
+   一个关键区分：
+     --bs-*-rgb  用于 .bg-* / .text-* / .badge 等工具类
+     但 .text-* 用的是实色品牌色，在浅底上对比度不足（如主色仅 2.25:1），
+     所以 .text-* 单独指向 --yg-*-text 压深版，不跟随 --bs-*-rgb。
+     而 .bg-* 保持原色（作为填充色是合适的）。
+   ============================================================ */
+
+:root {
+  --bs-primary: var(--yg-primary);
+  --bs-primary-rgb: var(--yg-primary-rgb);
+  --bs-secondary: var(--yg-secondary);
+  --bs-secondary-rgb: var(--yg-secondary-rgb);
+  --bs-success: var(--yg-success);
+  --bs-success-rgb: var(--yg-success-rgb);
+  --bs-warning: var(--yg-accent);
+  --bs-warning-rgb: var(--yg-accent-rgb);
+  --bs-info: var(--yg-secondary);
+  --bs-info-rgb: var(--yg-secondary-rgb);
+  --bs-danger: var(--yg-danger);
+  --bs-danger-rgb: var(--yg-danger-rgb);
+
+  --bs-body-bg: var(--yg-surface);
+  --bs-body-color: var(--yg-ink);
+  --bs-border-color: var(--yg-line);
+
+  /* Bootstrap 自带的 emphasis / subtle 派生色，同步到新色板 */
+  --bs-primary-text-emphasis: var(--yg-primary-text);
+  --bs-primary-bg-subtle: var(--yg-primary-subtle);
+  --bs-primary-border-subtle: var(--yg-primary-border);
+  --bs-secondary-text-emphasis: var(--yg-secondary-text);
+  --bs-secondary-bg-subtle: var(--yg-secondary-subtle);
+  --bs-secondary-border-subtle: var(--yg-secondary-border);
+  --bs-success-text-emphasis: var(--yg-success-text);
+  --bs-warning-text-emphasis: var(--yg-accent-text);
+  --bs-warning-bg-subtle: var(--yg-accent-subtle);
+  --bs-warning-border-subtle: var(--yg-accent-border);
+  --bs-danger-text-emphasis: var(--yg-danger-text);
+}
+
+body {
+  background-color: var(--yg-surface);
+  color: var(--yg-ink);
+}
+
+/* ---------- 文字色：一律用压深版，保证可读 ---------- */
+
+.text-primary { color: var(--yg-primary-text) !important; }
+.text-secondary { color: var(--yg-secondary-text) !important; }
+.text-success { color: var(--yg-success-text) !important; }
+.text-warning { color: var(--yg-accent-text) !important; }
+.text-info { color: var(--yg-secondary-text) !important; }
+.text-danger { color: var(--yg-danger-text) !important; }
+.text-muted { color: var(--yg-muted) !important; }
+
+/* ---------- 实心按钮 ----------
+   Bootstrap 把每个 variant 的颜色烘焙在 .btn-* 的 --bs-btn-* 上，
+   只改 :root 的 --bs-primary 不会影响按钮，必须逐个覆盖。
+
+   主色/橙色底明度高，配白字读不清（主色仅 2.36:1），
+   故这两类用近黑字 --yg-primary-ink（7.38:1 / 6.87:1）。
+   辅助蓝底压深到 hover 档，配白字 4.86:1。                             */
+
+.btn-primary {
+  --bs-btn-color: var(--yg-primary-ink);
+  --bs-btn-bg: var(--yg-primary);
+  --bs-btn-border-color: var(--yg-primary);
+  --bs-btn-hover-color: var(--yg-primary-ink);
+  --bs-btn-hover-bg: var(--yg-primary-hover);
+  --bs-btn-hover-border-color: var(--yg-primary-hover);
+  --bs-btn-active-color: var(--yg-primary-ink);
+  --bs-btn-active-bg: var(--yg-primary-active);
+  --bs-btn-active-border-color: var(--yg-primary-active);
+  --bs-btn-disabled-color: var(--yg-primary-ink);
+  --bs-btn-disabled-bg: var(--yg-primary);
+  --bs-btn-disabled-border-color: var(--yg-primary);
+  --bs-btn-focus-shadow-rgb: var(--yg-primary-rgb);
+}
+
+.btn-secondary,
+.btn-info {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--yg-secondary-hover);
+  --bs-btn-border-color: var(--yg-secondary-hover);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--yg-secondary-active);
+  --bs-btn-hover-border-color: var(--yg-secondary-active);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--yg-secondary-active);
+  --bs-btn-active-border-color: var(--yg-secondary-active);
+  --bs-btn-disabled-color: #fff;
+  --bs-btn-disabled-bg: var(--yg-secondary-hover);
+  --bs-btn-disabled-border-color: var(--yg-secondary-hover);
+  --bs-btn-focus-shadow-rgb: var(--yg-secondary-rgb);
+}
+
+.btn-success {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--yg-success);
+  --bs-btn-border-color: var(--yg-success);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--yg-success-text);
+  --bs-btn-hover-border-color: var(--yg-success-text);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--yg-success-text);
+  --bs-btn-active-border-color: var(--yg-success-text);
+  --bs-btn-disabled-color: #fff;
+  --bs-btn-disabled-bg: var(--yg-success);
+  --bs-btn-disabled-border-color: var(--yg-success);
+  --bs-btn-focus-shadow-rgb: var(--yg-success-rgb);
+}
+
+.btn-warning {
+  --bs-btn-color: var(--yg-primary-ink);
+  --bs-btn-bg: var(--yg-accent);
+  --bs-btn-border-color: var(--yg-accent);
+  --bs-btn-hover-color: var(--yg-primary-ink);
+  --bs-btn-hover-bg: var(--yg-accent-hover);
+  --bs-btn-hover-border-color: var(--yg-accent-hover);
+  --bs-btn-active-color: var(--yg-primary-ink);
+  --bs-btn-active-bg: var(--yg-accent-active);
+  --bs-btn-active-border-color: var(--yg-accent-active);
+  --bs-btn-disabled-color: var(--yg-primary-ink);
+  --bs-btn-disabled-bg: var(--yg-accent);
+  --bs-btn-disabled-border-color: var(--yg-accent);
+  --bs-btn-focus-shadow-rgb: var(--yg-accent-rgb);
+}
+
+.btn-danger {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--yg-danger);
+  --bs-btn-border-color: var(--yg-danger);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--yg-danger-text);
+  --bs-btn-hover-border-color: var(--yg-danger-text);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--yg-danger-text);
+  --bs-btn-active-border-color: var(--yg-danger-text);
+  --bs-btn-disabled-color: #fff;
+  --bs-btn-disabled-bg: var(--yg-danger);
+  --bs-btn-disabled-border-color: var(--yg-danger);
+  --bs-btn-focus-shadow-rgb: var(--yg-danger-rgb);
+}
+
+/* ---------- 描边按钮：文字用压深版才读得清 ---------- */
+
+.btn-outline-primary {
+  --bs-btn-color: var(--yg-primary-text);
+  --bs-btn-border-color: var(--yg-primary);
+  --bs-btn-hover-color: var(--yg-primary-ink);
+  --bs-btn-hover-bg: var(--yg-primary);
+  --bs-btn-hover-border-color: var(--yg-primary);
+  --bs-btn-active-color: var(--yg-primary-ink);
+  --bs-btn-active-bg: var(--yg-primary-active);
+  --bs-btn-active-border-color: var(--yg-primary-active);
+  --bs-btn-focus-shadow-rgb: var(--yg-primary-rgb);
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: var(--yg-secondary-text);
+  --bs-btn-border-color: var(--yg-secondary);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--yg-secondary-hover);
+  --bs-btn-hover-border-color: var(--yg-secondary-hover);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--yg-secondary-active);
+  --bs-btn-active-border-color: var(--yg-secondary-active);
+  --bs-btn-focus-shadow-rgb: var(--yg-secondary-rgb);
+}
+
+.btn-outline-success {
+  --bs-btn-color: var(--yg-success-text);
+  --bs-btn-border-color: var(--yg-success);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--yg-success);
+  --bs-btn-hover-border-color: var(--yg-success);
+  --bs-btn-focus-shadow-rgb: var(--yg-success-rgb);
+}
+
+.btn-outline-warning {
+  --bs-btn-color: var(--yg-accent-text);
+  --bs-btn-border-color: var(--yg-accent);
+  --bs-btn-hover-color: var(--yg-primary-ink);
+  --bs-btn-hover-bg: var(--yg-accent);
+  --bs-btn-hover-border-color: var(--yg-accent);
+  --bs-btn-focus-shadow-rgb: var(--yg-accent-rgb);
+}
+
+.btn-outline-danger {
+  --bs-btn-color: var(--yg-danger-text);
+  --bs-btn-border-color: var(--yg-danger);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--yg-danger);
+  --bs-btn-hover-border-color: var(--yg-danger);
+  --bs-btn-focus-shadow-rgb: var(--yg-danger-rgb);
+}
+
+/* ---------- 徽章 ----------
+   <Badge bg="primary"> 生成 .text-bg-primary，Bootstrap 默认强制白字，
+   在浅主色底上只有 2.36:1，故改为近黑字。                              */
+
+.text-bg-primary { color: var(--yg-primary-ink) !important; }
+.text-bg-warning { color: var(--yg-primary-ink) !important; }
+
+/* ---------- 提示框 ---------- */
+
+.alert-primary {
+  --bs-alert-color: var(--yg-primary-text);
+  --bs-alert-bg: var(--yg-primary-subtle);
+  --bs-alert-border-color: var(--yg-primary-border);
+}
+.alert-secondary,
+.alert-info {
+  --bs-alert-color: var(--yg-secondary-text);
+  --bs-alert-bg: var(--yg-secondary-subtle);
+  --bs-alert-border-color: var(--yg-secondary-border);
+}
+.alert-success {
+  --bs-alert-color: var(--yg-success-text);
+  --bs-alert-bg: #E4F0E9;
+  --bs-alert-border-color: #C3DFD0;
+}
+.alert-warning {
+  --bs-alert-color: var(--yg-accent-text);
+  --bs-alert-bg: var(--yg-accent-subtle);
+  --bs-alert-border-color: var(--yg-accent-border);
+}
+.alert-danger {
+  --bs-alert-color: var(--yg-danger-text);
+  --bs-alert-bg: #F7E6E5;
+  --bs-alert-border-color: #EFCBC8;
+}
+
+/* ---------- 进度条 ---------- */
+
+.progress {
+  --bs-progress-bg: var(--yg-line);
+}
+
+/* ---------- 表单 ---------- */
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--yg-primary);
+  box-shadow: 0 0 0 0.2rem rgba(var(--yg-primary-rgb), 0.2);
+}
+
+.form-check-input:checked {
+  background-color: var(--yg-primary);
+  border-color: var(--yg-primary);
+}
+
+/* ---------- 链接 ---------- */
+
+a {
+  color: var(--yg-primary-text);
+}
+
+a:hover {
+  color: var(--yg-primary-active);
+}
+
+/* ---------- 卡片 / 分割线 ---------- */
+
+.card {
+  --bs-card-border-color: var(--yg-line);
+}
+
+hr {
+  border-color: var(--yg-line);
+  opacity: 1;
 } 

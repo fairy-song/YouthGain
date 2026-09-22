@@ -44,11 +44,13 @@ def create_app():
     from .routes.dashboard_routes import dashboard_bp
     from .routes.assessment_routes import assessment_bp
     from .routes.decision_routes import decision_bp
+    from .routes.asr_routes import asr_bp
 
     app.register_blueprint(coach_bp, url_prefix='/api/coach')
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
     app.register_blueprint(assessment_bp, url_prefix='/api/assessment')
     app.register_blueprint(decision_bp, url_prefix='/api/decision')
+    app.register_blueprint(asr_bp, url_prefix='/api/asr')
 
     @app.route('/api/health', methods=['GET'])
     def health_check():

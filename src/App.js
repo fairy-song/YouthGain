@@ -61,7 +61,7 @@ const ApiStatusIndicator = () => {
   if (apiStatus === 'checking') return null;
   if (apiStatus === 'error') {
     return (
-      <div className="fixed bottom-4 right-4 bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg">
+      <div className="fixed bottom-4 right-4 bg-danger-600 text-white px-4 py-2 rounded-lg shadow-lg">
         <p>无法连接到后端API</p>
         <p className="text-sm">请确保后端服务正在运行</p>
       </div>
@@ -72,9 +72,10 @@ const ApiStatusIndicator = () => {
 
 // 受保护的路由组件
 const ProtectedRoute = ({ children }) => {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, loading, initializing } = useAuth();
   
-  if (loading) {
+  // initializing: 首次挂载时正在恢复登录状态（Firebase 异步），此时不能判定未登录
+  if (loading || initializing) {
     return <div className="flex justify-center items-center h-screen">加载中...</div>;
   }
   

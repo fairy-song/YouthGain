@@ -43,14 +43,14 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-170px)] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-[calc(100vh-170px)] flex items-center justify-center bg-neutral-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 space-y-8">
         <div>
-          <h2 className="text-center text-3xl font-extrabold text-gray-900">注册账户</h2>
+          <h2 className="text-center text-3xl font-extrabold text-neutral-900">注册账户</h2>
         </div>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <div className="bg-danger-100 border border-danger-400 text-danger-700 px-4 py-3 rounded relative" role="alert">
             <span className="block sm:inline">{error}</span>
           </div>
         )}
@@ -58,7 +58,7 @@ const Register = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm space-y-4">
             <div>
-              <label htmlFor="username" className="block text-gray-700 font-medium mb-2">
+              <label htmlFor="username" className="block text-neutral-700 font-medium mb-2">
                 用户名
               </label>
               <input
@@ -66,14 +66,14 @@ const Register = () => {
                 name="username"
                 type="text"
                 required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="appearance-none relative block w-full px-3 py-2 border border-neutral-300 placeholder-neutral-500 text-neutral-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 placeholder="用户名"
                 value={formData.username}
                 onChange={handleChange}
               />
             </div>
             <div>
-              <label htmlFor="email" className="block text-gray-700 font-medium mb-2">
+              <label htmlFor="email" className="block text-neutral-700 font-medium mb-2">
                 电子邮箱
               </label>
               <input
@@ -82,14 +82,14 @@ const Register = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="appearance-none relative block w-full px-3 py-2 border border-neutral-300 placeholder-neutral-500 text-neutral-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 placeholder="your.email@example.com"
                 value={formData.email}
                 onChange={handleChange}
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-gray-700 font-medium mb-2">
+              <label htmlFor="password" className="block text-neutral-700 font-medium mb-2">
                 密码
               </label>
               <input
@@ -98,14 +98,14 @@ const Register = () => {
                 type="password"
                 autoComplete="new-password"
                 required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="appearance-none relative block w-full px-3 py-2 border border-neutral-300 placeholder-neutral-500 text-neutral-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 placeholder="********"
                 value={formData.password}
                 onChange={handleChange}
               />
             </div>
             <div>
-              <label htmlFor="confirmPassword" className="block text-gray-700 font-medium mb-2">
+              <label htmlFor="confirmPassword" className="block text-neutral-700 font-medium mb-2">
                 确认密码
               </label>
               <input
@@ -114,7 +114,7 @@ const Register = () => {
                 type="password"
                 autoComplete="new-password"
                 required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="appearance-none relative block w-full px-3 py-2 border border-neutral-300 placeholder-neutral-500 text-neutral-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 placeholder="再次输入密码"
                 value={formData.confirmPassword}
                 onChange={handleChange}
@@ -126,8 +126,8 @@ const Register = () => {
             <button
               type="submit"
               disabled={loading}
-              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'
-                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-neutral-950 bg-primary-500 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-600'
+                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500`}
             >
               {loading ? '注册中...' : '注册'}
             </button>
@@ -135,9 +135,9 @@ const Register = () => {
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-gray-600">
+          <p className="text-neutral-600">
             已有账号？{' '}
-            <Link to="/login" className="text-blue-600 hover:underline">
+            <Link to="/login" className="text-primary-700 hover:underline">
               立即登录
             </Link>
           </p>

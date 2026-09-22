@@ -327,14 +327,14 @@ Cookie是包含少量数据的文件，由网站存储在您的设备上。它�
   // 将Markdown文本转换为HTML (简化版本，实际生产环境应使用成熟的Markdown解析库如markdown-it)
   const simpleMarkdownToHtml = (markdownText) => {
     return markdownText
-      .replace(/^## (.*$)/gm, '<h2 class="text-xl font-bold mt-6 mb-3 text-gray-800">$1</h2>')
-      .replace(/^### (.*$)/gm, '<h3 class="text-lg font-bold mt-4 mb-2 text-gray-800">$1</h3>')
+      .replace(/^## (.*$)/gm, '<h2 class="text-xl font-bold mt-6 mb-3 text-neutral-800">$1</h2>')
+      .replace(/^### (.*$)/gm, '<h3 class="text-lg font-bold mt-4 mb-2 text-neutral-800">$1</h3>')
       .replace(/\n\n/g, '<br><br>')
-      .replace(/\n- (.*$)/gm, '<li class="ml-4 mb-1 list-disc text-gray-700">$1</li>');
+      .replace(/\n- (.*$)/gm, '<li class="ml-4 mb-1 list-disc text-neutral-700">$1</li>');
   };
 
   return (
-    <div className="legal-page bg-gray-50 min-h-screen pb-20">
+    <div className="legal-page bg-neutral-50 min-h-screen pb-20">
       {/* 页面标题 */}
       <InfoPageHeader 
         title="法律条款" 
@@ -346,21 +346,21 @@ Cookie是包含少量数据的文件，由网站存储在您的设备上。它�
         <div className="bg-white rounded-lg shadow-md overflow-hidden mb-10">
           <div className="flex flex-col md:flex-row">
             {/* 侧边栏标签 */}
-            <div className="md:w-1/4 border-r border-gray-200">
+            <div className="md:w-1/4 border-r border-neutral-200">
               <div className="p-4">
-                <h3 className="font-bold text-lg text-gray-700 mb-4">法律文档</h3>
+                <h3 className="font-bold text-lg text-neutral-700 mb-4">法律文档</h3>
                 <div className="space-y-1">
                   {tabs.map(tab => (
                     <button
                       key={tab.id}
                       className={`w-full flex items-center px-4 py-3 rounded-md text-left transition-colors ${
                         activeTab === tab.id
-                          ? 'bg-gray-100 text-gray-800 font-medium'
-                          : 'text-gray-600 hover:bg-gray-50'
+                          ? 'bg-neutral-100 text-neutral-800 font-medium'
+                          : 'text-neutral-600 hover:bg-neutral-50'
                       }`}
                       onClick={() => setActiveTab(tab.id)}
                     >
-                      <span className="mr-3 text-gray-500">{tab.icon}</span>
+                      <span className="mr-3 text-neutral-500">{tab.icon}</span>
                       {tab.name}
                     </button>
                   ))}
@@ -371,8 +371,8 @@ Cookie是包含少量数据的文件，由网站存储在您的设备上。它�
             {/* 内容区域 */}
             <div className="md:w-3/4 p-6 md:p-8">
               <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-800">{currentContent.title}</h1>
-                <p className="text-sm text-gray-500 mt-1">最后更新：{currentContent.updatedDate}</p>
+                <h1 className="text-2xl font-bold text-neutral-800">{currentContent.title}</h1>
+                <p className="text-sm text-neutral-500 mt-1">最后更新：{currentContent.updatedDate}</p>
               </div>
               
               <div className="legal-content prose max-w-none">
@@ -383,21 +383,21 @@ Cookie是包含少量数据的文件，由网站存储在您的设备上。它�
         </div>
         
         {/* 联系信息 */}
-        <div className="bg-gray-100 border border-gray-200 rounded-lg p-6">
-          <h3 className="font-bold text-lg text-gray-800 mb-3">需要进一步的法律信息？</h3>
-          <p className="text-gray-700 mb-4">
+        <div className="bg-neutral-100 border border-neutral-200 rounded-lg p-6">
+          <h3 className="font-bold text-lg text-neutral-800 mb-3">需要进一步的法律信息？</h3>
+          <p className="text-neutral-700 mb-4">
             如果您对我们的法律文件有任何疑问或需要进一步的解释，请联系我们的法务团队：
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <a 
               href="mailto:legal@youthgain.com" 
-              className="inline-block bg-gray-800 hover:bg-gray-900 text-white px-5 py-3 rounded-md transition-colors text-center"
+              className="inline-block bg-neutral-800 hover:bg-neutral-900 text-white px-5 py-3 rounded-md transition-colors text-center"
             >
               联系法务团队
             </a>
             <a 
               href="/info/contact" 
-              className="inline-block bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-5 py-3 rounded-md transition-colors text-center"
+              className="inline-block bg-white border border-neutral-300 hover:bg-neutral-50 text-neutral-700 px-5 py-3 rounded-md transition-colors text-center"
             >
               联系客服
             </a>

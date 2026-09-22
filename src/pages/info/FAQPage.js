@@ -125,7 +125,7 @@ const FAQPage = () => {
   });
   
   return (
-    <div className="faq-page bg-gray-50 min-h-screen pb-20">
+    <div className="faq-page bg-neutral-50 min-h-screen pb-20">
       {/* 页面标题 */}
       <InfoPageHeader 
         title="常见问题" 
@@ -143,9 +143,9 @@ const FAQPage = () => {
                 placeholder="搜索常见问题..."
                 value={searchQuery}
                 onChange={handleSearchChange}
-                className="w-full px-12 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-lg"
+                className="w-full px-12 py-4 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-success-500 text-lg"
               />
-              <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-xl" />
+              <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-neutral-400 text-xl" />
             </div>
           </div>
         </div>
@@ -154,15 +154,15 @@ const FAQPage = () => {
           {/* 分类侧边栏 */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-md p-4 sticky top-20">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">问题分类</h3>
+              <h3 className="text-lg font-bold text-neutral-800 mb-4">问题分类</h3>
               <ul className="space-y-1">
                 {categories.map(category => (
                   <li key={category.id}>
                     <button
                       className={`w-full text-left px-4 py-3 rounded-md transition-colors ${
                         activeCategory === category.id
-                          ? 'bg-green-50 text-green-600 font-medium'
-                          : 'text-gray-600 hover:bg-gray-50'
+                          ? 'bg-success-50 text-success-600 font-medium'
+                          : 'text-neutral-600 hover:bg-neutral-50'
                       }`}
                       onClick={() => {
                         setActiveCategory(category.id);
@@ -181,7 +181,7 @@ const FAQPage = () => {
           <div className="lg:col-span-3">
             {filteredFAQs.length > 0 ? (
               <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                <h2 className="text-2xl font-bold text-neutral-800 mb-6">
                   {activeCategory === 'all' 
                     ? '所有常见问题' 
                     : categories.find(c => c.id === activeCategory)?.name}
@@ -191,13 +191,13 @@ const FAQPage = () => {
                   {filteredFAQs.map(faq => (
                     <div 
                       key={faq.id} 
-                      className="border border-gray-200 rounded-lg overflow-hidden"
+                      className="border border-neutral-200 rounded-lg overflow-hidden"
                     >
                       <button
-                        className="w-full flex justify-between items-center p-5 bg-gray-50 hover:bg-gray-100 text-left transition-colors"
+                        className="w-full flex justify-between items-center p-5 bg-neutral-50 hover:bg-neutral-100 text-left transition-colors"
                         onClick={() => toggleQuestion(faq.id)}
                       >
-                        <span className="font-medium text-lg text-gray-800">
+                        <span className="font-medium text-lg text-neutral-800">
                           {searchQuery ? (
                             highlightText(faq.question, searchQuery)
                           ) : (
@@ -205,15 +205,15 @@ const FAQPage = () => {
                           )}
                         </span>
                         {expandedQuestions[faq.id] ? (
-                          <FaChevronUp className="text-gray-500" />
+                          <FaChevronUp className="text-neutral-500" />
                         ) : (
-                          <FaChevronDown className="text-gray-500" />
+                          <FaChevronDown className="text-neutral-500" />
                         )}
                       </button>
                       
                       {expandedQuestions[faq.id] && (
-                        <div className="p-5 bg-white border-t border-gray-200">
-                          <p className="text-gray-700 whitespace-pre-line">
+                        <div className="p-5 bg-white border-t border-neutral-200">
+                          <p className="text-neutral-700 whitespace-pre-line">
                             {searchQuery ? (
                               highlightText(faq.answer, searchQuery)
                             ) : (
@@ -228,9 +228,9 @@ const FAQPage = () => {
               </div>
             ) : (
               <div className="bg-white rounded-lg shadow-md p-10 text-center">
-                <div className="text-5xl text-gray-300 mb-4">🔍</div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">未找到相关问题</h3>
-                <p className="text-gray-600 mb-4">
+                <div className="text-5xl text-neutral-300 mb-4">🔍</div>
+                <h3 className="text-xl font-bold text-neutral-800 mb-2">未找到相关问题</h3>
+                <p className="text-neutral-600 mb-4">
                   尝试使用不同的关键词或浏览其他分类
                 </p>
                 <div className="mt-4">
@@ -240,7 +240,7 @@ const FAQPage = () => {
                       setActiveCategory('all');
                       setExpandedQuestions({});
                     }}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
+                    className="bg-success-600 hover:bg-success-700 text-white px-4 py-2 rounded-md transition-colors"
                   >
                     查看所有问题
                   </button>
@@ -249,21 +249,21 @@ const FAQPage = () => {
             )}
             
             {/* 未解决问题反馈 */}
-            <div className="mt-8 bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-              <h3 className="text-xl font-bold text-gray-800 mb-3">没有找到你要的答案？</h3>
-              <p className="text-gray-600 mb-4">
+            <div className="mt-8 bg-neutral-50 border border-neutral-200 rounded-lg p-6 text-center">
+              <h3 className="text-xl font-bold text-neutral-800 mb-3">没有找到你要的答案？</h3>
+              <p className="text-neutral-600 mb-4">
                 如果上述内容没有解答您的疑问，欢迎联系我们的客服团队
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <a
                   href="mailto:support@youthgain.com"
-                  className="bg-white border border-green-600 text-green-600 hover:bg-green-50 px-6 py-3 rounded-md transition-colors inline-block"
+                  className="bg-white border border-success-600 text-success-600 hover:bg-success-50 px-6 py-3 rounded-md transition-colors inline-block"
                 >
                   发送邮件
                 </a>
                 <a
                   href="tel:4001234567"
-                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-md transition-colors inline-block"
+                  className="bg-success-600 hover:bg-success-700 text-white px-6 py-3 rounded-md transition-colors inline-block"
                 >
                   电话咨询
                 </a>
@@ -284,7 +284,7 @@ const highlightText = (text, query) => {
   
   return parts.map((part, index) => 
     part.toLowerCase() === query.toLowerCase() 
-      ? <span key={index} className="bg-yellow-200 font-medium">{part}</span>
+      ? <span key={index} className="bg-accent-200 font-medium">{part}</span>
       : part
   );
 };

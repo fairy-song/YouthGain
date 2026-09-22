@@ -92,4 +92,17 @@ logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log* 
+yarn-error.log*
+
+# 构建/调试输出
+# 之前只挡了 *.log，导致一堆 .txt 调试转储被提交进仓库
+build_log*.txt
+asr_http.txt
+assess_live.txt
+
+# 本地 vendored 的第三方包
+# websocket-client 请走 pip 安装（见 backend/requirements.txt）；
+# 这个目录只是系统 site-packages 无写权限时的本地兜底，不该进版本库。
+# 注：backend/app/services/xfyun_asr.py 保留了 sys.path 兜底逻辑，
+# 即使这个目录存在也不会与 pip 安装的版本冲突。
+vendor_pkgs/

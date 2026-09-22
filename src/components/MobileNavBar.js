@@ -29,7 +29,7 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    color: '#6c757d',
+    color: 'var(--yg-muted)',
     textDecoration: 'none',
     fontSize: '0.7rem',
     padding: '5px 0',
@@ -37,7 +37,7 @@ const styles = {
     transition: 'all 0.3s ease'
   },
   navItemActive: {
-    color: '#0d6efd'
+    color: 'var(--yg-primary)'
   },
   navIcon: {
     fontSize: '1.3rem',

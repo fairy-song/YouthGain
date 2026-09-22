@@ -10,5 +10,11 @@ const firebaseConfig = {
   appId: process.env.REACT_APP_FIREBASE_APP_ID
 };
 
-// 初始化Firebase
-export const app = initializeApp(firebaseConfig); 
+// 只有配置了 apiKey + projectId 时才初始化 Firebase。
+// 未配置时返回 null，前端认证回退到本地开发模式（localStorage 模拟），
+// 避免 initializeApp 收到空配置直接抛错导致整个应用白屏。
+const hasFirebaseConfig = Boolean(
+  process.env.REACT_APP_FIREBASE_API_KEY && process.env.REACT_APP_FIREBASE_PROJECT_ID
+);
+
+export const app = hasFirebaseConfig ? initializeApp(firebaseConfig) : null;

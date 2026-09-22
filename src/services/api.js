@@ -447,6 +447,37 @@ export const submitRegret = async (transactionId, regret) => {
   }
 };
 
+/**
+ * 单笔消费智能评估（语音记账第三步的数据源）。
+ * 后端读取预算/结余/储蓄目标/历史同类消费，输出合理性判断、储蓄影响与干预话术。
+ * @param {Object} data 必填 amount / category，可选 merchant / note / monthly_income
+ * @returns {Object} { budget, surplus, goal, similar, necessity, suggestion, tip }
+ */
+export const assessPurchase = async (data) => {
+  try {
+    const response = await api.post('/decision/assess', data);
+    return response.data.data;
+  } catch (error) {
+    console.error('AI消费评估失败:', error);
+    throw error;
+  }
+};
+
+/**
+ * 语音转文字：把录音的 PCM 音频(base64)交给后端，后端调讯飞识别。
+ * @param {string} audioB64 16k 16bit 单声道 PCM 的 base64
+ * @returns {string} 识别出的中文文本
+ */
+export const transcribeAudio = async (audioB64) => {
+  try {
+    const response = await api.post('/asr/transcribe', { audio_b64: audioB64 });
+    return response.data.data.text;
+  } catch (error) {
+    console.error('语音识别失败:', error);
+    throw error;
+  }
+};
+
 // 导出API服务
 const apiService = {
   loginUser,
@@ -474,7 +505,9 @@ const apiService = {
   listTransactions,
   createTransaction,
   deleteTransaction,
-  submitRegret
+  submitRegret,
+  assessPurchase,
+  transcribeAudio
 };
 
 export default apiService;

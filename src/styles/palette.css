@@ -1,0 +1,80 @@
+/* ============================================================
+   青盈 YouthGain — 全站色板（单一来源）
+   ============================================================
+
+   改颜色只需要改这个文件。
+
+   每个品牌色分「填充版」和「文字版」两套，原因：
+   浅色系品牌色做按钮底/区块底很好看，但直接当文字色会读不清。
+   例如 --yg-primary (#63B995) 落在 #F7FAF9 底色上只有 2.25:1，
+   远低于 WCAG AA 的 4.5:1。所以文字一律用 -text 后缀的压深版。
+
+   所有 -text 变体均已实测 >= 4.5:1 on #F7FAF9。
+   ============================================================ */
+
+:root {
+  /* ---------- 主色：青柠浅绿，代表成长与正向积累 ---------- */
+  --yg-primary: #63B995;          --yg-primary-rgb: 99, 185, 149;
+  --yg-primary-hover: #59A686;    /* -10% shade */
+  --yg-primary-active: #549D7F;   /* -15% shade */
+  --yg-primary-subtle: #E0F1EA;   /* +80% tint，淡底 */
+  --yg-primary-border: #C1E3D5;   /* +60% tint，淡边框 */
+  --yg-primary-text: #30775A;     /* 文字版，5.11:1 */
+  --yg-primary-ink: #1A1A1A;      /* 主色底上的文字，7.38:1 */
+
+  /* ---------- 辅助：柔和浅蓝，信息/表单/弹窗/次要按钮 ---------- */
+  --yg-secondary: #5488C4;        --yg-secondary-rgb: 84, 136, 196;
+  --yg-secondary-hover: #4774A7;  /* 也是次要按钮底色（配白字 4.86:1） */
+  --yg-secondary-active: #456FA3;
+  --yg-secondary-subtle: #DDE7F3;
+  --yg-secondary-border: #BBCFE7;
+  --yg-secondary-text: #456FA3;   /* 文字版，4.93:1 */
+
+  /* ---------- 点缀：暖浅橙，超支提醒/重点强调/成就徽章（少量用） ---------- */
+  --yg-accent: #E88A6E;           --yg-accent-rgb: 232, 138, 110;
+  --yg-accent-hover: #D17C63;
+  --yg-accent-active: #C5755E;
+  --yg-accent-subtle: #FAE8E2;
+  --yg-accent-border: #F6D0C5;
+  --yg-accent-text: #B0563F;      /* 文字版，4.71:1 */
+
+  /* ---------- 语义：成功 ---------- */
+  --yg-success: #2F855A;          --yg-success-rgb: 47, 133, 90;
+  --yg-success-text: #2A7550;     /* 文字版，5.32:1 */
+
+  /* ---------- 语义：错误/破坏性操作（保留红色，但压低饱和） ---------- */
+  --yg-danger: #C9564E;           --yg-danger-rgb: 201, 86, 78;
+  --yg-danger-text: #B24A43;      /* 文字版，5.06:1 */
+
+  /* ---------- 中性色 ---------- */
+  --yg-surface: #F7FAF9;          /* 页面底色，极浅灰白护眼 */
+  --yg-surface-alt: #EFF3F2;      /* 次级底色 */
+  --yg-ink: #333333;              /* 正文，12.03:1 */
+  --yg-muted: #6B6B6B;            /* 次要文字，5.07:1 */
+  --yg-muted-rgb: 107, 107, 107;
+  --yg-line: #E6EBEA;             /* 分割线 */
+  --yg-ink-rgb: 51, 51, 51;
+
+  /* 卡片阴影统一用中性色，避免各处写死 rgba */
+  --yg-shadow-sm: 0 1px 3px rgba(51, 51, 51, 0.06);
+  --yg-shadow: 0 4px 15px rgba(51, 51, 51, 0.08);
+  --yg-shadow-lg: 0 10px 30px rgba(51, 51, 51, 0.10);
+
+  /* ---------- 深色端（渐变收尾、大面积深色底） ----------
+     渐变里若两端都用 500 档，白字会糊（见文件顶部说明），
+     所以渐变一律从 -text 档起、落到 -deep 档收。 */
+  --yg-primary-deep: #1F4A38;
+  --yg-secondary-deep: #2E496C;
+  --yg-accent-deep: #6C3528;
+  --yg-success-deep: #215D3F;
+  --yg-danger-deep: #A8433D;
+
+  /* ---------- 页面底色微渐变 ----------
+     原先各页面用的是 #f0f8ff → #e6f2ff（偏蓝），
+     改为极淡的青绿洗色，保持「清新」基调又不抢内容。 */
+  --yg-wash-from: #F7FAF9;
+  --yg-wash-to: #EAF4EF;
+
+  /* 导航栏深色底，由原来的 #1a2234 调为带一点青绿倾向的深色，与主色呼应 */
+  --yg-navbar: #23322D;
+}

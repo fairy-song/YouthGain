@@ -1,27 +1,38 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Container, Row, Col, Card, Button, Carousel, Badge } from 'react-bootstrap';
-import { FaArrowRight, FaBrain, FaChartLine, FaRobot, FaShieldAlt, FaComments, FaChartBar } from 'react-icons/fa';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import Typed from 'typed.js';
-import ParticleBackground from '../components/ParticleBackground';
+import { Container, Row, Col, Card, Button, Badge } from 'react-bootstrap';
+import { FaArrowRight, FaMicrophone, FaRobot, FaPiggyBank, FaUndoAlt, FaCheckCircle, FaShieldAlt } from 'react-icons/fa';
+import HomeVoiceRecorder from '../components/HomeVoiceRecorder';
 
-// 自定义卡片组件，带有悬停效果
-const FeatureCard = ({ icon, title, description, className = '' }) => {
+// ============================================================
+// Home.js —— 首页(SaaS 明亮风格)
+//
+// 设计说明：
+// 1. 风格：去深色粒子，改明亮 SaaS 落地页(白底 + 浅灰分区 + 卡片化
+//    + 绿色主色 + 柔和阴影)，适配产品"大学生记账工具"的清爽定位；
+// 2. 卡尼曼融入：行为经济学是产品理念的学术根基(冲动消费=系统1快思考，
+//    记账反思=系统2慢思考)。融入方式为两处，均以克制、低饱和处理：
+//    a. hero 右上角大幅黑白肖像做低透明度背景水印(grayscale + opacity)；
+//    b. 左列底部圆形小头像 + 一句《思考，快与慢》的引用卡，学术背书感。
+//    肖像素材为公开经典黑白照，仅作设计元素使用。
+// ============================================================
+
+// 功能卡片组件(SaaS 浅色卡片)
+const FeatureCard = ({ icon, title, description, highlight = false }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
     <Card
-      className={`h-100 border-0 shadow-sm transition-all card-hover ${className} ${isHovered ? 'shadow-lg transform-up' : ''}`}
+      className={`saas-card h-100 border-0 ${highlight ? 'saas-card-highlight' : ''} ${isHovered ? 'saas-card-hover' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <Card.Body className="p-4">
-        <div className={`feature-icon mb-4 rounded-circle d-inline-flex align-items-center justify-content-center text-primary ${isHovered ? 'bg-primary text-white' : 'bg-primary-light'}`} style={{ width: '60px', height: '60px', transition: 'all 0.3s' }}>
+        <div className={`saas-icon mb-4 rounded-circle d-inline-flex align-items-center justify-content-center ${isHovered ? 'saas-icon-active' : ''}`} style={{ width: '56px', height: '56px', transition: 'all 0.3s' }}>
           {icon}
         </div>
-        <Card.Title className="h5 mb-3">{title}</Card.Title>
+        <Card.Title className="h5 mb-3 fw-bold">{title}</Card.Title>
         <Card.Text className="text-muted">{description}</Card.Text>
       </Card.Body>
     </Card>
@@ -39,161 +50,43 @@ const AnimatedButton = ({ children, variant, className, as, to, size, onClick })
       className={`btn-animated d-inline-flex align-items-center justify-content-center ${className}`}
       onClick={onClick}
     >
-      <span className="d-flex align-items-center">
-        {children}
-      </span>
+      <span className="d-flex align-items-center">{children}</span>
     </Button>
   );
 };
 
-// 增强型徽章组件
+// 增强型徽章组件(SaaS 浅色版)
 const EnhancedBadge = ({ children, bg, className = '' }) => {
   return (
     <Badge
       bg={bg}
-      className={`custom-badge px-3 py-2 rounded-pill fw-normal position-relative overflow-hidden ${className}`}
+      className={`saas-badge px-3 py-2 rounded-pill fw-normal ${className}`}
     >
-      <span className="badge-content position-relative">{children}</span>
-      <span className="badge-glow"></span>
+      <span>{children}</span>
     </Badge>
   );
 };
 
-// 投资表现跟随组件
-const InvestmentPerformance = ({ userData = {} }) => {
-  const [isVisible, setIsVisible] = useState(true);
-  const [position, setPosition] = useState({ top: 111.111, right: 20 });
-  const [targetPosition, setTargetPosition] = useState({ top: 111.111, right: 20 });
-
-  // 模拟用户数据 - 实际项目中应从userData获取
-  const riskProfile = userData.riskProfile || "均衡型";
-  const progressValue = userData.progressValue || 75;
-
-  // 平滑过渡到目标位置
-  useEffect(() => {
-    if (position.top === targetPosition.top) return;
-
-    const animationFrame = requestAnimationFrame(() => {
-      // 使用适中的系数0.25来平滑过渡
-      const newTop = position.top + (targetPosition.top - position.top) * 0.25;
-      setPosition({ top: newTop, right: position.right });
-    });
-
-    return () => cancelAnimationFrame(animationFrame);
-  }, [position, targetPosition]);
-
-  useEffect(() => {
-    // 获取导航栏和页脚元素
-    const navbar = document.querySelector('.navbar-wrapper');
-    const footer = document.querySelector('.footer-wrapper');
-
-    // 滚动事件处理函数
-    const handleScroll = () => {
-      const scrollY = window.scrollY;
-      // 确保组件始终可见
-      setIsVisible(true);
-
-      // 获取导航栏底部位置（如果存在）
-      const navbarBottom = navbar ? navbar.getBoundingClientRect().bottom : 0;
-
-      // 获取页脚顶部位置（如果存在）
-      const footerTop = footer ? footer.getBoundingClientRect().top : window.innerHeight;
-
-      // 计算组件的高度（用于判断底部边界）
-      const componentHeight = 150; // 估算高度，可以根据实际情况调整
-
-      // 计算新的顶部位置，直接基于滚动位置
-      let newTop = scrollY + 111.111;
-
-      // 确保不小于导航栏底部
-      newTop = Math.max(navbarBottom + 10, newTop);
-
-      // 确保不大于页脚顶部减去组件高度
-      if (footerTop < window.innerHeight) {
-        newTop = Math.min(newTop, footerTop - componentHeight - 10);
-      }
-
-      // 更新目标位置，而不是直接更新位置
-      setTargetPosition({ top: newTop, right: 20 });
-    };
-
-    // 使用requestAnimationFrame优化滚动性能
-    let ticking = false;
-    const onScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          handleScroll();
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener('scroll', onScroll);
-    window.addEventListener('resize', handleScroll);
-
-    // 初始执行一次以设置正确的初始位置
-    handleScroll();
-
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', handleScroll);
-    };
-  }, []);
-
-  if (!isVisible) return null;
-
-  return (
-    <div
-      className="bg-white rounded-4 shadow-lg p-3 position-fixed animate__animated animate__fadeInUp"
-      style={{
-        maxWidth: '200px',
-        top: `${position.top}px`,
-        right: `${position.right}px`,
-        zIndex: 1000,
-        transition: 'top 0.05s linear'
-      }}
-    >
-      <div className="d-flex align-items-center mb-2">
-        <FaChartLine className="text-success fs-3 me-2" />
-        <span className="fw-bold">投资表现</span>
-      </div>
-      <div className="d-flex justify-content-between">
-        <small className="text-muted">风险偏好:</small>
-        <small className="fw-bold text-end">{riskProfile}</small>
-      </div>
-      <div className="progress mt-2 mb-2" style={{ height: '6px' }}>
-        <div className="progress-bar bg-success" style={{ width: `${progressValue}%` }}></div>
-      </div>
-      <div className="d-flex justify-content-between">
-        <small className="text-muted">成长路径:</small>
-        <small className="fw-bold text-end">稳步提升中</small>
-      </div>
-    </div>
-  );
-};
-
-// 主题组件
 const Home = () => {
   const { currentUser } = useAuth();
   const [fadeIn, setFadeIn] = useState(false);
-  const typedRef = useRef(null);
-  const typedElementRef = useRef(null);
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const totalSlides = 5; // 总的评价数量
-  const slideIntervalRef = useRef(null);
-  const testimonialTrackRef = useRef(null);
 
-  // 添加首屏加载动画
+  // 月收入与 Dashboard 共用 localStorage，未设置时用默认值
+  const [monthlyIncome, setMonthlyIncome] = useState(() => {
+    const saved = localStorage.getItem('monthlyIncome');
+    return saved && !isNaN(Number(saved)) ? Number(saved) : 2000;
+  });
+
+  // 首屏淡入动画
   useEffect(() => {
     setFadeIn(true);
 
-    // 监听滚动事件，用于部分动画
+    // 滚动进入视口时上浮出现
     const handleScroll = () => {
       const sections = document.querySelectorAll('.animate-on-scroll');
-      sections.forEach(section => {
+      sections.forEach((section) => {
         const sectionTop = section.getBoundingClientRect().top;
-        if (sectionTop < window.innerHeight * 0.75) {
+        if (sectionTop < window.innerHeight * 0.85) {
           section.classList.add('slide-up');
           section.style.opacity = '1';
         }
@@ -204,985 +97,715 @@ const Home = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // 初始化打字效果
-  useEffect(() => {
-    if (typedElementRef.current) {
-      typedRef.current = new Typed(typedElementRef.current, {
-        strings: [
-          'AI金融心智教练',
-          '您的财务顾问',
-          '金融素养培养专家',
-          '智能理财决策助手'
-        ],
-        typeSpeed: 80,
-        backSpeed: 50,
-        loop: true
-      });
-
-      return () => {
-        // 清理打字效果
-        if (typedRef.current) {
-          typedRef.current.destroy();
-        }
-      };
-    }
-  }, []);
-
-  // 用户心声轮播功能
-  useEffect(() => {
-    // 初始化自动轮播
-    startSlideInterval();
-
-    // 清理函数
-    return () => {
-      if (slideIntervalRef.current) {
-        clearInterval(slideIntervalRef.current);
-      }
-    };
-  }, [currentSlide]);
-
-  // 启动自动轮播
-  const startSlideInterval = () => {
-    if (slideIntervalRef.current) {
-      clearInterval(slideIntervalRef.current);
-    }
-
-    slideIntervalRef.current = setInterval(() => {
-      goToNextSlide();
-    }, 5000); // 5秒切换一次
-  };
-
-  // 暂停自动轮播
-  const pauseSlideInterval = () => {
-    if (slideIntervalRef.current) {
-      clearInterval(slideIntervalRef.current);
-    }
-  };
-
-  // 切换到下一张
-  const goToNextSlide = () => {
-    setCurrentSlide(prev => (prev + 1) % totalSlides);
-  };
-
-  // 切换到上一张
-  const goToPrevSlide = () => {
-    setCurrentSlide(prev => (prev - 1 + totalSlides) % totalSlides);
-  };
-
-  // 切换到指定的幻灯片
-  const goToSlide = (index) => {
-    setCurrentSlide(index);
-  };
-
   return (
     <div className={`home-page transition-all ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
-      {/* 现代化英雄区 - 高级深色科技感 */}
-      <section className="hero-section position-relative overflow-hidden" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', background: '#0a0f1e', margin: 0, padding: 0 }}>
-        {/* 背景动态元素 - 替换为美观的粒子星空 */}
-        <ParticleBackground />
+      {/* ======== 首屏(SaaS 明亮) ======== */}
+      <section className="hero-saas position-relative overflow-hidden">
+        {/* 背景装饰：右上角卡尼曼黑白肖像水印 */}
+        <div className="hero-bg-quote" aria-hidden="true"></div>
+        <img
+          src={`${process.env.PUBLIC_URL}/images/kahneman_bw.jpg`}
+          alt="丹尼尔·卡尼曼 肖像(背景装饰)"
+          className="hero-kahneman-bg"
+          aria-hidden="true"
+        />
+        {/* 柔和色块装饰 */}
+        <div className="hero-blob blob-1" aria-hidden="true"></div>
+        <div className="hero-blob blob-2" aria-hidden="true"></div>
 
-        <Container className="position-relative z-1">
-          <Row className="align-items-center">
-            <Col lg={12} className="text-center mx-auto">
-              <div className="hero-content">
-                <EnhancedBadge bg="transparent" className="mb-4 shadow-sm animate__animated animate__fadeIn animate__delay-1s border border-light">
-                  <span className="pulse-dot me-2 bg-info"></span>
-                  <span className="text-info fw-medium" style={{ textShadow: '0 0 10px rgba(0, 255, 255, 0.5)' }}>全新体验 · 智能升级</span>
-                </EnhancedBadge>
+        <Container className="position-relative hero-inner">
+          <Row className="align-items-center g-5">
+            {/* 左侧文案 */}
+            <Col lg={6} className="text-center text-lg-start">
+              <EnhancedBadge bg="success" className="mb-4">
+                <span className="text-white fw-medium">大学生专属 · AI 记账助手</span>
+              </EnhancedBadge>
 
-                <h1 className="display-2 fw-bold mb-4 text-white animate__animated animate__fadeInDown" style={{ textShadow: '0 0 20px rgba(0,0,0,0.8)' }}>
-                  Experience <span className="text-info">Liftoff</span> with <br />
-                  <span className="text-warning typed-text mt-2 d-inline-block" style={{ borderBottom: '2px solid #ffc107', paddingBottom: '5px' }}>
-                    <span ref={typedElementRef}></span>
-                  </span>
-                </h1>
+              <h1 className="hero-title mb-4">
+                生活费怎么花，
+                <br />
+                <span className="text-primary">AI 帮你看得明明白白</span>
+              </h1>
 
-                <p className="lead mb-5 text-light mx-auto animate__animated animate__fadeIn animate__delay-2s" style={{ maxWidth: '800px', fontSize: '1.25rem', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
-                  青盈 - AI金融心智教练。通过人工智能技术，帮助您培养健康的财务习惯，提升金融素养，做出更明智的财务决策。现在就开启您的下一代财务成长之旅。
-                </p>
+              <p className="hero-sub mb-4 mx-auto mx-lg-0">
+                口述一句"昨天在食堂吃了18块"，青盈自动记账，并告诉你这笔
+                消费合不合理、离你的储蓄目标还有多远。
+              </p>
 
-                <div className="d-flex gap-4 justify-content-center flex-wrap animate__animated animate__fadeInUp animate__delay-3s" style={{ position: 'relative', zIndex: 10 }}>
-                  {currentUser ? (
-                    <AnimatedButton
-                      as={Link}
-                      to="/dashboard"
-                      variant="info"
-                      size="lg"
-                      className="rounded-pill btn-glow px-5 py-3 fw-bold text-dark"
-                      style={{ boxShadow: '0 0 20px rgba(23, 162, 184, 0.6)' }}
-                    >
-                      进入个人中心 <FaArrowRight className="ms-2" />
+              <div className="d-flex gap-3 justify-content-center justify-content-lg-start flex-wrap mb-4">
+                {currentUser ? (
+                  <AnimatedButton as={Link} to="/dashboard" variant="success" size="lg" className="rounded-pill btn-primary-glow px-5 py-3 fw-bold text-white">
+                    进入个人中心 <FaArrowRight className="ms-2" />
+                  </AnimatedButton>
+                ) : (
+                  <>
+                    <AnimatedButton as={Link} to="/register" variant="success" size="lg" className="rounded-pill btn-primary-glow px-5 py-3 fw-bold text-white">
+                      免费注册 <FaArrowRight className="ms-2" />
                     </AnimatedButton>
-                  ) : (
-                    <>
-                      <AnimatedButton
-                        as={Link}
-                        to="/register"
-                        variant="info"
-                        size="lg"
-                        className="rounded-pill btn-glow px-5 py-3 fw-bold text-dark"
-                        style={{ boxShadow: '0 0 20px rgba(23, 162, 184, 0.6)' }}
-                      >
-                        免费注册 <FaArrowRight className="ms-2" />
-                      </AnimatedButton>
-                      <AnimatedButton
-                        as={Link}
-                        to="/login"
-                        variant="outline-light"
-                        size="lg"
-                        className="rounded-pill px-5 py-3 fw-bold bg-dark bg-opacity-50 text-white"
-                        style={{ backdropFilter: 'blur(5px)' }}
-                      >
-                        立即登录
-                      </AnimatedButton>
-                    </>
-                  )}
+                    <AnimatedButton as={Link} to="/login" variant="outline-secondary" size="lg" className="rounded-pill px-5 py-3 fw-bold">
+                      立即登录
+                    </AnimatedButton>
+                  </>
+                )}
+              </div>
+
+              {/* 三个核心卖点速览 */}
+              <div className="d-flex flex-wrap gap-2 justify-content-center justify-content-lg-start mb-5">
+                <span className="hero-tag"><FaMicrophone className="me-1 text-primary" />语音记账</span>
+                <span className="hero-tag"><FaRobot className="me-1 text-primary" />消费合理性评估</span>
+                <span className="hero-tag"><FaPiggyBank className="me-1 text-primary" />储蓄目标跟踪</span>
+              </div>
+
+              {/* 卡尼曼引用卡：行为经济学的学术背书 */}
+              <div className="kahneman-quote d-flex align-items-center gap-3 mx-auto mx-lg-0">
+                <img
+                  src={`${process.env.PUBLIC_URL}/images/kahneman_bw.jpg`}
+                  alt="丹尼尔·卡尼曼"
+                  className="kahneman-avatar"
+                />
+                <div className="text-start">
+                  <p className="mb-1 quote-text">"冲动消费来自快思考(系统1)，理性的记账与反思，是慢思考(系统2)。"</p>
+                  <div className="small text-muted">—— 丹尼尔·卡尼曼《思考，快与慢》</div>
                 </div>
               </div>
+            </Col>
+
+            {/* 右侧：原地语音记账(点一下直接开录) */}
+            <Col lg={6}>
+              <HomeVoiceRecorder monthlyIncome={monthlyIncome} />
             </Col>
           </Row>
         </Container>
       </section>
 
-      {/* 我们的特点 */}
-      <section className="features-section py-5 mb-6 animate-on-scroll position-relative" style={{ opacity: 0 }}>
-        <div className="section-bg-pattern pattern-1 rounded-5"></div>
+      {/* ======== 核心功能 ======== */}
+      <section className="features-saas py-5 animate-on-scroll" style={{ opacity: 0 }}>
         <Container>
           <div className="text-center mb-5">
-            <EnhancedBadge bg="primary" className="mb-3">
-              <span className="fw-medium text-white">为什么选择我们</span>
+            <EnhancedBadge bg="success" className="mb-3">
+              <span className="text-white fw-medium">它能做什么</span>
             </EnhancedBadge>
-            <h2 className="display-5 fw-bold mb-4">青盈的优势</h2>
-            <p className="lead text-muted mx-auto" style={{ maxWidth: '700px' }}>
-              我们结合人工智能和金融心理学，帮助您建立健康的财务习惯，做出更明智的财务决策。
+            <h2 className="section-title fw-bold mb-3">每一笔，都有人帮你盯着</h2>
+            <p className="section-sub text-muted mx-auto">
+              不为记账而记账——记账只是第一步，关键是让你看清自己的消费，把钱花在真正重要的地方。
             </p>
           </div>
 
           <Row className="g-4">
-            <Col md={6} lg={4} className="animate__animated animate__fadeInUp" style={{ animationDelay: '0.1s' }}>
+            <Col md={6} lg={3}>
               <FeatureCard
-                icon={<FaBrain size={24} />}
-                title="金融心智培养"
-                description="通过科学方法和个性化指导，帮助您建立健康的金钱观念和财务习惯。"
+                icon={<FaMicrophone size={22} />}
+                title="AI 语音记账"
+                description={'说一句"在食堂吃了18块"，自动识别金额、商户、类别，不用手动填表。'}
+                highlight
               />
             </Col>
-            <Col md={6} lg={4} className="animate__animated animate__fadeInUp" style={{ animationDelay: '0.3s' }}>
+            <Col md={6} lg={3}>
               <FeatureCard
-                icon={<FaRobot size={24} />}
-                title="AI智能教练"
-                description="基于先进AI技术的个人教练，根据您的财务状况和目标提供定制化建议。"
-                className="feature-card-highlight"
+                icon={<FaRobot size={22} />}
+                title="消费合理性评估"
+                description="结合你的预算余量，判断这笔消费是刚需还是可选，该不该花。"
               />
             </Col>
-            <Col md={6} lg={4} className="animate__animated animate__fadeInUp" style={{ animationDelay: '0.5s' }}>
+            <Col md={6} lg={3}>
               <FeatureCard
-                icon={<FaChartBar size={24} />}
-                title="数据驱动决策"
-                description="通过可视化数据分析，帮助您更好地理解自己的财务状况和进步。"
+                icon={<FaPiggyBank size={22} />}
+                title="储蓄目标跟踪"
+                description="设一个目标(比如攒钱买电脑)，每笔消费都告诉你离目标远了多少天。"
               />
             </Col>
-            <Col md={6} lg={4} className="animate__animated animate__fadeInUp" style={{ animationDelay: '0.7s' }}>
+            <Col md={6} lg={3}>
               <FeatureCard
-                icon={<FaShieldAlt size={24} />}
-                title="隐私保护"
-                description="我们严格保护您的个人信息和财务数据，确保您的隐私安全。"
-              />
-            </Col>
-            <Col md={6} lg={4} className="animate__animated animate__fadeInUp" style={{ animationDelay: '0.9s' }}>
-              <FeatureCard
-                icon={<FaComments size={24} />}
-                title="个性化互动"
-                description="根据您的财务目标和习惯，提供量身定制的建议和反馈。"
-              />
-            </Col>
-            <Col md={6} lg={4} className="animate__animated animate__fadeInUp" style={{ animationDelay: '1.1s' }}>
-              <FeatureCard
-                icon={<FaChartLine size={24} />}
-                title="成长跟踪"
-                description="持续监测您的财务健康状况，并提供改进建议和鼓励。"
+                icon={<FaUndoAlt size={22} />}
+                title="事后回访"
+                description="过几天回头看：这笔消费现在值吗？帮你慢慢戒掉冲动消费。"
               />
             </Col>
           </Row>
         </Container>
       </section>
 
-      {/* 用户评价 - 重新设计为淡入淡出式轮播 */}
-      <section className="testimonials-section py-5 mb-6 position-relative animate-on-scroll" style={{ opacity: 0 }}>
-        <div className="section-bg-gradient rounded-5"></div>
-        <div className="section-bg-pattern pattern-2 rounded-5"></div>
-        <Container>
-          <div className="text-center mb-5">
-            <EnhancedBadge bg="success" className="mb-3">
-              <span className="fw-medium text-white">用户心声</span>
-            </EnhancedBadge>
-            <h2 className="display-5 fw-bold mb-4">他们的体验</h2>
-          </div>
-
-          {/* 重新设计的轮播效果 */}
-          <div
-            className="testimonial-carousel"
-            onMouseEnter={pauseSlideInterval}
-            onMouseLeave={startSlideInterval}
-          >
-            {/* 轮播内容容器 */}
-            <div className="testimonial-carousel-inner">
-              {/* 第一个评价 */}
-              <div className={`testimonial-item ${currentSlide === 0 ? 'active' : ''}`}>
-                <div className="testimonial-content-wrapper bg-white p-4 p-lg-5 rounded-4 shadow-sm mx-auto">
-                  <div className="d-flex flex-column flex-md-row gap-4">
-                    <div className="testimonial-avatar flex-shrink-0 mx-auto mx-md-0">
-                      <img src="https://images.unsplash.com/photo-1557862921-37829c790f19?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1471&q=80" alt="用户头像" className="rounded-circle" width="80" height="80" />
-                    </div>
-                    <div className="testimonial-content">
-                      <p className="fs-5 mb-3">"青盈AI教练帮助我理清了我的财务状况，并制定了切实可行的储蓄计划。现在我每个月都能存下一笔钱，为未来做准备。"</p>
-                      <h5 className="mb-1">张小明</h5>
-                      <p className="text-muted mb-0">自由职业者，上海</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 第二个评价 */}
-              <div className={`testimonial-item ${currentSlide === 1 ? 'active' : ''}`}>
-                <div className="testimonial-content-wrapper bg-white p-4 p-lg-5 rounded-4 shadow-sm mx-auto">
-                  <div className="d-flex flex-column flex-md-row gap-4">
-                    <div className="testimonial-avatar flex-shrink-0 mx-auto mx-md-0">
-                      <div className="avatar-gradient rounded-circle d-flex align-items-center justify-content-center" style={{ width: '80px', height: '80px' }}>
-                        <img src="https://randomuser.me/api/portraits/women/29.jpg" alt="用户头像" className="rounded-circle" width="76" height="76" />
-                      </div>
-                    </div>
-                    <div className="testimonial-content">
-                      <p className="fs-5 mb-3">"通过青盈的心智评估，我发现自己有冲动消费的习惯。AI教练提供的建议帮助我克服了这个问题，现在我能更理性地消费了。"</p>
-                      <h5 className="mb-1">李雯</h5>
-                      <p className="text-muted mb-0">市场经理，北京</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 第三个评价 */}
-              <div className={`testimonial-item ${currentSlide === 2 ? 'active' : ''}`}>
-                <div className="testimonial-content-wrapper bg-white p-4 p-lg-5 rounded-4 shadow-sm mx-auto">
-                  <div className="d-flex flex-column flex-md-row gap-4">
-                    <div className="testimonial-avatar flex-shrink-0 mx-auto mx-md-0">
-                      <div className="avatar-gradient rounded-circle d-flex align-items-center justify-content-center" style={{ width: '80px', height: '80px' }}>
-                        <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="用户头像" className="rounded-circle" width="76" height="76" />
-                      </div>
-                    </div>
-                    <div className="testimonial-content">
-                      <p className="fs-5 mb-3">"作为一个投资新手，我曾经对金融市场感到恐惧。青盈的AI教练通过简单易懂的方式解释了基本概念，让我有信心开始我的投资之旅。"</p>
-                      <h5 className="mb-1">刘志强</h5>
-                      <p className="text-muted mb-0">软件工程师，深圳</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 第四个评价 */}
-              <div className={`testimonial-item ${currentSlide === 3 ? 'active' : ''}`}>
-                <div className="testimonial-content-wrapper bg-white p-4 p-lg-5 rounded-4 shadow-sm mx-auto">
-                  <div className="d-flex flex-column flex-md-row gap-4">
-                    <div className="testimonial-avatar flex-shrink-0 mx-auto mx-md-0">
-                      <div className="avatar-gradient rounded-circle d-flex align-items-center justify-content-center" style={{ width: '80px', height: '80px' }}>
-                        <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="用户头像" className="rounded-circle" width="76" height="76" />
-                      </div>
-                    </div>
-                    <div className="testimonial-content">
-                      <p className="fs-5 mb-3">"青盈帮助我设定了合理的财务目标，并持续提供指导。一年后，我成功攒下了首付款，即将实现购房梦想，感谢这个平台！"</p>
-                      <h5 className="mb-1">赵美娟</h5>
-                      <p className="text-muted mb-0">教师，成都</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 第五个评价 */}
-              <div className={`testimonial-item ${currentSlide === 4 ? 'active' : ''}`}>
-                <div className="testimonial-content-wrapper bg-white p-4 p-lg-5 rounded-4 shadow-sm mx-auto">
-                  <div className="d-flex flex-column flex-md-row gap-4">
-                    <div className="testimonial-avatar flex-shrink-0 mx-auto mx-md-0">
-                      <div className="avatar-gradient rounded-circle d-flex align-items-center justify-content-center" style={{ width: '80px', height: '80px' }}>
-                        <img src="https://randomuser.me/api/portraits/men/67.jpg" alt="用户头像" className="rounded-circle" width="76" height="76" />
-                      </div>
-                    </div>
-                    <div className="testimonial-content">
-                      <p className="fs-5 mb-3">"退休计划一直是我担心的问题，但青盈AI教练为我量身定制了长期规划，现在我对未来充满信心。推荐给所有想要财务自由的人！"</p>
-                      <h5 className="mb-1">王建国</h5>
-                      <p className="text-muted mb-0">企业管理者，广州</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 控制按钮 */}
-            <div className="testimonial-controls mt-5 d-flex justify-content-center align-items-center">
-              <button
-                className="testimonial-btn prev-btn me-4"
-                onClick={goToPrevSlide}
-                onMouseEnter={pauseSlideInterval}
-                onMouseLeave={startSlideInterval}
-                aria-label="上一条评价"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-chevron-left" viewBox="0 0 16 16">
-                  <path fillRule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z" />
-                </svg>
-              </button>
-
-              <div className="testimonial-indicators d-flex">
-                {[...Array(totalSlides)].map((_, index) => (
-                  <button
-                    key={index}
-                    className={`testimonial-indicator mx-2 ${currentSlide === index ? 'active' : ''}`}
-                    onClick={() => goToSlide(index)}
-                    onMouseEnter={pauseSlideInterval}
-                    onMouseLeave={startSlideInterval}
-                    aria-label={`切换到第${index + 1}条评价`}
-                  ></button>
-                ))}
-              </div>
-
-              <button
-                className="testimonial-btn next-btn ms-4"
-                onClick={goToNextSlide}
-                onMouseEnter={pauseSlideInterval}
-                onMouseLeave={startSlideInterval}
-                aria-label="下一条评价"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-chevron-right" viewBox="0 0 16 16">
-                  <path fillRule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </Container>
-      </section>
-
-      {/* 如何开始 */}
-      <section className="how-it-works-section py-5 mb-6 animate-on-scroll position-relative" style={{ opacity: 0 }}>
-        <div className="section-bg-pattern pattern-3 rounded-5"></div>
+      {/* ======== 三步上手 ======== */}
+      <section className="steps-saas py-5 animate-on-scroll" style={{ opacity: 0 }}>
         <Container>
           <div className="text-center mb-5">
             <EnhancedBadge bg="info" className="mb-3">
-              <span className="fw-medium text-white">简单三步</span>
+              <span className="text-white fw-medium">三步上手</span>
             </EnhancedBadge>
-            <h2 className="display-5 fw-bold mb-4">如何开始使用</h2>
-            <p className="lead text-muted mx-auto" style={{ maxWidth: '700px' }}>
-              只需简单几步，即可开启您的财务成长之旅。
-            </p>
+            <h2 className="section-title fw-bold mb-3">30 秒开始记账</h2>
           </div>
 
-          <Row className="g-4 position-relative steps-container">
-            {/* 连接线 */}
-            <div className="position-absolute steps-connector d-none d-lg-block"></div>
-
-            <Col lg={4} className="animate__animated animate__fadeInUp" style={{ animationDelay: '0.1s' }}>
-              <div className="step-item text-center p-4 card-hover">
-                <div className="step-number bg-primary text-white rounded-circle mx-auto mb-4 fs-3 fw-bold d-flex align-items-center justify-content-center pulse" style={{ width: '60px', height: '60px' }}>1</div>
-                <h3 className="h4 mb-3">完成财务健康评估</h3>
-                <p className="text-muted">通过简短的问卷了解您当前的财务状况和理财习惯，发现潜在的改进空间。</p>
+          <Row className="g-4">
+            <Col lg={4}>
+              <div className="step-card text-center p-4">
+                <div className="step-number bg-primary text-white rounded-circle mx-auto mb-4 fs-3 fw-bold d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px' }}>1</div>
+                <h3 className="h4 fw-bold mb-3">说一句，或敲一行</h3>
+                <p className="text-muted">"昨天在蜜雪冰城买柠檬水27块"——语音或文字都行，剩下的交给 AI。</p>
               </div>
             </Col>
-
-            <Col lg={4} className="animate__animated animate__fadeInUp" style={{ animationDelay: '0.3s' }}>
-              <div className="step-item text-center p-4 card-hover">
-                <div className="step-number bg-primary text-white rounded-circle mx-auto mb-4 fs-3 fw-bold d-flex align-items-center justify-content-center pulse" style={{ width: '60px', height: '60px', animationDelay: '0.5s' }}>2</div>
-                <h3 className="h4 mb-3">获取个性化财务计划</h3>
-                <p className="text-muted">AI教练会根据您的情况制定适合您的财务目标和改进计划，帮助您更好地管理财务。</p>
+            <Col lg={4}>
+              <div className="step-card text-center p-4">
+                <div className="step-number bg-primary text-white rounded-circle mx-auto mb-4 fs-3 fw-bold d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px' }}>2</div>
+                <h3 className="h4 fw-bold mb-3">看 AI 怎么评</h3>
+                <p className="text-muted">合理性判断 + 预算余量 + 储蓄影响，一句人话告诉你这笔值不值。</p>
               </div>
             </Col>
-
-            <Col lg={4} className="animate__animated animate__fadeInUp" style={{ animationDelay: '0.5s' }}>
-              <div className="step-item text-center p-4 card-hover">
-                <div className="step-number bg-primary text-white rounded-circle mx-auto mb-4 fs-3 fw-bold d-flex align-items-center justify-content-center pulse" style={{ width: '60px', height: '60px', animationDelay: '1s' }}>3</div>
-                <h3 className="h4 mb-3">持续指导与成长</h3>
-                <p className="text-muted">通过定期与AI教练对话，获取建议并跟踪您的财务进步，不断优化您的财务习惯。</p>
+            <Col lg={4}>
+              <div className="step-card text-center p-4">
+                <div className="step-number bg-primary text-white rounded-circle mx-auto mb-4 fs-3 fw-bold d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px' }}>3</div>
+                <h3 className="h4 fw-bold mb-3">盯着目标攒钱</h3>
+                <p className="text-muted">设个目标，每记一笔都看得到离目标还有多远，月底不再吃土。</p>
               </div>
             </Col>
           </Row>
         </Container>
       </section>
 
-      {/* 号召行动 */}
-      <section className="cta-section py-5 mb-6 bg-primary text-white text-center rounded-4 animate-on-scroll position-relative overflow-hidden" style={{ opacity: 0 }}>
-        <div className="cta-animated-bg rounded-5"></div>
-        <div className="cta-particles rounded-5"></div>
-        <Container className="py-5">
-          <h2 className="display-5 fw-bold mb-4">准备好提升您的财务智慧了吗？</h2>
-          <p className="lead mb-5 mx-auto" style={{ maxWidth: '700px' }}>
-            加入青盈，开启您的财务成长之旅。现在注册，即可免费获得财务健康评估！
-          </p>
-
-          {currentUser ? (
-            <AnimatedButton
-              as={Link}
-              to="/assessment"
-              variant="light"
-              size="lg"
-              className="rounded-pill btn-glow px-4 py-2"
-            >
-              开始财务评估 <FaArrowRight className="ms-2" />
-            </AnimatedButton>
-          ) : (
-            <div className="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-              <AnimatedButton
-                as={Link}
-                to="/register"
-                variant="light"
-                size="lg"
-                className="rounded-pill btn-glow px-4 py-2"
-              >
-                免费注册 <FaArrowRight className="ms-2" />
-              </AnimatedButton>
-              <AnimatedButton
-                as={Link}
-                to="/login"
-                variant="outline-light"
-                size="lg"
-                className="rounded-pill px-4 py-2"
-              >
-                立即登录
-              </AnimatedButton>
-            </div>
-          )}
+      {/* ======== 数据与隐私承诺 ======== */}
+      <section className="privacy-saas py-4 animate-on-scroll" style={{ opacity: 0 }}>
+        <Container>
+          <div className="d-flex flex-wrap align-items-center justify-content-center gap-4 text-muted small">
+            <span><FaShieldAlt className="me-1 text-success" />消费数据只属于你</span>
+            <span><FaCheckCircle className="me-1 text-success" />不推荐理财产品、不贩卖焦虑</span>
+            <span><FaCheckCircle className="me-1 text-success" />专注行为改变，不搞花哨的"投资大师"</span>
+          </div>
         </Container>
       </section>
 
-      {/* 自定义CSS */}
+      {/* ======== 号召行动 ======== */}
+      <section className="cta-saas py-5 animate-on-scroll" style={{ opacity: 0 }}>
+        <Container>
+          <div className="cta-card text-center text-white py-5 px-4 rounded-4">
+            <h2 className="display-6 fw-bold mb-3">从现在开始，记下每一笔</h2>
+            <p className="lead mb-4 mx-auto" style={{ maxWidth: '640px' }}>
+              不用坚持，说一句就行。攒下的每一块，都是你给未来的底气。
+            </p>
+            {currentUser ? (
+              <AnimatedButton as={Link} to="/dashboard" variant="light" size="lg" className="rounded-pill px-4 py-2 fw-bold">
+                去记账 <FaArrowRight className="ms-2" />
+              </AnimatedButton>
+            ) : (
+              <div className="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+                <AnimatedButton as={Link} to="/register" variant="light" size="lg" className="rounded-pill px-4 py-2 fw-bold">
+                  免费注册 <FaArrowRight className="ms-2" />
+                </AnimatedButton>
+                <AnimatedButton as={Link} to="/login" variant="outline-light" size="lg" className="rounded-pill px-4 py-2 fw-bold">
+                  立即登录
+                </AnimatedButton>
+              </div>
+            )}
+          </div>
+        </Container>
+      </section>
+
+      {/* 自定义CSS(SaaS 明亮风格 + HomeVoiceRecorder 浅色适配) */}
       <style jsx>{`
-        .bg-gradient-primary {
-          background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
-          border-radius: 16px;
-          transition: all 0.5s ease;
+        /* ===== 页面基础 ===== */
+        .home-page {
+          background: #f8fafc;
+          color: #1e293b;
         }
-        
-        .transform-up {
-          transform: translateY(-10px);
-        }
-        
-        .feature-card-highlight {
-          border-top: 3px solid #4e73df !important;
-        }
-        
-        .bg-primary-light {
-          background-color: rgba(78, 115, 223, 0.1);
-        }
-        
-        .steps-connector {
-          top: 30px;
-          left: 25%;
-          right: 25%;
-          height: 2px;
-          background-color: #e9ecef;
-          z-index: 0;
-        }
-        
+
         .transition-all {
           transition: all 0.5s ease;
         }
-        
-        .typed-text {
-          border-bottom: 2px solid #ffc107;
-          padding-bottom: 5px;
-          font-size: 1.75rem !important; /* 减小字体大小 */
-          display: inline-block;
-          white-space: nowrap;
-        }
-        
+
         .animate-on-scroll {
           transition: opacity 0.8s ease, transform 0.8s ease;
         }
-        
+
         .slide-up {
           transform: translateY(0);
         }
-        
-        /* 动态背景元素 */
-        .animated-background {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-          z-index: -2;
-          background: linear-gradient(120deg, #f0f8ff 0%, #e6f2ff 100%);
+
+        /* ===== 首屏 ===== */
+        .hero-saas {
+          background: linear-gradient(180deg, #ffffff 0%, #f0fdf6 100%);
+          min-height: 92vh;
+          display: flex;
+          align-items: center;
         }
-        
-        .floating-shape {
+
+        .hero-inner {
+          padding-top: 5rem;
+          padding-bottom: 5rem;
+        }
+
+        /* 卡尼曼背景水印：黑白 + 低透明度 + 边缘渐隐 */
+        .hero-kahneman-bg {
           position: absolute;
-          background: rgba(78, 115, 223, 0.05);
+          right: -5rem;
+          top: 42%;
+          transform: translateY(-50%);
+          width: 480px;
+          max-width: 48vw;
+          opacity: 0.12;
+          filter: grayscale(1);
           border-radius: 50%;
-          animation: float 15s infinite ease-in-out;
+          object-fit: cover;
+          aspect-ratio: 1 / 1;
+          mask-image: radial-gradient(circle at center, black 55%, transparent 78%);
+          -webkit-mask-image: radial-gradient(circle at center, black 55%, transparent 78%);
+          pointer-events: none;
+          z-index: 0;
         }
-        
-        .shape1 {
+
+        .hero-bg-quote {
+          position: absolute;
+          right: 6%;
+          top: 18%;
+          width: 260px;
+          height: 180px;
+          background: radial-gradient(ellipse at center, rgba(16, 185, 129, 0.06) 0%, transparent 70%);
+          z-index: 0;
+          pointer-events: none;
+        }
+
+        .hero-blob {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(60px);
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        .blob-1 {
           width: 300px;
           height: 300px;
-          top: -150px;
-          left: 10%;
-          animation-delay: 0s;
+          left: -100px;
+          bottom: -60px;
+          background: rgba(16, 185, 129, 0.08);
         }
-        
-        .shape2 {
+
+        .blob-2 {
           width: 200px;
           height: 200px;
-          top: 30%;
-          right: -100px;
-          animation-delay: 2s;
-          background: rgba(34, 74, 190, 0.05);
-        }
-        
-        .shape3 {
-          width: 250px;
-          height: 250px;
-          bottom: -125px;
-          left: 20%;
-          animation-delay: 4s;
-          background: rgba(92, 159, 247, 0.05);
-        }
-        
-        .shape4 {
-          width: 180px;
-          height: 180px;
-          top: 20%;
-          left: -90px;
-          animation-delay: 6s;
-          background: rgba(255, 193, 7, 0.05);
-        }
-        
-        .shape5 {
-          width: 220px;
-          height: 220px;
-          bottom: 10%;
-          right: 15%;
-          animation-delay: 8s;
-          background: rgba(72, 187, 120, 0.05);
-        }
-        
-        .shape6 {
-          width: 150px;
-          height: 150px;
-          top: 50%;
-          left: 50%;
-          animation-delay: 10s;
-          background: rgba(66, 133, 244, 0.05);
-        }
-        
-        /* 金融相关图标 */
-        .finance-icon {
-          position: absolute;
-          opacity: 0.8;
-          animation: float 20s infinite ease-in-out;
-          z-index: -1;
-        }
-        
-        .finance-icon-1 {
-          top: 15%;
-          left: 10%;
-          animation-delay: 0s;
-          transform: rotate(-15deg);
-        }
-        
-        .finance-icon-2 {
-          top: 60%;
-          left: 5%;
-          animation-delay: 5s;
-          transform: rotate(10deg);
-        }
-        
-        .finance-icon-3 {
-          top: 25%;
-          right: 8%;
-          animation-delay: 2s;
-          transform: rotate(5deg);
-        }
-        
-        .finance-icon-4 {
-          bottom: 15%;
           right: 10%;
-          animation-delay: 7s;
-          transform: rotate(-5deg);
+          bottom: 5%;
+          background: rgba(6, 182, 212, 0.06);
         }
-        
-        .finance-icon-5 {
-          bottom: 30%;
-          left: 15%;
-          animation-delay: 10s;
-          transform: rotate(15deg);
+
+        .hero-title {
+          font-size: 2.6rem;
+          line-height: 1.2;
+          color: #0f172a;
         }
-        
-        /* 英雄区图案背景 */
-        .hero-pattern-overlay {
-          background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+
+        .hero-sub {
+          font-size: 1.1rem;
+          color: #475569;
+          max-width: 540px;
         }
-        
-        /* 特点部分背景 */
-        .section-bg-pattern {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
+
+        .hero-tag {
+          padding: 0.35rem 0.9rem;
+          border-radius: 999px;
+          background: #ecfdf5;
+          border: 1px solid #a7f3d0;
+          color: #047857;
+          font-size: 0.85rem;
+        }
+
+        /* 卡尼曼引用卡 */
+        .kahneman-quote {
+          max-width: 460px;
+        }
+
+        .kahneman-avatar {
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          object-fit: cover;
+          filter: grayscale(1);
+          border: 2px solid #fff;
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+          flex-shrink: 0;
+        }
+
+        .quote-text {
+          color: #475569;
+          font-size: 0.9rem;
+          line-height: 1.6;
+        }
+
+        /* ===== 通用区块 ===== */
+        .features-saas {
+          background: #ffffff;
+        }
+
+        .steps-saas {
+          background: #f8fafc;
+        }
+
+        .privacy-saas {
+          background: #ffffff;
+        }
+
+        .section-title {
+          color: #0f172a;
+          font-size: 2rem;
+        }
+
+        .section-sub {
+          max-width: 680px;
+          font-size: 1.05rem;
+        }
+
+        .saas-badge {
+          box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+        }
+
+        /* 功能卡片 */
+        .saas-card {
+          background: #ffffff;
+          border-radius: 16px;
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+          border: 1px solid #eef2f7 !important;
+          transition: all 0.3s ease;
+        }
+
+        .saas-card-hover {
+          transform: translateY(-6px);
+          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+        }
+
+        .saas-card-highlight {
+          border-top: 3px solid #10b981 !important;
+        }
+
+        .saas-icon {
+          background: #ecfdf5;
+          color: #059669;
+        }
+
+        .saas-icon-active {
+          background: #10b981;
+          color: #fff;
+        }
+
+        /* 三步卡片 */
+        .step-card {
+          background: #ffffff;
+          border: 1px solid #eef2f7;
+          border-radius: 16px;
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
           height: 100%;
-          z-index: -1;
-          opacity: 0.05;
+          transition: all 0.3s ease;
         }
-        
-        .pattern-1 {
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='88' height='24' viewBox='0 0 88 24'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%234e73df' fill-opacity='0.15'%3E%3Cpath d='M13 0v8h-8v8h8v8h8v-8h8v-8h-8v-8h-8zm37 0v8h-8v8h8v8h8v-8h8v-8h-8v-8h-8zm-17 8v8h8v-8h-8zm40 0v8h8v-8h-8zM13 8h8v8h-8v-8zm-8 24h8v-8h-8v8zm24-16v16h8v-16h-8zm16 0v16h8v-16h-8zm-8-8v24h8v-24h-8zm24 0v24h8v-24h-8z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+
+        .step-card:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.09);
         }
-        
-        /* 用户评价部分背景 */
-        .section-bg-gradient {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(135deg, rgba(240, 249, 255, 0.6) 0%, rgba(222, 246, 255, 0.6) 100%);
-          z-index: -2;
+
+        /* CTA 卡片 */
+        .cta-card {
+          background: linear-gradient(135deg, #059669 0%, #10b981 60%, #34d399 100%);
+          box-shadow: 0 16px 40px rgba(16, 185, 129, 0.28);
         }
-        
-        .pattern-2 {
-          background-image: url("data:image/svg+xml,%3Csvg width='52' height='26' viewBox='0 0 52 26' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2348bb78' fill-opacity='0.15'%3E%3Cpath d='M10 10c0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6h2c0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4v2c-3.314 0-6-2.686-6-6 0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6zm25.464-1.95l8.486 8.486-1.414 1.414-8.486-8.486 1.414-1.414z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+
+        /* 按钮 */
+        .btn-primary-glow {
+          box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+          transition: all 0.3s ease;
+          border: none;
         }
-        
-        /* 如何开始部分背景 */
-        .pattern-3 {
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 28' width='56' height='28'%3E%3Cpath fill='%23224abe' fill-opacity='0.1' d='M56 26v2h-7.75c2.3-1.27 4.94-2 7.75-2zm-26 2a2 2 0 1 0-4 0h-4.09A25.98 25.98 0 0 0 0 16v-2c.67 0 1.34.02 2 .07V14a2 2 0 0 0-2-2v-2a4 4 0 0 1 3.98 3.6 28.09 28.09 0 0 1 2.8-3.86A8 8 0 0 0 0 6V4a9.99 9.99 0 0 1 8.17 4.23c.94-.95 1.96-1.83 3.03-2.63A13.98 13.98 0 0 0 0 0h7.75c2 1.1 3.73 2.63 5.1 4.45 1.12-.72 2.3-1.37 3.53-1.93A20.1 20.1 0 0 0 14.28 0h2.7c.45.56.88 1.14 1.29 1.74 1.3-.48 2.63-.87 4-1.15-.11-.2-.23-.4-.36-.59H26v.07a28.4 28.4 0 0 1 4 0V0h4.09l-.37.59c1.38.28 2.72.67 4.01 1.15.4-.6.84-1.18 1.3-1.74h2.69a20.1 20.1 0 0 0-2.1 2.52c1.23.56 2.41 1.2 3.54 1.93A16.08 16.08 0 0 1 48.25 0H56c-4.58 0-8.65 2.2-11.2 5.6 1.07.8 2.09 1.68 3.03 2.63A9.99 9.99 0 0 1 56 4v2a8 8 0 0 0-6.77 3.74c1.03 1.2 1.97 2.5 2.79 3.86A4 4 0 0 1 56 10v2a2 2 0 0 0-2 2.07 28.4 28.4 0 0 1 2-.07v2c-9.2 0-17.3 4.78-21.91 12H30zM7.75 28H0v-2c2.81 0 5.46.73 7.75 2zM56 20v2c-5.6 0-10.65 2.3-14.28 6h-2.7c4.04-4.89 10.15-8 16.98-8zm-39.03 8h-2.69C10.65 24.3 5.6 22 0 22v-2c6.83 0 12.94 3.11 16.97 8zm15.01-.4a28.09 28.09 0 0 1 2.8-3.86 8 8 0 0 0-13.55 0c1.03 1.2 1.97 2.5 2.79 3.86a4 4 0 0 1 7.96 0zm14.29-11.86c1.3-.48 2.63-.87 4-1.15a25.99 25.99 0 0 0-44.55 0c1.38.28 2.72.67 4.01 1.15a21.98 21.98 0 0 1 36.54 0zm-5.43 2.71c1.13-.72 2.3-1.37 3.54-1.93a19.98 19.98 0 0 0-32.76 0c1.23.56 2.41 1.2 3.54 1.93a15.98 15.98 0 0 1 25.68 0zm-4.67 3.78c.94-.95 1.96-1.83 3.03-2.63a13.98 13.98 0 0 0-22.4 0c1.07.8 2.09 1.68 3.03 2.63a9.99 9.99 0 0 1 16.34 0z'%3E%3C/path%3E%3C/svg%3E");
+
+        .btn-primary-glow:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 28px rgba(16, 185, 129, 0.4);
         }
-        
-        /* 主图区域样式 */
-        .hero-image {
+
+        .btn-animated {
+          letter-spacing: 0.3px;
+          text-transform: none;
+          font-weight: 600;
+        }
+
+        .rounded-4 {
+          border-radius: 20px !important;
+        }
+
+        /* ==========================================
+           以下为 HomeVoiceRecorder 组件样式(SaaS 浅色版)
+           类名由该组件复用，改这里即可整体换肤
+           ========================================== */
+        .demo-card {
+          /* 默认半透明玻璃质感：背后的卡尼曼肖像透出来，形成景深 */
+          background: rgba(255, 255, 255, 0.58);
+          border: 1px solid rgba(255, 255, 255, 0.75);
+          border-radius: 20px;
+          padding: 1.25rem;
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12);
+          max-width: 480px;
+          margin: 0 auto;
           position: relative;
           z-index: 1;
+          transition: background 0.35s ease, backdrop-filter 0.35s ease,
+                      border-color 0.35s ease, box-shadow 0.35s ease;
         }
-        
-        .image-blob-shape {
-          position: absolute;
-          width: 110%;
-          height: 110%;
-          background: linear-gradient(45deg, rgba(66, 133, 244, 0.3), rgba(72, 187, 120, 0.3));
-          border-radius: 60% 40% 70% 30% / 50% 60% 40% 50%;
-          top: -5%;
-          left: -5%;
-          z-index: -1;
-          animation: blob-animate 10s ease-in-out infinite alternate;
+
+        /* 鼠标移上来：恢复实心卡片，保证阅读与操作清晰 */
+        .demo-card:hover {
+          background: rgba(255, 255, 255, 0.98);
+          backdrop-filter: blur(0);
+          -webkit-backdrop-filter: blur(0);
+          border-color: #eef2f7;
+          box-shadow: 0 24px 56px rgba(15, 23, 42, 0.14);
         }
-        
-        @keyframes blob-animate {
-          0% {
-            border-radius: 60% 40% 70% 30% / 50% 60% 40% 50%;
-          }
-          50% {
-            border-radius: 40% 60% 30% 70% / 40% 50% 60% 50%;
-          }
-          100% {
-            border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%;
-          }
+
+        .demo-card-header {
+          display: flex;
+          align-items: center;
+          color: #0f172a;
+          font-weight: 600;
+          font-size: 1.05rem;
+          margin-bottom: 1rem;
         }
-        
-        .hero-image-dots {
-          position: absolute;
-          width: 150px;
-          height: 150px;
-          background-image: radial-gradient(#4e73df 10%, transparent 11%),
-                            radial-gradient(#4e73df 10%, transparent 11%);
-          background-size: 20px 20px;
-          background-position: 0 0, 10px 10px;
-          opacity: 0.2;
-          z-index: -1;
-          bottom: -30px;
-          right: -30px;
-          border-radius: 50%;
-          animation: rotate 30s linear infinite;
+
+        .demo-live {
+          font-size: 0.75rem;
+          color: #059669;
+          display: inline-flex;
+          align-items: center;
         }
-        
-        @keyframes rotate {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
+
+        .demo-block {
+          margin-bottom: 0.9rem;
         }
-        
-        /* 增强型徽章样式 */
-        .custom-badge {
+
+        .demo-label {
+          font-size: 0.75rem;
+          color: #64748b;
+          margin-bottom: 0.35rem;
+          letter-spacing: 0.02em;
+        }
+
+        .demo-text {
+          background: #f8fafc;
+          border-radius: 10px;
+          padding: 0.6rem 0.8rem;
+          color: #334155;
+          font-size: 0.9rem;
+          border: 1px solid #eef2f7;
+        }
+
+        .demo-field {
+          background: #ecfdf5;
+          border: 1px solid #a7f3d0;
+          color: #047857;
+          border-radius: 999px;
+          padding: 0.25rem 0.75rem;
+          font-size: 0.8rem;
+        }
+
+        .demo-field-btn {
+          cursor: pointer;
+        }
+
+        .demo-field-active {
+          background: #10b981;
+          border-color: #10b981;
+          color: #fff;
+        }
+
+        .demo-ai {
+          background: #f8fafc;
+          border-radius: 12px;
+          padding: 0.75rem;
+          border: 1px solid #eef2f7;
+        }
+
+        .demo-start-btn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          background-image: linear-gradient(to right, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.2) 100%);
-          backdrop-filter: blur(5px);
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-          transform: translateY(0);
-          transition: all 0.3s ease;
-        }
-        
-        .custom-badge:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-        }
-        
-        .badge-content {
-          z-index: 1;
-        }
-        
-        .badge-glow {
-          position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: linear-gradient(
-            to right,
-            rgba(255, 255, 255, 0) 0%,
-            rgba(255, 255, 255, 0.2) 50%,
-            rgba(255, 255, 255, 0) 100%
-          );
-          transform: rotate(30deg);
-          animation: badgeGlow 3s ease-in-out infinite;
-        }
-        
-        @keyframes badgeGlow {
-          0% {
-            transform: translateX(-100%) rotate(30deg);
-          }
-          100% {
-            transform: translateX(100%) rotate(30deg);
-          }
-        }
-        
-        .pulse-dot {
-          display: inline-block;
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background-color: #48bb78;
-          position: relative;
-        }
-        
-        .pulse-dot::after {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
           width: 100%;
-          height: 100%;
-          border-radius: 50%;
-          background-color: #48bb78;
-          animation: pulse 2s infinite;
-          z-index: 0;
-        }
-        
-        @keyframes pulse {
-          0% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          70% {
-            transform: scale(2);
-            opacity: 0;
-          }
-          100% {
-            transform: scale(1);
-            opacity: 0;
-          }
-        }
-        
-        /* 按钮发光效果 */
-        .btn-glow {
-          position: relative;
-          overflow: hidden;
-          box-shadow: 0 0 10px rgba(78, 115, 223, 0.3);
-          transition: all 0.3s ease;
+          margin-top: 0.25rem;
+          padding: 0.7rem 1.25rem;
           border: none;
+          border-radius: 999px;
+          background: linear-gradient(135deg, #10b981, #059669);
+          color: #fff;
+          font-weight: 600;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 6px 18px rgba(16, 185, 129, 0.3);
         }
-        
-        .btn-glow:hover {
-          box-shadow: 0 0 20px rgba(78, 115, 223, 0.5);
+
+        .demo-start-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 24px rgba(16, 185, 129, 0.4);
+        }
+
+        .demo-start-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .demo-start-btn-lg {
+          padding: 1rem 1.5rem;
+          font-size: 1.15rem;
+          margin-top: 0;
+        }
+
+        .demo-ghost-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.6rem 1.1rem;
+          border-radius: 999px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          color: #475569;
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: all 0.25s ease;
+        }
+
+        .demo-ghost-btn:hover {
+          background: #f8fafc;
+          border-color: #cbd5e1;
+        }
+
+        .demo-ghost-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .demo-stop-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          padding: 0.7rem 1.25rem;
+          border: none;
+          border-radius: 999px;
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          color: #fff;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 6px 18px rgba(239, 68, 68, 0.3);
+        }
+
+        .demo-stop-btn:hover {
           transform: translateY(-2px);
         }
-        
-        .btn-glow::after {
-          content: '';
-          position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: linear-gradient(
-            to bottom right,
-            rgba(255, 255, 255, 0) 0%,
-            rgba(255, 255, 255, 0.1) 100%
-          );
-          transform: rotate(30deg);
-          transition: all 0.3s ease;
+
+        .demo-hint {
+          margin-top: 0.6rem;
+          font-size: 0.75rem;
+          color: #64748b;
         }
-        
-        .btn-glow:hover::after {
-          transform: rotate(0deg);
+
+        .demo-error {
+          margin-top: 0.75rem;
+          padding: 0.5rem 0.8rem;
+          border-radius: 10px;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          color: #b91c1c;
+          font-size: 0.8rem;
         }
-        
-        /* 按钮内容对齐 */
-        .btn-animated {
-          letter-spacing: 0.5px;
-          text-transform: none;
-          font-weight: 500;
+
+        .demo-alt {
+          margin-top: 0.6rem;
         }
-        
-        /* 用户头像渐变边框 */
-        .avatar-gradient {
-          background: linear-gradient(45deg, #4e73df, #48bb78);
-          padding: 2px;
-        }
-        
-        /* CTA 区域动画背景 */
-        .cta-section {
-          position: relative;
-          border-radius: 16px;
-          overflow: hidden;
-        }
-        
-        .cta-animated-bg {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(45deg, #3a57d0, #224abe);
-          opacity: 0.8;
-          z-index: -1;
-        }
-        
-        .cta-particles {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-          z-index: -1;
-        }
-        
-        .cta-particles::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background-image: radial-gradient(circle, #ffffff 1px, transparent 1px);
-          background-size: 20px 20px;
-          opacity: 0.1;
-        }
-        
-        /* 圆角统一化 */
-        .rounded-5 {
-          border-radius: 16px !important;
-        }
-        
-        /* 卡片悬停效果增强 */
-        .card-hover {
-          transition: all 0.3s ease;
-          border-radius: 12px;
-          overflow: hidden;
-        }
-        
-        .card-hover:hover {
-          transform: translateY(-8px);
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        }
-        
-        /* 用户评价轮播样式 - 重新设计 */
-        .testimonial-carousel {
-          position: relative;
-          max-width: 800px;
-          margin: 0 auto;
-          overflow: hidden;
-        }
-        
-        .testimonial-carousel-inner {
-          position: relative;
-        }
-        
-        .testimonial-item {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          opacity: 0;
-          transform: translateY(20px);
-          visibility: hidden;
-          transition: opacity 0.5s ease, transform 0.5s ease, visibility 0.5s;
-        }
-        
-        .testimonial-item.active {
-          position: relative;
-          opacity: 1;
-          transform: translateY(0);
-          visibility: visible;
-        }
-        
-        .testimonial-content-wrapper {
-          height: 100%;
-          transition: all 0.3s ease;
-          border-radius: 16px;
-          border-bottom: 4px solid transparent;
-          border-image: linear-gradient(90deg, #4e73df, #36b9cc);
-          border-image-slice: 1;
-        }
-        
-        .testimonial-content-wrapper:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
-        }
-        
-        /* 控制按钮样式 */
-        .testimonial-controls {
-          position: relative;
-          z-index: 2;
-        }
-        
-        .testimonial-btn {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background-color: #fff;
+
+        .demo-link {
+          background: none;
           border: none;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+          color: #64748b;
+          font-size: 0.8rem;
+          text-decoration: underline;
+          cursor: pointer;
+          padding: 0;
+        }
+
+        .demo-link:hover {
+          color: #0f172a;
+        }
+
+        .rec-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: #ef4444;
+          animation: recBlink 1s infinite;
+        }
+
+        @keyframes recBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+
+        .demo-rec-wave {
           display: flex;
           align-items: center;
           justify-content: center;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          color: #4e73df;
+          gap: 5px;
+          height: 48px;
         }
-        
-        .testimonial-btn:hover {
-          background-color: #4e73df;
-          color: #fff;
-          transform: translateY(-2px);
+
+        .rec-bar {
+          width: 5px;
+          height: 20px;
+          border-radius: 3px;
+          background: linear-gradient(to top, #10b981, #6ee7b7);
+          animation: recBounce 1s ease-in-out infinite;
         }
-        
-        .testimonial-indicator {
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-          background-color: #d1d9e6;
-          border: none;
-          cursor: pointer;
-          transition: all 0.3s ease;
+
+        @keyframes recBounce {
+          0%, 100% { height: 12px; }
+          50% { height: 42px; }
         }
-        
-        .testimonial-indicator.active {
-          background-color: #4e73df;
-          width: 30px;
+
+        .demo-textarea {
+          width: 100%;
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          color: #1e293b;
+          padding: 0.6rem 0.8rem;
+          font-size: 0.9rem;
+          resize: none;
+          outline: none;
+        }
+
+        .demo-textarea:focus {
+          border-color: #10b981;
+          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+        }
+
+        .demo-form-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0.5rem;
+        }
+
+        .demo-input {
+          width: 100%;
           border-radius: 10px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          color: #1e293b;
+          padding: 0.5rem 0.7rem;
+          font-size: 0.85rem;
+          outline: none;
+        }
+
+        .demo-input:focus {
+          border-color: #10b981;
+          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
         }
       `}</style>
     </div>
   );
 };
 
-export default Home; 
+export default Home;

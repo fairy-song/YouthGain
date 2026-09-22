@@ -18,7 +18,12 @@ requests>=2.31.0
 gunicorn>=21.2.0
 
 # 智谱 AI SDK
-zhipuai>=2.1.5 
+zhipuai>=2.1.5
+
+# 讯飞语音听写 WebAPI 客户端（xfyun_asr.py 依赖）
+# 此前以 --target 方式 vendor 在 backend/vendor_pkgs/，未声明依赖，
+# 导致克隆仓库后语音录入功能无法运行。现改为正常声明。
+websocket-client>=1.9.0
 
 # MySQL 数据库驱动及加密支持
 PyMySQL>=1.1.0

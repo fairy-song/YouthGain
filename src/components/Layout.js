@@ -35,7 +35,7 @@ const styles = {
     transition: 'all 0.5s ease',
   },
   brandTextHover: {
-    textShadow: '0 0 15px rgba(255, 255, 255, 0.5), 0 0 10px rgba(255, 193, 7, 0.5)',
+    textShadow: '0 0 15px rgba(255, 255, 255, 0.5), 0 0 10px rgba(var(--yg-accent-rgb), 0.5)',
   }
 };
 
@@ -175,7 +175,7 @@ const Layout = () => {
         }
         
         .nav-link:hover {
-          color: #ffc107 !important;
+          color: var(--yg-accent) !important;
         }
         
         .nav-underline {
@@ -184,7 +184,7 @@ const Layout = () => {
           left: 0;
           width: 0;
           height: 2px;
-          background-color: #ffc107;
+          background-color: var(--yg-accent);
           transition: width 0.3s ease;
         }
         
@@ -207,7 +207,7 @@ const Layout = () => {
         }
         
         .footer-link:hover {
-          color: #ffc107 !important;
+          color: var(--yg-accent) !important;
         }
         
         .footer-link .icon {
@@ -222,7 +222,7 @@ const Layout = () => {
           left: 0;
           width: 0;
           height: 2px;
-          background-color: #ffc107;
+          background-color: var(--yg-accent);
           transition: width 0.3s ease;
         }
         
@@ -240,7 +240,7 @@ const Layout = () => {
 
       {/* 导航栏 - 在页面切换时保持不变 */}
       <div className="navbar-wrapper">
-        <Navbar expand="lg" bg="dark" variant="dark" className="shadow-lg py-2 navbar" style={{ backgroundColor: '#1a2234 !important' }}>
+        <Navbar expand="lg" bg="dark" variant="dark" className="shadow-lg py-2 navbar" style={{ backgroundColor: 'var(--yg-navbar) !important' }}>
           <Container>
             <Navbar.Brand
               as={Link}

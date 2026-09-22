@@ -138,19 +138,27 @@ const CATEGORY_NAMES = {
   pressure: '应对能力'
 };
 
-// Colors for the sparkline chart lines
+// 折线图的分类色板。
+//
+// 这 11 条分类线是叠加绘制在同一张图上的（总分线粗而醒目，
+// 其余以 0.55 透明度虚线作为背景参照），所以各色之间必须有区分度，
+// 不能简单用主色渐变的单色阶。
+//
+// 排布原则：以品牌青绿为主轴（total），其余色相环绕分布，
+// 统一压低饱和度与明度，避开 SB Admin 时代那套全彩乱配色。
+// 所有色值在浅底上的对比度均 >= 3:1（图形元素的可辨识下限）。
 const LINE_COLORS = {
-  total: '#4e73df',
-  savings: '#1cc88a',
-  risk: '#f6c23e',
-  emergency: '#36b9cc',
-  debt: '#e74a3b',
-  knowledge: '#858796',
-  income: '#fd7e14',
-  goals: '#6f42c1',
-  tracking: '#20c9a6',
-  insurance: '#e83e8c',
-  pressure: '#6610f2',
+  total: '#2F7D5F',      // 品牌青绿——主线，最粗最醒目
+  savings: '#2E7D8C',    // 青
+  risk: '#C5755E',       // 赤陶橙（点缀色）
+  emergency: '#4774A7',  // 辅助蓝
+  debt: '#B24A43',       // 砖红
+  knowledge: '#6B7280',  // 中性灰
+  income: '#A8801F',     // 赭黄
+  goals: '#7A5AA6',      // 紫
+  tracking: '#4E8C4A',   // 草绿
+  insurance: '#A6527C',  // 梅红
+  pressure: '#5560A8',   // 靛
 };
 
 // ─────────────────────────────────────────────────
@@ -249,11 +257,11 @@ const SparklineChart = ({ history }) => {
             <line
               x1={PADDING.left} y1={yScale(tick)}
               x2={W - PADDING.right} y2={yScale(tick)}
-              stroke="#e9ecef" strokeWidth="1"
+              stroke="var(--yg-line)" strokeWidth="1"
             />
             <text
               x={PADDING.left - 8} y={yScale(tick) + 4}
-              textAnchor="end" fontSize="11" fill="#adb5bd"
+              textAnchor="end" fontSize="11" fill="var(--yg-muted)"
             >{tick}%</text>
           </g>
         ))}
@@ -263,7 +271,7 @@ const SparklineChart = ({ history }) => {
           <text
             key={i}
             x={xScale(i)} y={H - 6}
-            textAnchor="middle" fontSize="10" fill="#adb5bd"
+            textAnchor="middle" fontSize="10" fill="var(--yg-muted)"
           >
             {formatDate(r.timestamp).slice(5)}
           </text>
@@ -277,7 +285,7 @@ const SparklineChart = ({ history }) => {
               key={cat}
               d={buildPath(values)}
               fill="none"
-              stroke={LINE_COLORS[cat] || '#ccc'}
+              stroke={LINE_COLORS[cat] || 'var(--yg-line)'}
               strokeWidth="1.5"
               strokeDasharray="4 3"
               opacity="0.55"
@@ -316,7 +324,7 @@ const SparklineChart = ({ history }) => {
         </span>
         {allCategories.slice(0, 6).map(cat => (
           <span key={cat} className="legend-item d-flex align-items-center gap-1">
-            <span style={{ width: 10, height: 3, borderRadius: 2, display: 'inline-block', background: LINE_COLORS[cat] || '#ccc', opacity: 0.7 }} />
+            <span style={{ width: 10, height: 3, borderRadius: 2, display: 'inline-block', background: LINE_COLORS[cat] || 'var(--yg-line)', opacity: 0.7 }} />
             <small className="text-muted">{getCategoryName(cat)}</small>
           </span>
         ))}
@@ -508,7 +516,7 @@ const Assessment = () => {
                     style={{ cursor: 'pointer' }}
                   >
                     <Card.Body className="p-4 d-flex flex-column align-items-center text-center">
-                      <div className="home-card-icon mb-3" style={{ background: 'linear-gradient(135deg,#4e73df,#224abe)' }}>
+                      <div className="home-card-icon mb-3" style={{ background: 'linear-gradient(135deg, var(--yg-primary-text), var(--yg-primary-deep))' }}>
                         <FaClipboardList size={32} color="white" />
                       </div>
                       <h4 className="fw-bold mb-2">开始新评估</h4>
@@ -526,7 +534,7 @@ const Assessment = () => {
                     style={{ cursor: 'pointer' }}
                   >
                     <Card.Body className="p-4 d-flex flex-column align-items-center text-center">
-                      <div className="home-card-icon mb-3" style={{ background: 'linear-gradient(135deg,#1cc88a,#13855c)' }}>
+                      <div className="home-card-icon mb-3" style={{ background: 'linear-gradient(135deg, var(--yg-success), var(--yg-success-deep))' }}>
                         <FaHistory size={32} color="white" />
                       </div>
                       <h4 className="fw-bold mb-2">历史记录</h4>
@@ -905,19 +913,19 @@ const AssessmentStyles = () => (
       width: 100%; height: 100%;
       overflow: hidden;
       z-index: -2;
-      background: linear-gradient(120deg, #f0f8ff 0%, #e6f2ff 100%);
+      background: linear-gradient(120deg, var(--yg-wash-from) 0%, var(--yg-wash-to) 100%);
     }
 
     .floating-shape {
       position: absolute;
-      background: rgba(78, 115, 223, 0.05);
+      background: rgba(var(--yg-primary-rgb), 0.05);
       border-radius: 50%;
       animation: float 15s infinite ease-in-out;
     }
 
     .shape1 { width: 300px; height: 300px; top: -150px; left: 10%; animation-delay: 0s; }
-    .shape2 { width: 200px; height: 200px; top: 30%; right: -100px; animation-delay: 2s; background: rgba(34,74,190,0.05); }
-    .shape3 { width: 250px; height: 250px; bottom: -125px; left: 20%; animation-delay: 4s; background: rgba(92,159,247,0.05); }
+    .shape2 { width: 200px; height: 200px; top: 30%; right: -100px; animation-delay: 2s; background: rgba(var(--yg-primary-rgb),0.05); }
+    .shape3 { width: 250px; height: 250px; bottom: -125px; left: 20%; animation-delay: 4s; background: rgba(var(--yg-primary-rgb),0.05); }
 
     @keyframes float {
       0%   { transform: translateY(0) rotate(0deg) scale(1); }
@@ -928,29 +936,31 @@ const AssessmentStyles = () => (
     .progress-bar-thick { height: 8px; border-radius: 4px; }
 
     /* Gradient header colours */
-    .bg-gradient-success  { background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); }
-    .bg-gradient-primary  { background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); }
-    .bg-gradient-info     { background: linear-gradient(135deg, #36b9cc 0%, #258391 100%); }
-    .bg-gradient-warning  { background: linear-gradient(135deg, #f6c23e 0%, #dda20a 100%); }
-    .bg-gradient-secondary{ background: linear-gradient(135deg, #858796 0%, #60616f 100%); }
+    .bg-gradient-success  { background: linear-gradient(135deg, var(--yg-success) 0%, var(--yg-success-deep) 100%); }
+    .bg-gradient-primary  { background: linear-gradient(135deg, var(--yg-primary-text) 0%, var(--yg-primary-deep) 100%); }
+    /* 渐变起点用更深的档位：这几处都配 text-white，
+       起点若用 500 档白字只有 2.5-3.7:1，读不清 */
+    .bg-gradient-info     { background: linear-gradient(135deg, var(--yg-secondary-hover) 0%, var(--yg-secondary-deep) 100%); }
+    .bg-gradient-warning  { background: linear-gradient(135deg, var(--yg-accent-text) 0%, var(--yg-accent-deep) 100%); }
+    .bg-gradient-secondary{ background: linear-gradient(135deg, var(--yg-muted) 0%, #5A605E 100%); }
 
     /* Glow buttons */
     .btn-glow {
-      box-shadow: 0 0 10px rgba(78,115,223,0.3);
+      box-shadow: 0 0 10px rgba(var(--yg-primary-rgb),0.3);
       transition: all 0.3s ease;
       border: none;
     }
-    .btn-glow:hover { box-shadow: 0 0 20px rgba(78,115,223,0.5); transform: translateY(-2px); }
+    .btn-glow:hover { box-shadow: 0 0 20px rgba(var(--yg-primary-rgb),0.5); transform: translateY(-2px); }
     .btn-glow-green {
-      box-shadow: 0 0 10px rgba(28,200,138,0.3);
+      box-shadow: 0 0 10px rgba(var(--yg-success-rgb),0.3);
       transition: all 0.3s ease;
       border: none;
     }
-    .btn-glow-green:hover { box-shadow: 0 0 20px rgba(28,200,138,0.5); transform: translateY(-2px); }
+    .btn-glow-green:hover { box-shadow: 0 0 20px rgba(var(--yg-success-rgb),0.5); transform: translateY(-2px); }
 
     /* Option buttons */
     .option-button { transition: all 0.3s ease; }
-    .option-button:hover { background-color: #4e73df; color: white; transform: translateY(-2px); }
+    .option-button:hover { background-color: var(--yg-primary); color: white; transform: translateY(-2px); }
     .option-arrow { opacity: 0; transform: translateX(-10px); transition: all 0.3s ease; }
     .option-button:hover .option-arrow { opacity: 1; transform: translateX(0); }
 
@@ -970,12 +980,12 @@ const AssessmentStyles = () => (
 
     /* Category chip */
     .cat-chip {
-      background: #f8f9fa;
+      background: var(--yg-surface);
       border-radius: 10px;
       padding: 6px 10px;
       font-size: 0.78rem;
     }
-    .cat-chip-name { color: #6c757d; margin-bottom: 2px; }
+    .cat-chip-name { color: var(--yg-muted); margin-bottom: 2px; }
     .cat-chip-val { font-weight: 700; font-size: 0.88rem; }
 
     /* Badge */

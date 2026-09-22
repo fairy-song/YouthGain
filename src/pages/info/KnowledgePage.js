@@ -145,7 +145,7 @@ const KnowledgePage = () => {
   });
   
   return (
-    <div className="knowledge-page bg-gray-50 min-h-screen pb-20">
+    <div className="knowledge-page bg-neutral-50 min-h-screen pb-20">
       {/* 页面标题 */}
       <InfoPageHeader 
         title="金融知识库" 
@@ -163,13 +163,13 @@ const KnowledgePage = () => {
                 placeholder="搜索金融知识..."
                 value={searchQuery}
                 onChange={handleSearchChange}
-                className="w-full px-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-10 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-success-500"
               />
-              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" />
             </div>
             
             <div className="text-center">
-              <span className="text-gray-600 mr-2 hidden md:inline">共找到 {filteredArticles.length} 个结果</span>
+              <span className="text-neutral-600 mr-2 hidden md:inline">共找到 {filteredArticles.length} 个结果</span>
             </div>
           </div>
           
@@ -180,8 +180,8 @@ const KnowledgePage = () => {
                 key={category.id}
                 className={`flex items-center px-4 py-2 rounded-full border transition-colors ${
                   activeCategory === category.id
-                    ? 'bg-green-600 text-white border-green-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                    ? 'bg-success-600 text-white border-success-600'
+                    : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-100'
                 }`}
                 onClick={() => setActiveCategory(category.id)}
               >
@@ -206,12 +206,12 @@ const KnowledgePage = () => {
                 </div>
                 <div className="p-5">
                   <div className="flex justify-between items-center mb-3">
-                    <span className="text-xs font-medium text-gray-500">{article.date}</span>
-                    <span className="text-xs font-medium text-gray-500">{article.readTime} 分钟阅读</span>
+                    <span className="text-xs font-medium text-neutral-500">{article.date}</span>
+                    <span className="text-xs font-medium text-neutral-500">{article.readTime} 分钟阅读</span>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">{article.title}</h3>
-                  <p className="text-gray-600 mb-4 line-clamp-3">{article.summary}</p>
-                  <button className="text-green-600 font-medium hover:text-green-800 inline-flex items-center">
+                  <h3 className="text-xl font-bold text-neutral-800 mb-2">{article.title}</h3>
+                  <p className="text-neutral-600 mb-4 line-clamp-3">{article.summary}</p>
+                  <button className="text-success-600 font-medium hover:text-success-800 inline-flex items-center">
                     阅读全文
                     <svg className="w-4 h-4 ml-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -223,9 +223,9 @@ const KnowledgePage = () => {
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <div className="text-4xl text-gray-300 mb-4">😕</div>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">未找到相关内容</h3>
-            <p className="text-gray-600 mb-4">
+            <div className="text-4xl text-neutral-300 mb-4">😕</div>
+            <h3 className="text-xl font-bold text-neutral-800 mb-2">未找到相关内容</h3>
+            <p className="text-neutral-600 mb-4">
               尝试调整搜索关键词或选择不同的分类
             </p>
             <button 
@@ -233,7 +233,7 @@ const KnowledgePage = () => {
                 setSearchQuery('');
                 setActiveCategory('all');
               }}
-              className="text-green-600 font-medium hover:text-green-800"
+              className="text-success-600 font-medium hover:text-success-800"
             >
               清除所有筛选条件
             </button>
@@ -242,26 +242,26 @@ const KnowledgePage = () => {
         
         {/* 热门专题 */}
         <div className="mt-16">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">热门专题</h2>
+          <h2 className="text-2xl font-bold text-neutral-800 mb-6">热门专题</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-gradient-to-r from-blue-500 to-blue-700 rounded-lg shadow-md p-6 text-white">
+            <div className="bg-gradient-to-r from-primary-700 to-primary-900 rounded-lg shadow-md p-6 text-white">
               <h3 className="text-xl font-bold mb-3">新手理财入门</h3>
               <p className="mb-4 opacity-90">从零开始学习财务管理的基本概念和实用技巧，为财务自由打下坚实基础。</p>
-              <button className="bg-white text-blue-600 px-4 py-2 rounded-md font-medium transition-colors hover:bg-blue-50">
+              <button className="bg-white text-primary-700 px-4 py-2 rounded-md font-medium transition-colors hover:bg-primary-50">
                 开始学习
               </button>
             </div>
-            <div className="bg-gradient-to-r from-purple-500 to-purple-700 rounded-lg shadow-md p-6 text-white">
+            <div className="bg-gradient-to-r from-secondary-700 to-secondary-900 rounded-lg shadow-md p-6 text-white">
               <h3 className="text-xl font-bold mb-3">投资组合构建</h3>
               <p className="mb-4 opacity-90">了解如何根据个人风险偏好和财务目标，构建适合自己的多元化投资组合。</p>
-              <button className="bg-white text-purple-600 px-4 py-2 rounded-md font-medium transition-colors hover:bg-purple-50">
+              <button className="bg-white text-secondary-600 px-4 py-2 rounded-md font-medium transition-colors hover:bg-secondary-50">
                 开始学习
               </button>
             </div>
-            <div className="bg-gradient-to-r from-green-500 to-green-700 rounded-lg shadow-md p-6 text-white">
+            <div className="bg-gradient-to-r from-success-600 to-success-800 rounded-lg shadow-md p-6 text-white">
               <h3 className="text-xl font-bold mb-3">家庭财务规划</h3>
               <p className="mb-4 opacity-90">掌握家庭预算管理、保险规划、教育金储备等实用知识，保障家庭财务安全。</p>
-              <button className="bg-white text-green-600 px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-50">
+              <button className="bg-white text-success-600 px-4 py-2 rounded-md font-medium transition-colors hover:bg-success-50">
                 开始学习
               </button>
             </div>

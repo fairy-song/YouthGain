@@ -172,7 +172,7 @@ const TutorialPage = () => {
   const featuredTutorials = tutorials.filter(tutorial => tutorial.featured);
 
   return (
-    <div className="tutorial-page bg-gray-50 min-h-screen pb-20">
+    <div className="tutorial-page bg-neutral-50 min-h-screen pb-20">
       {/* 页面标题 */}
       <InfoPageHeader 
         title="使用教程" 
@@ -184,7 +184,7 @@ const TutorialPage = () => {
         {/* 特色教程 */}
         {!searchQuery && activeCategory === 'all' && activeDifficulty === 'all' && (
           <div className="featured-tutorials mb-12">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">推荐教程</h2>
+            <h2 className="text-2xl font-bold text-neutral-800 mb-6">推荐教程</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {featuredTutorials.map(tutorial => (
                 <div key={tutorial.id} className="relative h-72 rounded-xl overflow-hidden group">
@@ -194,7 +194,7 @@ const TutorialPage = () => {
                     className="absolute w-full h-full object-cover transition-transform group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end p-6">
-                    <span className="inline-flex items-center bg-green-600 text-white text-xs px-2 py-1 rounded-full uppercase tracking-wide mb-2">
+                    <span className="inline-flex items-center bg-success-600 text-white text-xs px-2 py-1 rounded-full uppercase tracking-wide mb-2">
                       {tutorial.type === 'video' ? <FaVideo className="mr-1" /> : <FaBook className="mr-1" />}
                       {tutorial.type === 'video' ? `视频 · ${tutorial.duration}` : `文章 · ${tutorial.readTime}`}
                     </span>
@@ -217,17 +217,17 @@ const TutorialPage = () => {
                 placeholder="搜索教程..."
                 value={searchQuery}
                 onChange={handleSearchChange}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-success-500"
               />
-              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" />
             </div>
             
             <div className="flex items-center space-x-2 flex-shrink-0">
-              <span className="text-sm text-gray-600">分类:</span>
+              <span className="text-sm text-neutral-600">分类:</span>
               <select
                 value={activeCategory}
                 onChange={(e) => setActiveCategory(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                className="border border-neutral-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-success-500 text-sm"
               >
                 {categories.map(category => (
                   <option key={category.id} value={category.id}>{category.name}</option>
@@ -236,11 +236,11 @@ const TutorialPage = () => {
             </div>
             
             <div className="flex items-center space-x-2 flex-shrink-0">
-              <span className="text-sm text-gray-600">难度:</span>
+              <span className="text-sm text-neutral-600">难度:</span>
               <select
                 value={activeDifficulty}
                 onChange={(e) => setActiveDifficulty(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                className="border border-neutral-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-success-500 text-sm"
               >
                 {difficulties.map(difficulty => (
                   <option key={difficulty.id} value={difficulty.id}>{difficulty.name}</option>
@@ -253,31 +253,31 @@ const TutorialPage = () => {
           {(activeCategory !== 'all' || activeDifficulty !== 'all' || searchQuery) && (
             <div className="mt-4 flex flex-wrap gap-2">
               {searchQuery && (
-                <span className="inline-flex items-center bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">
+                <span className="inline-flex items-center bg-neutral-100 text-neutral-700 text-sm px-3 py-1 rounded-full">
                   搜索: "{searchQuery}"
                   <button 
                     onClick={() => setSearchQuery('')}
-                    className="ml-2 text-gray-500 hover:text-gray-700"
+                    className="ml-2 text-neutral-500 hover:text-neutral-700"
                   >×</button>
                 </span>
               )}
               
               {activeCategory !== 'all' && (
-                <span className="inline-flex items-center bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">
+                <span className="inline-flex items-center bg-neutral-100 text-neutral-700 text-sm px-3 py-1 rounded-full">
                   分类: {categories.find(c => c.id === activeCategory)?.name}
                   <button 
                     onClick={() => setActiveCategory('all')}
-                    className="ml-2 text-gray-500 hover:text-gray-700"
+                    className="ml-2 text-neutral-500 hover:text-neutral-700"
                   >×</button>
                 </span>
               )}
               
               {activeDifficulty !== 'all' && (
-                <span className="inline-flex items-center bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">
+                <span className="inline-flex items-center bg-neutral-100 text-neutral-700 text-sm px-3 py-1 rounded-full">
                   难度: {difficulties.find(d => d.id === activeDifficulty)?.name}
                   <button 
                     onClick={() => setActiveDifficulty('all')}
-                    className="ml-2 text-gray-500 hover:text-gray-700"
+                    className="ml-2 text-neutral-500 hover:text-neutral-700"
                   >×</button>
                 </span>
               )}
@@ -288,7 +288,7 @@ const TutorialPage = () => {
                   setActiveCategory('all');
                   setActiveDifficulty('all');
                 }}
-                className="ml-auto text-sm text-green-600 hover:text-green-800"
+                className="ml-auto text-sm text-success-600 hover:text-success-800"
               >
                 清除所有筛选
               </button>
@@ -308,10 +308,10 @@ const TutorialPage = () => {
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute top-0 right-0 m-3">
-                    <span className={`inline-block px-2 py-1 text-xs font-bold text-white rounded-full ${
-                      tutorial.difficulty === 'beginner' ? 'bg-green-500' :
-                      tutorial.difficulty === 'intermediate' ? 'bg-yellow-500' :
-                      'bg-red-500'
+                    <span className={`inline-block px-2 py-1 text-xs font-bold rounded-full ${
+                      tutorial.difficulty === 'beginner' ? 'bg-success-500 text-white' :
+                      tutorial.difficulty === 'intermediate' ? 'bg-accent-500 text-neutral-950' :
+                      'bg-danger-600 text-white'
                     }`}>
                       {
                         tutorial.difficulty === 'beginner' ? '初级' :
@@ -323,20 +323,20 @@ const TutorialPage = () => {
                 </div>
                 <div className="p-5">
                   <div className="flex justify-between items-center mb-3">
-                    <span className="inline-flex items-center text-xs font-medium text-gray-500">
+                    <span className="inline-flex items-center text-xs font-medium text-neutral-500">
                       {categories.find(c => c.id === tutorial.category)?.icon}
                       <span className="ml-1">{categories.find(c => c.id === tutorial.category)?.name}</span>
                     </span>
-                    <span className="inline-flex items-center text-xs font-medium text-gray-500">
+                    <span className="inline-flex items-center text-xs font-medium text-neutral-500">
                       {tutorial.type === 'video' ? <FaVideo className="mr-1" /> : <FaBook className="mr-1" />}
                       {tutorial.type === 'video' ? tutorial.duration : tutorial.readTime}
                     </span>
                   </div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-2">{tutorial.title}</h3>
-                  <p className="text-gray-600 mb-4 line-clamp-2">{tutorial.description}</p>
+                  <h3 className="text-lg font-bold text-neutral-800 mb-2">{tutorial.title}</h3>
+                  <p className="text-neutral-600 mb-4 line-clamp-2">{tutorial.description}</p>
                   <a 
                     href="#" 
-                    className="inline-block text-green-600 font-medium hover:text-green-800 transition-colors"
+                    className="inline-block text-success-600 font-medium hover:text-success-800 transition-colors"
                   >
                     {tutorial.type === 'video' ? '观看视频' : '阅读教程'} →
                   </a>
@@ -346,9 +346,9 @@ const TutorialPage = () => {
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <div className="text-5xl text-gray-300 mb-4">🔍</div>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">未找到相关教程</h3>
-            <p className="text-gray-600 mb-6">
+            <div className="text-5xl text-neutral-300 mb-4">🔍</div>
+            <h3 className="text-xl font-bold text-neutral-800 mb-2">未找到相关教程</h3>
+            <p className="text-neutral-600 mb-6">
               尝试调整搜索关键词或筛选条件
             </p>
             <button 
@@ -357,7 +357,7 @@ const TutorialPage = () => {
                 setActiveCategory('all');
                 setActiveDifficulty('all');
               }}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
+              className="bg-success-600 hover:bg-success-700 text-white px-4 py-2 rounded-md transition-colors"
             >
               查看所有教程
             </button>
@@ -365,7 +365,7 @@ const TutorialPage = () => {
         )}
         
         {/* 教学课程广告 */}
-        <div className="mt-16 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg shadow-lg overflow-hidden">
+        <div className="mt-16 bg-gradient-to-r from-primary-700 to-secondary-800 rounded-lg shadow-lg overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-5">
             <div className="lg:col-span-3 p-8 lg:p-12">
               <h2 className="text-3xl font-bold text-white mb-4">完整的金融素养课程</h2>
@@ -388,12 +388,12 @@ const TutorialPage = () => {
               </ul>
               <a 
                 href="#" 
-                className="inline-block bg-white text-blue-700 font-medium px-6 py-3 rounded-md hover:bg-blue-50 transition-colors"
+                className="inline-block bg-white text-primary-700 font-medium px-6 py-3 rounded-md hover:bg-primary-50 transition-colors"
               >
                 探索课程
               </a>
             </div>
-            <div className="hidden lg:block lg:col-span-2 bg-blue-800">
+            <div className="hidden lg:block lg:col-span-2 bg-primary-800">
               <div className="h-full w-full flex items-center justify-center">
                 <div className="text-center">
                   <div className="text-7xl text-white/20 mb-2">🎓</div>

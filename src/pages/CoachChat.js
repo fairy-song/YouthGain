@@ -250,13 +250,13 @@ const CoachChat = () => {
         
         {/* 金融相关元素 */}
         <div className="finance-icon finance-icon-1">
-          <FaCoins size={24} color="rgba(78, 115, 223, 0.15)" />
+          <FaCoins size={24} color="rgba(var(--yg-primary-rgb), 0.15)" />
         </div>
         <div className="finance-icon finance-icon-2">
-          <FaChartLine size={36} color="rgba(72, 187, 120, 0.15)" />
+          <FaChartLine size={36} color="rgba(var(--yg-success-rgb), 0.15)" />
         </div>
         <div className="finance-icon finance-icon-3">
-          <FaMoneyBillWave size={32} color="rgba(255, 193, 7, 0.15)" />
+          <FaMoneyBillWave size={32} color="rgba(var(--yg-accent-rgb), 0.15)" />
         </div>
       </div>
       
@@ -419,12 +419,12 @@ const CoachChat = () => {
           height: 100%;
           overflow: hidden;
           z-index: -2;
-          background: linear-gradient(120deg, #f0f8ff 0%, #e6f2ff 100%);
+          background: linear-gradient(120deg, var(--yg-wash-from) 0%, var(--yg-wash-to) 100%);
         }
         
         .floating-shape {
           position: absolute;
-          background: rgba(78, 115, 223, 0.05);
+          background: rgba(var(--yg-primary-rgb), 0.05);
           border-radius: 50%;
           animation: float 15s infinite ease-in-out;
         }
@@ -443,7 +443,7 @@ const CoachChat = () => {
           top: 30%;
           right: -100px;
           animation-delay: 2s;
-          background: rgba(34, 74, 190, 0.05);
+          background: rgba(var(--yg-primary-rgb), 0.05);
         }
         
         .shape3 {
@@ -452,7 +452,7 @@ const CoachChat = () => {
           bottom: -125px;
           left: 20%;
           animation-delay: 4s;
-          background: rgba(92, 159, 247, 0.05);
+          background: rgba(var(--yg-primary-rgb), 0.05);
         }
         
         @keyframes float {
@@ -538,11 +538,11 @@ const CoachChat = () => {
         }
         
         .bg-gradient-primary {
-          background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+          background: linear-gradient(135deg, var(--yg-primary-text) 0%, var(--yg-primary-deep) 100%);
         }
         
         .bg-gradient-light {
-          background: linear-gradient(135deg, #f8f9fc 0%, #eaecf4 100%);
+          background: linear-gradient(135deg, var(--yg-surface) 0%, var(--yg-line) 100%);
         }
         
         .chat-container {
@@ -555,7 +555,7 @@ const CoachChat = () => {
         }
         
         .user-message {
-          background-color: #e9f5ff;
+          background-color: var(--yg-secondary-subtle);
           max-width: 80%;
           margin-left: auto;
         }
@@ -571,11 +571,11 @@ const CoachChat = () => {
         }
         
         .bg-primary-light {
-          background-color: rgba(78, 115, 223, 0.1);
+          background-color: rgba(var(--yg-primary-rgb), 0.1);
         }
         
         .bg-success-light {
-          background-color: rgba(72, 187, 120, 0.1);
+          background-color: rgba(var(--yg-success-rgb), 0.1);
         }
         
         /* 打字指示器 */
@@ -590,7 +590,7 @@ const CoachChat = () => {
           height: 8px;
           margin: 0 2px;
           border-radius: 50%;
-          background-color: #4e73df;
+          background-color: var(--yg-primary);
           animation: typingAnimation 1.5s infinite ease-in-out;
         }
         
@@ -622,13 +622,13 @@ const CoachChat = () => {
         .btn-glow {
           position: relative;
           overflow: hidden;
-          box-shadow: 0 0 10px rgba(78, 115, 223, 0.3);
+          box-shadow: 0 0 10px rgba(var(--yg-primary-rgb), 0.3);
           transition: all 0.3s ease;
           border: none;
         }
         
         .btn-glow:hover {
-          box-shadow: 0 0 20px rgba(78, 115, 223, 0.5);
+          box-shadow: 0 0 20px rgba(var(--yg-primary-rgb), 0.5);
           transform: translateY(-2px);
         }
         

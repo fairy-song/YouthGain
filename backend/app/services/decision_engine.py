@@ -50,6 +50,7 @@ __all__ = [
     "calculate_surplus",
     "calculate_opportunity_cost",
     "assess_goal_feasibility",
+    "assess_purchase",
     "detect_patterns",
     "summarize_regret",
     "build_report",
@@ -702,6 +703,106 @@ def assess_goal_feasibility(
         status=status,
         shortfall=shortfall,
     )
+
+
+def assess_purchase(
+    amount: float,
+    category: str,
+    monthly_income: float,
+    transactions: Sequence[Transaction],
+    goal: Goal | None = None,
+    *,
+    today: date | None = None,
+) -> dict:
+    """评估一笔待记录消费对预算、结余与储蓄目标的影响。
+
+    只输出**事实数据**，不做"该不该买"的价值判断——
+    刚需/非刚需判定和干预话术属于解释层（路由），不在本模块出现。
+
+    Args:
+        amount: 消费金额（元），需 > 0。
+        category: 消费类别（文本，用于同类统计的精确匹配）。
+        monthly_income: 月收入（元）。
+        transactions: 已有消费记录（**不含这笔**）。
+        goal: 当前储蓄目标，可为 None。
+        today: 基准日期，默认当天。传入固定值便于测试。
+
+    Returns:
+        dict，含四个事实块::
+
+            budget   本月已消费 / 剩余（均不含这笔）
+            surplus  这笔计入前后的月结余与影响额
+            goal     这笔计入前后目标可达性（无目标时为 has_goal=False）
+            similar  本月同类消费统计（不含这笔）
+
+    Raises:
+        ValueError: amount <= 0。
+    """
+    if amount <= 0:
+        raise ValueError(f"消费金额必须大于 0，收到: {amount}")
+
+    today = today or date.today()
+
+    # ---- 预算：本月已消费与剩余（不含这笔） ----
+    spent_this_month = round(
+        sum(t.amount for t in transactions
+            if t.date.year == today.year and t.date.month == today.month),
+        2,
+    )
+    remaining = round(monthly_income - spent_this_month, 2)
+
+    # ---- 结余：这笔计入前后的月结余 ----
+    surplus_before = calculate_surplus(monthly_income, transactions)
+    surplus_after = round(surplus_before - amount, 2)
+
+    # ---- 目标：这笔计入前后的可达性 ----
+    goal_result = {'has_goal': False}
+    if goal is not None:
+        try:
+            before = assess_goal_feasibility(goal, surplus_before, today=today)
+            after = assess_goal_feasibility(goal, surplus_after, today=today)
+            goal_result = {
+                'has_goal': True,
+                'name': goal.name,
+                'remaining': before.remaining,
+                'status_before': before.status,
+                'status_after': after.status,
+                'months_before': before.months_needed,
+                'months_after': after.months_needed,
+            }
+        except ValueError:
+            # 目标数据不合法时降级为无目标，不阻塞整笔评估
+            goal_result = {'has_goal': False}
+
+    # ---- 同类：本月同类别消费统计（不含这笔） ----
+    same_category = [
+        t for t in transactions
+        if t.category == category
+        and t.date.year == today.year
+        and t.date.month == today.month
+    ]
+    same_total = round(sum(t.amount for t in same_category), 2)
+    similar = {
+        'count_this_month': len(same_category),
+        'total_this_month': same_total,
+        'avg_amount': round(same_total / len(same_category), 2) if same_category else None,
+    }
+
+    return {
+        'amount': round(amount, 2),
+        'category': category,
+        'budget': {
+            'spent_this_month': spent_this_month,
+            'remaining': remaining,
+        },
+        'surplus': {
+            'before': surplus_before,
+            'after': surplus_after,
+            'impact': round(-amount, 2),
+        },
+        'goal': goal_result,
+        'similar': similar,
+    }
 
 
 def _detect_post_income_spike(
