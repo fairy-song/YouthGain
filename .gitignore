@@ -68,6 +68,8 @@ $RECYCLE.BIN/
 *.log
 *.sqlite
 *.db
+# 开发模式数据持久化文件（含用户财务数据，不应提交）
+backend/dev_data.json
 
 # 环境变量文件（包含敏感信息）
 .env.local

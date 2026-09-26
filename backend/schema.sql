@@ -85,9 +85,12 @@ CREATE TABLE IF NOT EXISTS `transactions` (
     `amount` DOUBLE NOT NULL COMMENT '消费金额（元），必须大于 0',
     `category` VARCHAR(64) NOT NULL COMMENT '消费类别，如 外卖/食堂/交通',
     `merchant` VARCHAR(128) DEFAULT NULL COMMENT '商户名，可选（用于后续自动分类）',
+    `items` TEXT DEFAULT NULL COMMENT '消费内容：商品或服务',
     `note` VARCHAR(255) DEFAULT NULL COMMENT '用户备注，可选',
     `hour` TINYINT DEFAULT NULL COMMENT '消费发生的小时 0-23，可选（用于深夜消费识别）',
     `spent_at` DATE NOT NULL COMMENT '消费发生日期',
+    `planned` VARCHAR(20) DEFAULT NULL,
+    `purpose` VARCHAR(300) NOT NULL DEFAULT '',
     `regret` TINYINT(1) DEFAULT NULL COMMENT '回访结果: 1=后悔 0=不后悔 NULL=未回访',
     `timestamp` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
     PRIMARY KEY (`id`),
@@ -114,3 +117,11 @@ ON DUPLICATE KEY UPDATE `title` = VALUES(`title`);
 INSERT INTO `coach_messages` (`user_id`, `sender`, `text`)
 VALUES ('test_user_id', 'assistant', '你好！我是你的AI金融心智教练“青盈”。我已经准备好帮助你分析你的财务观念、制定合理的储蓄目标并规划理财方案。今天有什么想聊的吗？')
 ON DUPLICATE KEY UPDATE `text` = VALUES(`text`);
+
+-- Account-scoped learning records; existing databases are migrated at startup.
+CREATE TABLE IF NOT EXISTS learning_entries (
+    user_id VARCHAR(128) NOT NULL,
+    entry_id VARCHAR(100) NOT NULL,
+    payload JSON NOT NULL,
+    PRIMARY KEY (user_id, entry_id)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

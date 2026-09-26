@@ -274,6 +274,7 @@ const Layout = () => {
 
                 {currentUser ? (
                   <>
+                    <Nav.Link as={Link} to="/learning" className="text-white d-flex align-items-center"><FaBook className="me-2" />理财成长</Nav.Link>
                     <div className="nav-link-container position-relative">
                       <Nav.Link
                         as={Link}

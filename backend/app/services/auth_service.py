@@ -51,8 +51,7 @@ def is_dev_bypass_enabled():
     if os.environ.get('DEV_MODE', '').lower() != 'true':
         return False
 
-    env = (os.environ.get('APP_ENV') or os.environ.get('FLASK_ENV') or '').lower()
-    if env == 'production':
+    if any(os.environ.get(key, '').lower() == 'production' for key in ('APP_ENV', 'FLASK_ENV')):
         return False
 
     global _bypass_warned

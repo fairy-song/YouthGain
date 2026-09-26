@@ -193,6 +193,16 @@ class MySQLHelper:
                     logger.error("未找到 schema.sql 脚本，无法自动建表，请手动在 MySQL 中执行。")
             else:
                 logger.info("核心数据库表已存在，跳过初始化。")
+            # 已有数据库也需要补齐消费内容字段，保留历史记录。
+            from app.services.learning_store import TABLE_SQL
+            cls.execute_update(TABLE_SQL)
+            if cls.execute_query("SHOW TABLES LIKE 'transactions'"):
+                if not cls.execute_query("SHOW COLUMNS FROM transactions LIKE 'planned'"):
+                    cls.execute_update("ALTER TABLE transactions ADD COLUMN planned VARCHAR(20) DEFAULT NULL")
+                if not cls.execute_query("SHOW COLUMNS FROM transactions LIKE 'purpose'"):
+                    cls.execute_update("ALTER TABLE transactions ADD COLUMN purpose VARCHAR(300) NOT NULL DEFAULT ''")
+                if not cls.execute_query("SHOW COLUMNS FROM transactions LIKE 'items'"):
+                    cls.execute_update("ALTER TABLE transactions ADD COLUMN items TEXT DEFAULT NULL COMMENT '消费内容：商品或服务' AFTER merchant")
             return True
         except Exception as e:
             logger.error(f"初始化数据库表失败: {e}")

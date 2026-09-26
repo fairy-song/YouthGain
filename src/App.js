@@ -11,6 +11,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import Learning from './pages/Learning';
 import Assessment from './pages/Assessment';
 import CoachChat from './pages/CoachChat';
 import NotFound from './pages/NotFound';
@@ -31,43 +32,16 @@ import Layout from './components/Layout';
 
 // API连接状态组件
 const ApiStatusIndicator = () => {
-  const [apiStatus, setApiStatus] = useState('connected'); // 默认假设已连接，用于调试
-  
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
-    // 移除API检查，用于调试
-    console.log('API状态检查已临时禁用，用于调试');
-    
-    // 如果需要重新启用API检查，取消下面代码的注释
-    /*
-    const checkApiStatus = async () => {
-      try {
-        await checkHealth();
-        setApiStatus('connected');
-        console.log('后端API连接正常');
-      } catch (err) {
-        setApiStatus('error');
-        console.error('后端API连接失败:', err);
-      }
-    };
-    
-    checkApiStatus();
-    
-    // 每30秒检查一次连接状态
-    const interval = setInterval(checkApiStatus, 30000);
-    return () => clearInterval(interval);
-    */
+    let active = true;
+    const check = () => checkHealth().then(() => { if (active) setFailed(false); }).catch(() => { if (active) setFailed(true); });
+    check();
+    const timer = setInterval(check, 30000);
+    window.addEventListener('focus', check);
+    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', check); };
   }, []);
-  
-  if (apiStatus === 'checking') return null;
-  if (apiStatus === 'error') {
-    return (
-      <div className="fixed bottom-4 right-4 bg-danger-600 text-white px-4 py-2 rounded-lg shadow-lg">
-        <p>无法连接到后端API</p>
-        <p className="text-sm">请确保后端服务正在运行</p>
-      </div>
-    );
-  }
-  return null;
+  return failed ? <div role="status" className="alert alert-warning m-3">暂时无法连接服务，保存操作可能失败。连接恢复后此提示会自动消失。</div> : null;
 };
 
 // 受保护的路由组件
@@ -83,7 +57,7 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" />;
   }
   
-  return children;
+  return <React.Fragment key={currentUser.uid}>{children}</React.Fragment>;
 };
 
 // 重定向组件 - 处理各种路径情况
@@ -121,6 +95,7 @@ function App() {
               <Dashboard />
             </ProtectedRoute>
           } />
+          <Route path="learning" element={<ProtectedRoute><Learning /></ProtectedRoute>} />
           <Route path="assessment" element={
             <ProtectedRoute>
               <Assessment />

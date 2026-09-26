@@ -10,9 +10,11 @@ from .firestore_service import (
     get_db, 
     is_dev_mode,
     get_user_collection_path,
-    _dev_db
+    _dev_db,
+    persist_dev_db
 )
 from app.utils.db_mysql import MySQLHelper, to_json_string, from_json_field
+from .checkin_service import BEIJING, build_checkin_summary
 
 def is_mysql_mode():
     """判断当前是否启用 MySQL 数据库"""
@@ -43,7 +45,39 @@ class UserDataService:
     
     def __init__(self):
         """初始化用户数据服务"""
-        self.db = get_db()
+        pass
+
+    @property
+    def db(self):
+        # Services are imported before requests; resolve the current app lazily.
+        return get_db()
+
+    def get_checkin_summary(self, user_id):
+        """读取所有记账时间，不受最近消费列表的条数限制。"""
+        try:
+            if is_mysql_mode():
+                rows = MySQLHelper.execute_query(
+                    "SELECT DISTINCT DATE(timestamp) AS day FROM transactions WHERE user_id = %s",
+                    (user_id,))
+                timestamps = [datetime.datetime.combine(row['day'], datetime.time())
+                              for row in rows if row.get('day')]
+            elif is_dev_mode():
+                rows = _dev_db['users'].get(user_id, {}).get('transactions', [])
+                if isinstance(rows, dict):
+                    rows = rows.values()
+                timestamps = [row.get('timestamp') for row in rows]
+            else:
+                if not self.db:
+                    return None, '数据库未初始化'
+                docs = self.db.collection(get_user_collection_path(user_id, 'transactions')).select(['timestamp']).stream()
+                timestamps = [doc.to_dict().get('timestamp') for doc in docs]
+            from .learning_store import read_entries
+            timestamps.extend(day + 'T12:00:00+08:00' for e in read_entries(user_id)
+                              if e.get('kind') in ('exercise', 'decision', 'review', 'reflection')
+                              for day in e.get('activity_days', [e.get('updated_at', '')[:10]]))
+            return build_checkin_summary(timestamps), None
+        except Exception as e:
+            return None, f'获取打卡记录失败: {str(e)}'
     
     def save_user_data(self, user_id: str, data_type: str, data: Dict[str, Any]) -> tuple:
         """
@@ -133,13 +167,13 @@ class UserDataService:
                     regret = data.get('regret')
                     sql = """
                         INSERT INTO transactions
-                        (id, user_id, amount, category, merchant, note, hour, spent_at, regret, timestamp)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                        (id, user_id, amount, category, merchant, items, note, hour, spent_at, regret, timestamp, planned, purpose)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON DUPLICATE KEY UPDATE
                         amount = VALUES(amount), category = VALUES(category),
-                        merchant = VALUES(merchant), note = VALUES(note),
+                        merchant = VALUES(merchant), items = VALUES(items), note = VALUES(note),
                         hour = VALUES(hour), spent_at = VALUES(spent_at),
-                        regret = VALUES(regret)
+                        regret = VALUES(regret), planned = VALUES(planned), purpose = VALUES(purpose)
                     """
                     params = (
                         txn_id,
@@ -147,10 +181,13 @@ class UserDataService:
                         data.get('amount', 0.0),
                         data.get('category', ''),
                         data.get('merchant') or None,
+                        data.get('items') or None,
                         data.get('note') or None,
                         data.get('hour'),
                         spent_at,
                         None if regret is None else (1 if regret else 0),
+                        datetime.datetime.now(BEIJING).replace(tzinfo=None),
+                        data.get('planned'), data.get('purpose', ''),
                     )
                     MySQLHelper.execute_update(sql, params)
                     data['id'] = txn_id
@@ -169,10 +206,12 @@ class UserDataService:
                 elif isinstance(_dev_db["users"][user_id][data_type], dict):
                     _dev_db["users"][user_id][data_type] = list(_dev_db["users"][user_id][data_type].values())
                 
-                data['timestamp'] = datetime.datetime.now().isoformat()
+                data['timestamp'] = (datetime.datetime.now(BEIJING) if data_type == 'transactions'
+                                     else datetime.datetime.now()).isoformat()
                 data['id'] = f"{data_type}_{len(_dev_db['users'][user_id][data_type])}"
                 
                 _dev_db["users"][user_id][data_type].append(data)
+                persist_dev_db()
                 return True, "数据保存成功"
             
             # 3. 生产 Firestore 模式
@@ -182,7 +221,8 @@ class UserDataService:
             collection_path = get_user_collection_path(user_id, data_type)
             doc_ref = self.db.collection(collection_path).document()
             
-            data['timestamp'] = datetime.datetime.now()
+            data['timestamp'] = (datetime.datetime.now(BEIJING) if data_type == 'transactions'
+                                 else datetime.datetime.now())
             data['id'] = doc_ref.id
             
             doc_ref.set(data)
@@ -274,10 +314,12 @@ class UserDataService:
                             'amount': row['amount'],
                             'category': row['category'],
                             'merchant': row['merchant'] or '',
+                            'items': row.get('items') or '',
                             'note': row['note'] or '',
                             'hour': row['hour'],
                             'date': row['spent_at'].isoformat() if row['spent_at'] else None,
                             'regret': None if row['regret'] is None else bool(row['regret']),
+                            'planned': row.get('planned'), 'purpose': row.get('purpose') or '',
                             'timestamp': row['timestamp'].isoformat() if row['timestamp'] else None,
                         })
                     return result, None
@@ -355,7 +397,7 @@ class UserDataService:
                     if not updates:
                         return True, "没有更新内容"
 
-                    allowed = ('amount', 'category', 'merchant', 'note', 'hour', 'spent_at', 'regret')
+                    allowed = ('amount', 'category', 'merchant', 'items', 'note', 'hour', 'spent_at', 'regret')
                     fields = []
                     params = []
                     for k, v in updates.items():
@@ -392,6 +434,7 @@ class UserDataService:
                     if data.get('id') == data_id:
                         data_list[i].update(updates)
                         data_list[i]['updated_at'] = datetime.datetime.now().isoformat()
+                        persist_dev_db()
                         return True, "数据更新成功"
                 
                 return False, "未找到指定数据"
@@ -446,6 +489,7 @@ class UserDataService:
                 _dev_db["users"][user_id][data_type] = [
                     data for data in data_list if data.get('id') != data_id
                 ]
+                persist_dev_db()
                 return True, "数据删除成功"
             
             # 3. 生产 Firestore 模式

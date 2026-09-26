@@ -37,7 +37,21 @@ def create_app():
     # 初始化 MySQL（当 DB_TYPE=mysql 时）
     if app.config.get('DB_TYPE') == 'mysql':
         from .utils.db_mysql import MySQLHelper
-        MySQLHelper.init_database()
+        if not MySQLHelper.init_database():
+            raise RuntimeError('数据库初始化或迁移失败，请检查数据库连接与权限')
+
+    # Initialize the configured Firebase backend before authenticated requests.
+    if app.config.get('DB_TYPE') == 'firestore' or app.config.get('FIREBASE_ADMIN_SDK_PATH'):
+        import firebase_admin
+        from firebase_admin import credentials, firestore
+        try:
+            firebase_app = firebase_admin.get_app()
+        except ValueError:
+            credential_path = app.config.get('FIREBASE_ADMIN_SDK_PATH')
+            credential = credentials.Certificate(credential_path) if credential_path else credentials.ApplicationDefault()
+            firebase_app = firebase_admin.initialize_app(credential)
+        if app.config.get('DB_TYPE') == 'firestore':
+            app.db = firestore.client(app=firebase_app)
 
     # 注册蓝图
     from .routes.coach_routes import coach_bp
@@ -45,12 +59,14 @@ def create_app():
     from .routes.assessment_routes import assessment_bp
     from .routes.decision_routes import decision_bp
     from .routes.asr_routes import asr_bp
+    from .routes.learning_routes import learning_bp
 
     app.register_blueprint(coach_bp, url_prefix='/api/coach')
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
     app.register_blueprint(assessment_bp, url_prefix='/api/assessment')
     app.register_blueprint(decision_bp, url_prefix='/api/decision')
     app.register_blueprint(asr_bp, url_prefix='/api/asr')
+    app.register_blueprint(learning_bp, url_prefix='/api/learning')
 
     @app.route('/api/health', methods=['GET'])
     def health_check():

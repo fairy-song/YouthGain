@@ -760,7 +760,11 @@ def assess_purchase(
     if goal is not None:
         try:
             before = assess_goal_feasibility(goal, surplus_before, today=today)
-            after = assess_goal_feasibility(goal, surplus_after, today=today)
+            # A one-off purchase consumes funds once, not every future month.
+            # Assume this amount would otherwise go toward an unfinished goal.
+            adjusted_goal = Goal(goal.name, goal.target_amount + amount, goal.saved_amount, goal.deadline)
+            after = (before if before.remaining <= 0 else
+                     assess_goal_feasibility(adjusted_goal, surplus_before, today=today))
             goal_result = {
                 'has_goal': True,
                 'name': goal.name,
@@ -769,6 +773,7 @@ def assess_purchase(
                 'status_after': after.status,
                 'months_before': before.months_needed,
                 'months_after': after.months_needed,
+                'assumption': '假设这笔一次性支出原本会用于尚未完成的目标，之后维持原有月结余。',
             }
         except ValueError:
             # 目标数据不合法时降级为无目标，不阻塞整笔评估

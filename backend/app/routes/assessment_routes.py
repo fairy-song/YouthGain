@@ -36,19 +36,30 @@ def submit_assessment(user_info):
 
     user_id = user_info['uid']
 
-    scores = assessment_data.get('scores', {})
-    total_score = sum(scores.values()) / len(scores) if scores else 0
-
-    # Build complete assessment with percentage scores for history display
-    category_scores_pct = assessment_data.get('categoryScores', {})
+    answers = assessment_data.get('answers')
+    if not isinstance(answers, dict) or len(answers) != 8:
+        return jsonify(error='请完成八个自我探索问题'), 400
+    groups = {'budget': [], 'choice': [], 'buffer': [], 'risk': []}
+    expected = ['budget', 'budget', 'choice', 'choice', 'buffer', 'buffer', 'risk', 'risk']
+    for index, category in enumerate(expected, 1):
+        answer = answers.get(str(index))
+        if not isinstance(answer, dict) or answer.get('category') != category:
+            return jsonify(error='问题与主题不匹配'), 400
+        score = answer.get('score')
+        if type(score) is not int or score not in (1, 2, 3, 4):
+            return jsonify(error='自评选项无效'), 400
+        groups[category].append(score)
+    scores = {category: sum(values) / len(values) for category, values in groups.items()}
+    total_score = sum(scores.values()) / len(scores)
+    category_scores_pct = {category: round(score * 25, 1) for category, score in scores.items()}
 
     complete_assessment = {
         'answers': assessment_data['answers'],
         'scores': scores,
         'total_score': total_score,
-        'total_score_percentage': round(total_score, 1),
+        'total_score_percentage': round(total_score * 25, 1),
         'category_scores_percentage': category_scores_pct,
-        'categories': assessment_data.get('categories', {}),
+        'categories': {'version': 2},
         'recommendations': _generate_recommendations(scores),
         'completed': True
     }
@@ -130,6 +141,7 @@ def get_history(user_info):
             'category_scores_percentage': record.get('category_scores_percentage', {}),
             'recommendations': record.get('recommendations', []),
             'completed': record.get('completed', True),
+            'version': (record.get('categories') or {}).get('version', 1),
         })
 
     # Sort newest first
@@ -163,26 +175,10 @@ def get_latest(user_info):
 
 
 def _generate_recommendations(scores):
-    """Generate simple recommendations based on category scores."""
-    recommendations = []
-    category_thresholds = {
-        'savings': '增加储蓄比例：尝试使用50/30/20法则，将20%收入用于储蓄。',
-        'emergency': '建立应急基金：目标覆盖3-6个月基本生活支出。',
-        'debt': '管理债务：优先偿还高息债务，考虑债务合并降低利率。',
-        'knowledge': '增加财务知识：阅读财经书籍，参加理财课程。',
-        'tracking': '追踪收支：使用预算应用详细记录收入和支出。',
-        'insurance': '完善保险计划：确保有足够的健康险和意外险保障。',
-        'risk': '优化风险管理：根据自身情况配置合适的风险资产比例。',
-        'income': '稳定收入：探索多元化收入来源，降低收入波动风险。',
-        'goals': '设定财务目标：制定具体可行的短中长期财务目标。',
-        'pressure': '提升应对能力：建立完善的财务缓冲机制。',
+    practices = {
+        'budget': '安排收支：列出一项必要开支、一项想要的体验和一项未来安排。',
+        'choice': '理解取舍：比较一次消费的两个选择，写下自己的理由。',
+        'buffer': '留有余地：写下一笔可能被忽略的开支和一个准备办法。',
+        'risk': '理解风险：面对一个回报承诺，列出需要核实的三个问题。',
     }
-    for category, advice in category_thresholds.items():
-        score = scores.get(category, 4)
-        if score < 3:
-            recommendations.append(advice)
-
-    if not recommendations:
-        recommendations.append('继续保持良好的财务习惯，定期审视您的财务目标和计划。')
-
-    return recommendations
+    return [practices[key] for key in sorted(practices, key=lambda key: scores.get(key, 0))[:2]]

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   FaHome, FaUser, FaBrain, FaRobot, 
-  FaBook, FaQuestionCircle, FaSignOutAlt
+  FaBook
 } from 'react-icons/fa';
 
 // 移动端底部导航栏样式
@@ -46,26 +46,11 @@ const styles = {
 };
 
 const MobileNavBar = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-      await logout();
-      navigate('/login');
-    } catch (error) {
-      console.error('登出失败:', error);
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
-  
   const navItems = [
     { path: '/', icon: <FaHome style={styles.navIcon} />, label: '首页' },
-    { path: '/info/knowledge', icon: <FaBook style={styles.navIcon} />, label: '知识' },
+    { path: '/learning', icon: <FaBook style={styles.navIcon} />, label: '成长', requireAuth: true },
     { path: '/assessment', icon: <FaBrain style={styles.navIcon} />, label: '评估', requireAuth: true },
     { path: '/coach', icon: <FaRobot style={styles.navIcon} />, label: 'AI教练', requireAuth: true },
     { path: '/dashboard', icon: <FaUser style={styles.navIcon} />, label: '我的', requireAuth: true }

@@ -1,3 +1,4 @@
+import TransactionIntent from './TransactionIntent';
 // ============================================================
 // VoiceBillModal.js —— 语音录入账单 + AI 消费智能评估
 //
@@ -8,7 +9,7 @@
 //   2. NLP 信息抽取（billParser 规则引擎：金额/商户/商品/备注；
 //      多金额让用户选、缺金额提示补充）
 //   3. 表单回显（自动填充，支持手动修改）
-//   4. AI 消费评估（后端 /api/decision/assess：合理性判断 + 储蓄影响）
+//   4. 消费影响试算（后端 /api/decision/assess：合理性判断 + 储蓄影响）
 //   5. 干预话术 + 同类消费统计 + 平价建议
 //   6. 用户确认后存入数据库（createTransaction）
 //
@@ -240,7 +241,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
     setForm((f) => ({ ...f, amount: String(value) }));
   };
 
-  // 第 4-5 步：AI 消费评估
+  // 第 4-5 步：消费影响试算
   const handleAssess = async () => {
     const errorMsg = validateBillForm(form);
     if (errorMsg) {
@@ -281,7 +282,9 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
         category: form.category.trim(),
         date: form.date,
         merchant: form.merchant.trim(),
+        items: form.items.trim(),
         note: form.note.trim(),
+        planned: form.planned || null, purpose: form.purpose || '',
       };
       if (form.hour !== '') payload.hour = parseInt(form.hour, 10);
       await createTransaction(payload);
@@ -470,17 +473,18 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
                   </Form.Group>
                 </Col>
               </Row>
+              <TransactionIntent value={form} onChange={setForm} />
             </Form>
 
             {assessError && <Alert variant="danger" className="small mt-3 mb-0">{assessError}</Alert>}
             {saveError && <Alert variant="danger" className="small mt-3 mb-0">{saveError}</Alert>}
 
-            {/* ======== 第 4-5 步：AI 评估结果 ======== */}
+            {/* ======== 第 4-5 步：消费试算结果 ======== */}
             {assessment && stage === STAGE.ASSESSED && (
               <div className="mt-4 p-3 rounded-4" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                 <div className="d-flex align-items-center mb-3">
                   <FaRobot className="text-primary me-2" />
-                  <span className="fw-bold">AI 消费评估</span>
+                  <span className="fw-bold">消费影响试算</span>
                 </div>
 
                 {/* 消费合理性 */}
@@ -500,7 +504,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
                 <div className="mb-2">
                   <div className="d-flex justify-content-between small text-muted mb-1">
                     <span>本月已消费 ¥{assessment.budget.spent_this_month.toLocaleString()}</span>
-                    <span>剩余 ¥{assessment.budget.remaining.toLocaleString()}</span>
+                    <span>购买前余量 ¥{assessment.budget.remaining.toLocaleString()}</span>
                   </div>
                   <ProgressBar
                     now={assessment.budget.remaining <= 0 ? 100
@@ -518,7 +522,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
                   （这笔 -¥{assessment.amount}）
                   {assessment.goal.has_goal && assessment.goal.status_before !== assessment.goal.status_after && (
                     <span className="text-warning fw-medium">
-                      ，储蓄目标「{assessment.goal.name}」将从「{assessment.goal.status_before}」变为「{assessment.goal.status_after}」
+                      ，储蓄目标「{assessment.goal.name}」按上述假设，预计从「{assessment.goal.status_before}」变为「{assessment.goal.status_after}」
                     </span>
                   )}
                 </div>
@@ -530,7 +534,8 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
                 </div>
 
                 {/* 平价建议 / 提示 */}
-                {assessment.tip && (
+                <p className="small text-muted mt-2">{assessment.basis?.message} {assessment.goal.assumption}</p>
+            {assessment.tip && (
                   <div className="small text-muted mt-2">
                     <FaPiggyBank className="me-1" />{assessment.tip}
                   </div>
@@ -545,7 +550,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
               </Button>
               {stage !== STAGE.ASSESSED && (
                 <Button variant="primary" className="rounded-pill px-3" onClick={handleAssess} disabled={assessing}>
-                  {assessing ? (<><Spinner size="sm" className="me-1" />评估中</>) : (<><FaRobot className="me-1" />AI 智能评估</>)}
+                  {assessing ? (<><Spinner size="sm" className="me-1" />评估中</>) : (<><FaRobot className="me-1" />消费影响试算</>)}
                 </Button>
               )}
               <Button variant="success" className="rounded-pill px-3" onClick={handleSave} disabled={saving || saved}>
