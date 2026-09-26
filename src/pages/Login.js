@@ -20,8 +20,9 @@ const Login = () => {
     try {
       setError('');
       setLoading(true);
-      await login(email, password);
-      navigate('/dashboard');
+      const result = await login(email, password);
+      // 管理员登录后进入管理后台，普通用户进入个人中心
+      navigate(result?.role === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
       console.error('登录失败:', err);
       setError('登录失败，请检查您的邮箱和密码');

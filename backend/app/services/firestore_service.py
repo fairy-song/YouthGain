@@ -114,6 +114,23 @@ def get_user_collection_path(user_id, collection_name):
         app_id = __app_id
     return f"artifacts/{app_id}/users/{user_id}/{collection_name}"
 
+def get_users_root_path():
+    """Constructs the root path under which every user's subcollection lives.
+
+    Firestore 模式下每个用户的私有数据位于
+    ``artifacts/{app_id}/users/{user_id}/{collection_name}``，
+    枚举中间层文档即可列出全部用户 uid（管理员功能使用）。
+    """
+    try:
+        from flask import has_app_context, current_app
+        if has_app_context():
+            app_id = getattr(current_app, '__app_id', __app_id)
+        else:
+            app_id = __app_id
+    except Exception:
+        app_id = __app_id
+    return f"artifacts/{app_id}/users"
+
 def get_public_collection_path(collection_name):
     """Constructs the path for a public collection."""
     try:

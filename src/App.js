@@ -14,6 +14,7 @@ import Dashboard from './pages/Dashboard';
 import Learning from './pages/Learning';
 import Assessment from './pages/Assessment';
 import CoachChat from './pages/CoachChat';
+import AdminDashboard from './pages/AdminDashboard';
 import NotFound from './pages/NotFound';
 
 // 信息页面组件
@@ -57,6 +58,25 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" />;
   }
   
+  return <React.Fragment key={currentUser.uid}>{children}</React.Fragment>;
+};
+
+// 管理员专属路由：未登录跳登录页，普通用户跳个人中心
+const AdminRoute = ({ children }) => {
+  const { currentUser, isAdmin, loading, initializing } = useAuth();
+
+  if (loading || initializing) {
+    return <div className="flex justify-center items-center h-screen">加载中...</div>;
+  }
+
+  if (!currentUser) {
+    return <Navigate to="/login" />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" />;
+  }
+
   return <React.Fragment key={currentUser.uid}>{children}</React.Fragment>;
 };
 
@@ -105,6 +125,11 @@ function App() {
             <ProtectedRoute>
               <CoachChat />
             </ProtectedRoute>
+          } />
+          <Route path="admin" element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
           } />
           
           {/* 信息页面路由 */}

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app.services.auth_service import is_dev_bypass_enabled, verify_firebase_token
+from app.services.auth_service import is_dev_bypass_enabled, verify_firebase_token, dev_email, resolve_role
 # from app.services.firestore_service import get_user_profile # Already handled in verify_firebase_token
 
 auth_bp = Blueprint('auth_bp', __name__)
@@ -58,7 +58,8 @@ def get_current_user():
                 "lastLogin": "2023-01-01T00:00:00Z",
                 "assessmentCompleted": False,
                 "goals": []
-            }
+            },
+            "role": resolve_role(dev_email())  # 开发模式按模拟登录邮箱判定角色
         }), 200
         
     auth_header = request.headers.get('Authorization')
@@ -72,4 +73,9 @@ def get_current_user():
         return jsonify({"error": f"Authentication failed: {error}"}), 401
     
     # user_info already contains the profile from Firestore
-    return jsonify({"user": user_info.get("profile", {})}), 200 
+    return jsonify({
+        "user": user_info.get("profile", {}),
+        "role": user_info.get("role", "user"),
+        "uid": user_info.get("uid"),
+        "email": user_info.get("email")
+    }), 200 

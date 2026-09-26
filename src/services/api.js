@@ -31,6 +31,21 @@ api.interceptors.request.use(
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
+    // 开发模式（未配置 Firebase）下，自动携带登录邮箱头，
+    // 后端据此按 ADMIN_EMAILS 判定管理员/普通用户角色
+    if (!process.env.REACT_APP_FIREBASE_API_KEY) {
+      try {
+        const raw = localStorage.getItem('dev_current_user');
+        if (raw) {
+          const devUser = JSON.parse(raw);
+          if (devUser && devUser.email) {
+            config.headers['X-Dev-Email'] = devUser.email;
+          }
+        }
+      } catch (e) {
+        // 本地存储解析失败时忽略，不带头则后端按普通用户处理
+      }
+    }
     return config;
   },
   (error) => {
@@ -366,6 +381,79 @@ export const transcribeAudio = async (audioB64) => {
   }
 };
 
+// ============================================================
+// Auth / 角色
+// ============================================================
+
+/**
+ * 获取当前登录用户的角色（admin / user）。
+ * 后端根据 ADMIN_EMAILS 配置判定；开发模式下按 X-Dev-Email 模拟登录邮箱判定。
+ * @param {object} [extraHeaders] 附加请求头（开发模式传 { 'X-Dev-Email': email }）
+ * @returns {Promise<{user: object, role: string, uid: string, email: string}>}
+ */
+export const fetchMyRole = async (extraHeaders = {}) => {
+  const response = await api.get('/auth/me', { headers: extraHeaders });
+  return response.data;
+};
+
+// ============================================================
+// Admin APIs —— 管理员系统（需要管理员角色）
+// ============================================================
+
+/** 用户列表 [{uid, profile, disabled}] */
+export const adminListUsers = async () => {
+  const response = await api.get('/admin/users');
+  return response.data.data;
+};
+
+/** 用户详情 {uid, profile, disabled, data_summary} */
+export const adminGetUser = async (uid) => {
+  const response = await api.get(`/admin/users/${encodeURIComponent(uid)}`);
+  return response.data.data;
+};
+
+/** 停用/启用用户（disabled: bool） */
+export const adminSetUserStatus = async (uid, disabled) => {
+  const response = await api.put(`/admin/users/${encodeURIComponent(uid)}/status`, { disabled });
+  return response.data;
+};
+
+/** 删除用户 */
+export const adminDeleteUser = async (uid) => {
+  const response = await api.delete(`/admin/users/${encodeURIComponent(uid)}`);
+  return response.data;
+};
+
+/** 平台统计 {total_users, assessment_completed_users, ...} */
+export const adminGetStats = async () => {
+  const response = await api.get('/admin/stats');
+  return response.data.data;
+};
+
+/** 知识库文章列表 */
+export const adminListKbArticles = async () => {
+  const response = await api.get('/admin/kb');
+  return response.data.data;
+};
+
+/** 新增知识库文章 */
+export const adminCreateKbArticle = async (articleData) => {
+  const response = await api.post('/admin/kb', articleData);
+  return response.data;
+};
+
+/** 更新知识库文章 */
+export const adminUpdateKbArticle = async (articleId, articleData) => {
+  const response = await api.put(`/admin/kb/${encodeURIComponent(articleId)}`, articleData);
+  return response.data;
+};
+
+/** 删除知识库文章 */
+export const adminDeleteKbArticle = async (articleId) => {
+  const response = await api.delete(`/admin/kb/${encodeURIComponent(articleId)}`);
+  return response.data;
+};
+
 // 导出API服务
 const apiService = {
   loginUser,
@@ -395,7 +483,19 @@ const apiService = {
   deleteTransaction,
   submitRegret,
   assessPurchase,
-  transcribeAudio
+  transcribeAudio,
+  // Auth / 角色
+  fetchMyRole,
+  // Admin APIs
+  adminListUsers,
+  adminGetUser,
+  adminSetUserStatus,
+  adminDeleteUser,
+  adminGetStats,
+  adminListKbArticles,
+  adminCreateKbArticle,
+  adminUpdateKbArticle,
+  adminDeleteKbArticle
 };
 
 export default apiService;

@@ -25,7 +25,7 @@ def create_app():
         r"/api/*": {
             "origins": allowed_origins,
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
+            "allow_headers": ["Content-Type", "Authorization", "X-Dev-Email"],
             "supports_credentials": True,
         }
     })
@@ -54,19 +54,23 @@ def create_app():
             app.db = firestore.client(app=firebase_app)
 
     # 注册蓝图
+    from .routes.auth_routes import auth_bp
     from .routes.coach_routes import coach_bp
     from .routes.dashboard_routes import dashboard_bp
     from .routes.assessment_routes import assessment_bp
     from .routes.decision_routes import decision_bp
     from .routes.asr_routes import asr_bp
     from .routes.learning_routes import learning_bp
+    from .routes.admin_routes import admin_bp
 
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(coach_bp, url_prefix='/api/coach')
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
     app.register_blueprint(assessment_bp, url_prefix='/api/assessment')
     app.register_blueprint(decision_bp, url_prefix='/api/decision')
     app.register_blueprint(asr_bp, url_prefix='/api/asr')
     app.register_blueprint(learning_bp, url_prefix='/api/learning')
+    app.register_blueprint(admin_bp, url_prefix='/api/admin')
 
     @app.route('/api/health', methods=['GET'])
     def health_check():
