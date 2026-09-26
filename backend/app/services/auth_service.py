@@ -37,6 +37,24 @@ DEV_USER_EMAIL = 'test@example.com'
 _bypass_warned = False
 
 
+def admin_emails():
+    """返回配置的管理员邮箱集合（小写）。"""
+    raw = os.environ.get('ADMIN_EMAILS', '')
+    return {e.strip().lower() for e in raw.split(',') if e.strip()}
+
+
+def is_admin_email(email):
+    """邮箱是否命中管理员列表（大小写不敏感）。"""
+    if not email:
+        return False
+    return str(email).strip().lower() in admin_emails()
+
+
+def resolve_role(email):
+    """根据邮箱解析用户角色：admin / user。"""
+    return 'admin' if is_admin_email(email) else 'user'
+
+
 def is_dev_bypass_enabled():
     """是否启用开发模式认证绕过。
 
@@ -51,8 +69,7 @@ def is_dev_bypass_enabled():
     if os.environ.get('DEV_MODE', '').lower() != 'true':
         return False
 
-    env = (os.environ.get('APP_ENV') or os.environ.get('FLASK_ENV') or '').lower()
-    if env == 'production':
+    if any(os.environ.get(key, '').lower() == 'production' for key in ('APP_ENV', 'FLASK_ENV')):
         return False
 
     global _bypass_warned
@@ -63,9 +80,24 @@ def is_dev_bypass_enabled():
     return True
 
 
-def dev_user_info():
-    """返回开发模式下的模拟用户信息。"""
-    return {'uid': DEV_USER_ID, 'email': DEV_USER_EMAIL, 'profile': None}
+def dev_user_info(email=None):
+    """返回开发模式下的模拟用户信息。
+
+    DEV_MODE=true 时身份校验整体绕过（仅限本地开发），角色按模拟登录邮箱判定，
+    与生产行为保持一致：只有命中 ADMIN_EMAILS 的邮箱才是管理员。
+    """
+    email = (email or DEV_USER_EMAIL).strip()
+    return {'uid': DEV_USER_ID, 'email': email, 'profile': None, 'role': resolve_role(email)}
+
+
+def dev_email():
+    """开发模式下从前端 X-Dev-Email 请求头读取模拟登录邮箱。
+
+    前端（AuthContext）在 DEV_MODE 下登录/刷新时携带该头，让后端能按
+    实际登录邮箱判定角色，从而在本地开发时也模拟"专用管理员账号"。
+    缺省回退到默认测试邮箱。
+    """
+    return (request.headers.get('X-Dev-Email') or DEV_USER_EMAIL).strip()
 
 
 def verify_firebase_token(id_token):
@@ -101,13 +133,17 @@ def verify_firebase_token(id_token):
         elif error:
             return None, f"读取用户档案失败: {error}"
         else:
+            # 管理员停用的账号禁止访问所有接口
+            if profile and profile.get('disabled'):
+                return None, "该账号已被停用，请联系管理员"
             _, update_error = update_user_profile(uid, {"lastLogin": firestore.SERVER_TIMESTAMP})
             if update_error:
                 print(f"警告: 更新最后登录时间失败 ({uid}): {update_error}")
     except Exception as e:
         return None, f"读取用户档案失败: {e}"
 
-    return {"uid": uid, "email": email, "profile": profile}, None
+    role = resolve_role(email)
+    return {"uid": uid, "email": email, "profile": profile, "role": role}, None
 
 
 def require_auth(f):
@@ -119,7 +155,7 @@ def require_auth(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         if is_dev_bypass_enabled():
-            kwargs['user_info'] = dev_user_info()
+            kwargs['user_info'] = dev_user_info(dev_email())
             return f(*args, **kwargs)
 
         auth_header = request.headers.get('Authorization', '')
@@ -133,6 +169,43 @@ def require_auth(f):
         user_info, error = verify_firebase_token(id_token)
         if error:
             return jsonify({"error": f"认证失败: {error}"}), 401
+
+        kwargs['user_info'] = user_info
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
+def require_admin(f):
+    """管理员专属认证装饰器。
+
+    在 require_auth 之上再校验角色：只有管理员（邮箱命中 ADMIN_EMAILS）
+    才能访问被装饰的接口，普通用户一律 403。开发模式同样按邮箱判定，
+    非管理员邮箱调用管理员接口同样返回 403。
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if is_dev_bypass_enabled():
+            email = dev_email()
+            if not is_admin_email(email):
+                return jsonify({"error": "无权访问，需要管理员权限"}), 403
+            kwargs['user_info'] = dev_user_info(email)
+            return f(*args, **kwargs)
+
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify({"error": "需要授权令牌"}), 401
+
+        id_token = auth_header[len('Bearer '):].strip()
+        if not id_token:
+            return jsonify({"error": "需要授权令牌"}), 401
+
+        user_info, error = verify_firebase_token(id_token)
+        if error:
+            return jsonify({"error": f"认证失败: {error}"}), 401
+
+        if user_info.get('role') != 'admin':
+            return jsonify({"error": "无权访问，需要管理员权限"}), 403
 
         kwargs['user_info'] = user_info
         return f(*args, **kwargs)

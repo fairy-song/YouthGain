@@ -71,12 +71,6 @@ const Home = () => {
   const { currentUser } = useAuth();
   const [fadeIn, setFadeIn] = useState(false);
 
-  // 月收入与 Dashboard 共用 localStorage，未设置时用默认值
-  const [monthlyIncome, setMonthlyIncome] = useState(() => {
-    const saved = localStorage.getItem('monthlyIncome');
-    return saved && !isNaN(Number(saved)) ? Number(saved) : 2000;
-  });
-
   // 首屏淡入动画
   useEffect(() => {
     setFadeIn(true);
@@ -118,24 +112,24 @@ const Home = () => {
             {/* 左侧文案 */}
             <Col lg={6} className="text-center text-lg-start">
               <EnhancedBadge bg="success" className="mb-4">
-                <span className="text-white fw-medium">大学生专属 · AI 记账助手</span>
+                <span className="text-white fw-medium">年轻人的理财思考与实践</span>
               </EnhancedBadge>
 
               <h1 className="hero-title mb-4">
                 生活费怎么花，
                 <br />
-                <span className="text-primary">AI 帮你看得明明白白</span>
+                <span className="text-primary">学会做自己的决定</span>
               </h1>
 
               <p className="hero-sub mb-4 mx-auto mx-lg-0">
-                口述一句"昨天在食堂吃了18块"，青盈自动记账，并告诉你这笔
-                消费合不合理、离你的储蓄目标还有多远。
+                从一笔消费、一个目标开始，理解自己的需要，练习权衡，
+                在每周复盘中形成自己的理财原则。
               </p>
 
               <div className="d-flex gap-3 justify-content-center justify-content-lg-start flex-wrap mb-4">
                 {currentUser ? (
-                  <AnimatedButton as={Link} to="/dashboard" variant="success" size="lg" className="rounded-pill btn-primary-glow px-5 py-3 fw-bold text-white">
-                    进入个人中心 <FaArrowRight className="ms-2" />
+                  <AnimatedButton as={Link} to="/learning" variant="success" size="lg" className="rounded-pill btn-primary-glow px-5 py-3 fw-bold text-white">
+                    开始我的理财练习 <FaArrowRight className="ms-2" />
                   </AnimatedButton>
                 ) : (
                   <>
@@ -152,7 +146,7 @@ const Home = () => {
               {/* 三个核心卖点速览 */}
               <div className="d-flex flex-wrap gap-2 justify-content-center justify-content-lg-start mb-5">
                 <span className="hero-tag"><FaMicrophone className="me-1 text-primary" />语音记账</span>
-                <span className="hero-tag"><FaRobot className="me-1 text-primary" />消费合理性评估</span>
+                <span className="hero-tag"><FaRobot className="me-1 text-primary" />消费影响与自主选择</span>
                 <span className="hero-tag"><FaPiggyBank className="me-1 text-primary" />储蓄目标跟踪</span>
               </div>
 
@@ -172,7 +166,7 @@ const Home = () => {
 
             {/* 右侧：原地语音记账(点一下直接开录) */}
             <Col lg={6}>
-              <HomeVoiceRecorder monthlyIncome={monthlyIncome} />
+              <HomeVoiceRecorder  />
             </Col>
           </Row>
         </Container>
@@ -185,7 +179,7 @@ const Home = () => {
             <EnhancedBadge bg="success" className="mb-3">
               <span className="text-white fw-medium">它能做什么</span>
             </EnhancedBadge>
-            <h2 className="section-title fw-bold mb-3">每一笔，都有人帮你盯着</h2>
+            <h2 className="section-title fw-bold mb-3">从每一次选择，慢慢形成自己的方法</h2>
             <p className="section-sub text-muted mx-auto">
               不为记账而记账——记账只是第一步，关键是让你看清自己的消费，把钱花在真正重要的地方。
             </p>
@@ -203,22 +197,22 @@ const Home = () => {
             <Col md={6} lg={3}>
               <FeatureCard
                 icon={<FaRobot size={22} />}
-                title="消费合理性评估"
-                description="结合你的预算余量，判断这笔消费是刚需还是可选，该不该花。"
+                title="消费影响与自主选择"
+                description="比较预算影响，想清楚消费满足的需要，由你决定怎样取舍。"
               />
             </Col>
             <Col md={6} lg={3}>
               <FeatureCard
                 icon={<FaPiggyBank size={22} />}
                 title="储蓄目标跟踪"
-                description="设一个目标(比如攒钱买电脑)，每笔消费都告诉你离目标远了多少天。"
+                description="把未来的安排放进今天的考虑，理解目标与生活需要之间的关系。"
               />
             </Col>
             <Col md={6} lg={3}>
               <FeatureCard
                 icon={<FaUndoAlt size={22} />}
                 title="事后回访"
-                description="过几天回头看：这笔消费现在值吗？帮你慢慢戒掉冲动消费。"
+                description="回看实际体验是否符合预期，每周总结一个发现和一个小行动。"
               />
             </Col>
           </Row>
@@ -232,29 +226,29 @@ const Home = () => {
             <EnhancedBadge bg="info" className="mb-3">
               <span className="text-white fw-medium">三步上手</span>
             </EnhancedBadge>
-            <h2 className="section-title fw-bold mb-3">30 秒开始记账</h2>
+            <h2 className="section-title fw-bold mb-3">从认识自己，到独立决定</h2>
           </div>
 
           <Row className="g-4">
             <Col lg={4}>
               <div className="step-card text-center p-4">
                 <div className="step-number bg-primary text-white rounded-circle mx-auto mb-4 fs-3 fw-bold d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px' }}>1</div>
-                <h3 className="h4 fw-bold mb-3">说一句，或敲一行</h3>
+                <h3 className="h4 fw-bold mb-3">选择一个想探索的主题</h3>
                 <p className="text-muted">"昨天在蜜雪冰城买柠檬水27块"——语音或文字都行，剩下的交给 AI。</p>
               </div>
             </Col>
             <Col lg={4}>
               <div className="step-card text-center p-4">
                 <div className="step-number bg-primary text-white rounded-circle mx-auto mb-4 fs-3 fw-bold d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px' }}>2</div>
-                <h3 className="h4 fw-bold mb-3">看 AI 怎么评</h3>
-                <p className="text-muted">合理性判断 + 预算余量 + 储蓄影响，一句人话告诉你这笔值不值。</p>
+                <h3 className="h4 fw-bold mb-3">练习一次真实的选择</h3>
+                <p className="text-muted">看清预算和目标影响，再结合自己的需要，记录选择与理由。</p>
               </div>
             </Col>
             <Col lg={4}>
               <div className="step-card text-center p-4">
                 <div className="step-number bg-primary text-white rounded-circle mx-auto mb-4 fs-3 fw-bold d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px' }}>3</div>
-                <h3 className="h4 fw-bold mb-3">盯着目标攒钱</h3>
-                <p className="text-muted">设个目标，每记一笔都看得到离目标还有多远，月底不再吃土。</p>
+                <h3 className="h4 fw-bold mb-3">复盘，写下自己的原则</h3>
+                <p className="text-muted">回看这周的选择是否符合预期，给下周留下一个可执行的小行动。</p>
               </div>
             </Col>
           </Row>
@@ -267,7 +261,7 @@ const Home = () => {
           <div className="d-flex flex-wrap align-items-center justify-content-center gap-4 text-muted small">
             <span><FaShieldAlt className="me-1 text-success" />消费数据只属于你</span>
             <span><FaCheckCircle className="me-1 text-success" />不推荐理财产品、不贩卖焦虑</span>
-            <span><FaCheckCircle className="me-1 text-success" />专注行为改变，不搞花哨的"投资大师"</span>
+            <span><FaCheckCircle className="me-1 text-success" />按自己的节奏学习与实践</span>
           </div>
         </Container>
       </section>
@@ -281,7 +275,7 @@ const Home = () => {
               不用坚持，说一句就行。攒下的每一块，都是你给未来的底气。
             </p>
             {currentUser ? (
-              <AnimatedButton as={Link} to="/dashboard" variant="light" size="lg" className="rounded-pill px-4 py-2 fw-bold">
+              <AnimatedButton as={Link} to="/learning" variant="light" size="lg" className="rounded-pill px-4 py-2 fw-bold">
                 去记账 <FaArrowRight className="ms-2" />
               </AnimatedButton>
             ) : (

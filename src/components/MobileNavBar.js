@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   FaHome, FaUser, FaBrain, FaRobot, 
-  FaBook, FaQuestionCircle, FaSignOutAlt
+  FaBook, FaShieldAlt
 } from 'react-icons/fa';
 
 // 移动端底部导航栏样式
@@ -46,30 +46,20 @@ const styles = {
 };
 
 const MobileNavBar = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-      await logout();
-      navigate('/login');
-    } catch (error) {
-      console.error('登出失败:', error);
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
-  
   const navItems = [
     { path: '/', icon: <FaHome style={styles.navIcon} />, label: '首页' },
-    { path: '/info/knowledge', icon: <FaBook style={styles.navIcon} />, label: '知识' },
+    { path: '/learning', icon: <FaBook style={styles.navIcon} />, label: '成长', requireAuth: true },
     { path: '/assessment', icon: <FaBrain style={styles.navIcon} />, label: '评估', requireAuth: true },
     { path: '/coach', icon: <FaRobot style={styles.navIcon} />, label: 'AI教练', requireAuth: true },
-    { path: '/dashboard', icon: <FaUser style={styles.navIcon} />, label: '我的', requireAuth: true }
+    { path: '/dashboard', icon: <FaUser style={styles.navIcon} />, label: '我的', requireAuth: true },
+    ...(currentUser && isAdmin
+      ? [{ path: '/admin', icon: <FaShieldAlt style={styles.navIcon} />, label: '管理', requireAuth: true }]
+      : []),
   ];
+  // 每个条目宽度按实际条数均分
+  const itemWidth = `${100 / navItems.length}%`;
   
   return (
     <div className="d-md-none" style={styles.navContainer}>
@@ -80,7 +70,7 @@ const MobileNavBar = () => {
             <Link 
               key={item.path}
               to="/login"
-              style={styles.navItem}
+              style={{ ...styles.navItem, width: itemWidth }}
             >
               {item.icon}
               <span>{item.label}</span>
@@ -94,6 +84,7 @@ const MobileNavBar = () => {
             to={item.path}
             style={{
               ...styles.navItem,
+              width: itemWidth,
               ...(location.pathname === item.path ? styles.navItemActive : {})
             }}
           >

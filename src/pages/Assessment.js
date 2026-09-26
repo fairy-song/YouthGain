@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getLearningProfile, saveLearningProfile } from '../services/learning';
 import { Container, Row, Col, Card, Button, Form, ProgressBar, Badge, Spinner, Alert } from 'react-bootstrap';
 import {
-  FaCheckCircle, FaArrowRight, FaChartPie, FaLightbulb, FaCoins,
+  FaCheckCircle, FaArrowRight, FaLightbulb,
   FaHistory, FaClipboardList, FaChartLine, FaArrowLeft, FaTrophy,
   FaSave
 } from 'react-icons/fa';
@@ -13,119 +14,26 @@ import { submitAssessmentNew, getAssessmentHistory } from '../services/api';
 // ─────────────────────────────────────────────────
 
 const questions = [
-  {
-    id: 1,
-    question: '您每月会储蓄收入的多少比例？',
-    options: [
-      { id: 'a', text: '0-10%', score: 1 },
-      { id: 'b', text: '10-20%', score: 2 },
-      { id: 'c', text: '20-30%', score: 3 },
-      { id: 'd', text: '30%以上', score: 4 },
-    ],
-    category: 'savings'
-  },
-  {
-    id: 2,
-    question: '您对投资风险的接受程度如何？',
-    options: [
-      { id: 'a', text: '非常保守，不愿承担任何风险', score: 1 },
-      { id: 'b', text: '较为保守，可接受少量风险', score: 2 },
-      { id: 'c', text: '适中，愿意为较高收益承担适当风险', score: 3 },
-      { id: 'd', text: '进取，愿意为高收益承担较高风险', score: 4 },
-    ],
-    category: 'risk'
-  },
-  {
-    id: 3,
-    question: '您是否有应急资金，可以覆盖几个月的生活支出？',
-    options: [
-      { id: 'a', text: '没有应急资金', score: 1 },
-      { id: 'b', text: '可覆盖1-3个月支出', score: 2 },
-      { id: 'c', text: '可覆盖3-6个月支出', score: 3 },
-      { id: 'd', text: '可覆盖6个月以上支出', score: 4 },
-    ],
-    category: 'emergency'
-  },
-  {
-    id: 4,
-    question: '您目前的债务（包括信用卡、贷款等）占收入的比例是？',
-    options: [
-      { id: 'a', text: '50%以上', score: 1 },
-      { id: 'b', text: '30-50%', score: 2 },
-      { id: 'c', text: '10-30%', score: 3 },
-      { id: 'd', text: '10%以下或无债务', score: 4 },
-    ],
-    category: 'debt'
-  },
-  {
-    id: 5,
-    question: '您对自己的财务知识水平评价如何？',
-    options: [
-      { id: 'a', text: '很低，几乎不了解金融知识', score: 1 },
-      { id: 'b', text: '基础，了解一些基本概念', score: 2 },
-      { id: 'c', text: '中等，了解大部分金融产品和概念', score: 3 },
-      { id: 'd', text: '较高，熟悉各类金融产品和投资策略', score: 4 },
-    ],
-    category: 'knowledge'
-  },
-  {
-    id: 6,
-    question: '您当前的收入是否稳定？',
-    options: [
-      { id: 'a', text: '非常不稳定，收入波动很大', score: 1 },
-      { id: 'b', text: '有一定波动，但基本能维持生活', score: 2 },
-      { id: 'c', text: '相对稳定，有固定收入来源', score: 3 },
-      { id: 'd', text: '非常稳定，收入持续增长', score: 4 },
-    ],
-    category: 'income'
-  },
-  {
-    id: 7,
-    question: '您有明确的财务目标吗？',
-    options: [
-      { id: 'a', text: '没有任何财务目标', score: 1 },
-      { id: 'b', text: '有一些模糊的想法，但没有具体计划', score: 2 },
-      { id: 'c', text: '有明确目标，但没有详细规划', score: 3 },
-      { id: 'd', text: '有明确目标和详细的实施计划', score: 4 },
-    ],
-    category: 'goals'
-  },
-  {
-    id: 8,
-    question: '您是否定期追踪个人收支情况？',
-    options: [
-      { id: 'a', text: '从不关注收支情况', score: 1 },
-      { id: 'b', text: '偶尔查看账户余额', score: 2 },
-      { id: 'c', text: '经常记录主要收支', score: 3 },
-      { id: 'd', text: '详细记录每一笔收支并定期分析', score: 4 },
-    ],
-    category: 'tracking'
-  },
-  {
-    id: 9,
-    question: '您是否有保险保障（健康险、意外险等）？',
-    options: [
-      { id: 'a', text: '没有任何保险', score: 1 },
-      { id: 'b', text: '只有基本社保/医保', score: 2 },
-      { id: 'c', text: '除基本社保外，有1-2种商业保险', score: 3 },
-      { id: 'd', text: '有完善的保险规划', score: 4 },
-    ],
-    category: 'insurance'
-  },
-  {
-    id: 10,
-    question: '面对突发财务压力，您通常如何应对？',
-    options: [
-      { id: 'a', text: '靠信用卡或借贷解决', score: 1 },
-      { id: 'b', text: '向亲友求助', score: 2 },
-      { id: 'c', text: '动用储蓄或投资', score: 3 },
-      { id: 'd', text: '使用专门的应急基金', score: 4 },
-    ],
-    category: 'pressure'
-  }
-];
+  ['budget', '安排生活费时，我会先确认必要开支和近期要付的钱。'],
+  ['budget', '我会把红包、退款和生活费一起考虑，再决定用途。'],
+  ['choice', '面对想买的东西，我能说出它满足什么需要。'],
+  ['choice', '我会比较至少两个选择，并说明自己愿意接受的取舍。'],
+  ['buffer', '我会留意不定期开支，并考虑可行的准备方式。'],
+  ['buffer', '当收入或计划变化时，我会重新安排并保留必要生活开支。'],
+  ['risk', '面对回报承诺，我会询问可能损失、费用和退出限制。'],
+  ['risk', '信息不足时，我能先核实再决定，而不是只跟随别人的选择。'],
+].map(([category, question], index) => ({
+  id: index + 1, category, question,
+  options: [
+    { id: 'a', text: '还没有这样做过', score: 1 },
+    { id: 'b', text: '偶尔会这样做', score: 2 },
+    { id: 'c', text: '多数时候会这样做', score: 3 },
+    { id: 'd', text: '经常这样做，也能解释原因', score: 4 },
+  ],
+}));
 
 const CATEGORY_NAMES = {
+  budget: '安排收支', choice: '理解取舍', buffer: '留有余地',
   savings: '储蓄能力',
   risk: '风险管理',
   emergency: '应急准备',
@@ -184,20 +92,7 @@ function getCategoryVariant(percentage) {
 }
 
 function getResultMessage(score) {
-  const maxPossibleScore = questions.length * 4;
-  const percentage = (score / maxPossibleScore) * 100;
-
-  if (percentage >= 85) {
-    return { title: '金融规划大师', message: '您展示了卓越的财务管理能力，拥有健全的财务系统和优秀的理财习惯。', icon: <FaCheckCircle className="text-success" size={48} />, color: 'success', percentage };
-  } else if (percentage >= 70) {
-    return { title: '优秀的财务规划者', message: '您在财务管理方面表现出色，具备良好的财务习惯和知识，但仍有提升空间。', icon: <FaCheckCircle className="text-primary" size={48} />, color: 'primary', percentage };
-  } else if (percentage >= 55) {
-    return { title: '稳健的财务管理者', message: '您对财务有基本的了解和规划，建议加强应急资金储备并优化投资策略。', icon: <FaChartPie className="text-info" size={48} />, color: 'info', percentage };
-  } else if (percentage >= 40) {
-    return { title: '财务成长阶段', message: '您在财务管理方面有一定基础，但需要更多关注。建立系统化预算和应急基金将帮助您改善。', icon: <FaLightbulb className="text-warning" size={48} />, color: 'warning', percentage };
-  } else {
-    return { title: '财务起步阶段', message: '您可能正面临一些财务挑战，但别担心。从建立基本预算和储蓄习惯开始，逐步改善财务状况。', icon: <FaCoins className="text-secondary" size={48} />, color: 'secondary', percentage };
-  }
+  return { title: '从认识自己的习惯开始', message: '这些回答反映你目前对自身习惯的看法。它们不是专业诊断或能力认证，也不衡量收入高低。选择一个想探索的主题，在真实情境里试一试。', icon: <FaLightbulb className="text-primary" size={48} />, color: 'primary', percentage: score / (questions.length * 4) * 100 };
 }
 
 function formatDate(ts) {
@@ -439,9 +334,8 @@ const Assessment = () => {
       const totalPct = Math.round((score / (questions.length * 4)) * 100);
       await submitAssessmentNew({
         answers,
-        scores: Object.fromEntries(
-          Object.entries(answers).map(([qid, a]) => [a.category, a.score])
-        ),
+        scores: Object.fromEntries(Object.entries(categoryScores).map(([category, pct]) => [category, pct / 25])),
+        categories: { version: 2 },
         categoryScores,
         total_score_percentage: totalPct,
       });
@@ -454,15 +348,18 @@ const Assessment = () => {
   };
 
   const handleStartCoaching = () => {
-    const assessmentData = {
-      score,
-      categoryScores,
-      resultMessage: getResultMessage(score),
-      userName: userName || '用户',
-      completedAt: new Date().toISOString()
-    };
-    localStorage.setItem('assessmentResults', JSON.stringify(assessmentData));
-    navigate('/coach');
+    navigate('/coach', { state: { prompt: `我刚完成理财习惯自我探索，想从${getCategoryName(Object.entries(categoryScores).sort((a, b) => a[1] - b[1])[0]?.[0])}开始练习。请先问我一个生活中的问题。` } });
+  };
+
+  const startLearning = async () => {
+    setSaving(true); setSaveStatus(null);
+    try {
+      const profile = await getLearningProfile();
+      const topic = Object.entries(categoryScores).sort((a, b) => a[1] - b[1])[0]?.[0] || 'budget';
+      await saveLearningProfile({ ...profile, topic });
+      navigate('/learning');
+    } catch { setSaveStatus('error'); }
+    finally { setSaving(false); }
   };
 
   const startOver = () => {
@@ -500,11 +397,11 @@ const Assessment = () => {
             <Col md={10} lg={8}>
               <div className="text-center mb-5">
                 <EnhancedBadge bg="primary" className="mb-3">
-                  <span className="fw-medium text-white">财务健康评估</span>
+                  <span className="fw-medium text-white">理财习惯探索</span>
                 </EnhancedBadge>
                 <h1 className="display-5 fw-bold mb-3">心智评估中心</h1>
                 <p className="lead text-muted">
-                  通过科学的财务问卷，了解您的财务健康状况，获取个性化建议。
+                  通过八个生活问题认识自己的习惯，找到一个愿意尝试的练习。自我探索不用于专业诊断。
                 </p>
               </div>
 
@@ -520,7 +417,7 @@ const Assessment = () => {
                         <FaClipboardList size={32} color="white" />
                       </div>
                       <h4 className="fw-bold mb-2">开始新评估</h4>
-                      <p className="text-muted mb-4">回答10道问题，获得全面的财务健康分析与个性化建议。</p>
+                      <p className="text-muted mb-4">回答8道问题，选择一个学习主题，再把方法用在生活里。</p>
                       <Button variant="primary" className="rounded-pill px-4 mt-auto btn-glow">
                         立即开始 <FaArrowRight className="ms-2" />
                       </Button>
@@ -538,7 +435,7 @@ const Assessment = () => {
                         <FaHistory size={32} color="white" />
                       </div>
                       <h4 className="fw-bold mb-2">历史记录</h4>
-                      <p className="text-muted mb-4">查看过往所有评估记录，通过折线图追踪您的财务心智成长轨迹。</p>
+                      <p className="text-muted mb-4">查看过往所有评估记录，通过折线图回看自己的回答如何变化（自评变化不等于能力提升）。</p>
                       <Button variant="success" className="rounded-pill px-4 mt-auto btn-glow-green">
                         查看历史 <FaChartLine className="ms-2" />
                       </Button>
@@ -568,7 +465,7 @@ const Assessment = () => {
                 </Button>
                 <div>
                   <h2 className="fw-bold mb-0">评估历史记录</h2>
-                  <p className="text-muted mb-0 small">追踪您的财务心智成长轨迹</p>
+                  <p className="text-muted mb-0 small">回看自己的回答如何变化（自评变化不等于能力提升）</p>
                 </div>
               </div>
 
@@ -577,7 +474,7 @@ const Assessment = () => {
                 <Card.Body className="p-4">
                   <h5 className="fw-bold mb-3 d-flex align-items-center gap-2">
                     <FaChartLine className="text-primary" />
-                    综合分数趋势
+                    习惯自评变化
                   </h5>
                   {historyLoading ? (
                     <div className="text-center py-4">
@@ -587,7 +484,8 @@ const Assessment = () => {
                   ) : historyError ? (
                     <Alert variant="warning" className="mb-0">{historyError}</Alert>
                   ) : (
-                    <SparklineChart history={historyData} />
+                    <><SparklineChart history={historyData.filter(record => record.version === 2)} />
+                    <p className="small text-muted mt-2">趋势只比较新版四主题问卷；旧版记录保留在下方，不混合比较。</p></>
                   )}
                 </Card.Body>
               </Card>
@@ -625,7 +523,7 @@ const Assessment = () => {
                                 <div className="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                                   <div>
                                     <span className="text-muted small">
-                                      第 {historyData.length - index} 次评估 · {formatDate(record.timestamp)}
+                                      第 {historyData.length - index} 次探索 · {formatDate(record.timestamp)} · {record.version === 2 ? '四主题自评' : '旧版记录'}
                                     </span>
                                     {index === 0 && (
                                       <Badge bg="primary" className="ms-2 rounded-pill">最新</Badge>
@@ -686,7 +584,7 @@ const Assessment = () => {
             <Col md={10} lg={8}>
               <Card className="border-0 rounded-4 shadow-lg overflow-hidden">
                 <Card.Header className={`bg-gradient-${result.color} text-white p-4 text-center`}>
-                  <h2 className="fw-bold mb-0">财务健康评估结果</h2>
+                  <h2 className="fw-bold mb-0">理财习惯自我探索</h2>
                 </Card.Header>
 
                 <Card.Body className="p-4 p-lg-5">
@@ -697,9 +595,14 @@ const Assessment = () => {
 
                   <p className="fs-5 mb-4">{result.message}</p>
 
+                  <Alert variant="info">
+                    <strong>本周可以先探索：{getCategoryName(Object.entries(categoryScores).sort((a, b) => a[1] - b[1])[0]?.[0])}</strong>
+                    <p className="mt-2 mb-2">这是你自评中较少实践的主题。用一个真实情境尝试一次，看看是否适合你，也可以在成长页更换主题。</p>
+                    <Button disabled={saving} onClick={startLearning}>选择这个主题，开始练习</Button>
+                  </Alert>
                   {/* Total score */}
                   <div className="mb-4">
-                    <h4 className="mb-3">您的总体得分</h4>
+                    <h4 className="mb-3">本次习惯自评</h4>
                     <div className="d-flex justify-content-between mb-2">
                       <span>总分: {score} / {maxScore}</span>
                       <span className={`fw-bold text-${result.color}`}>{pct}%</span>
@@ -709,7 +612,7 @@ const Assessment = () => {
 
                   {/* Category scores */}
                   <div className="mb-4">
-                    <h4 className="mb-3">各方面表现</h4>
+                    <h4 className="mb-3">各主题自评</h4>
                     {Object.entries(categoryScores).map(([category, percentage]) => (
                       <div key={category} className="mb-3">
                         <div className="d-flex justify-content-between mb-1">
@@ -831,7 +734,7 @@ const Assessment = () => {
                 <EnhancedBadge bg="primary" className="mb-2">
                   <span className="fw-medium text-white">财务评估</span>
                 </EnhancedBadge>
-                <h1 className="display-6 fw-bold mb-0">财务健康问卷</h1>
+                <h1 className="display-6 fw-bold mb-0">理财习惯问卷</h1>
               </div>
             </div>
 

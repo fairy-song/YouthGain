@@ -2,11 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { sendMessageToCoach } from '../services/api';
 import { Container, Row, Col, Card, Form, Button, Badge, Spinner } from 'react-bootstrap';
-import { FaPaperPlane, FaRobot, FaUser, FaLightbulb, FaCoins, FaChartLine, FaMoneyBillWave, FaChartBar } from 'react-icons/fa';
+import { FaPaperPlane, FaRobot, FaUser, FaLightbulb, FaCoins, FaChartLine, FaMoneyBillWave } from 'react-icons/fa';
 import 'animate.css';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
+import { useLocation } from 'react-router-dom';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -16,7 +16,7 @@ const MarkdownRenderer = ({ children }) => {
     <div className="markdown-content">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
+        skipHtml
         components={{
           code({ node, inline, className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || '');
@@ -60,76 +60,20 @@ const EnhancedBadge = ({ children, bg, className = '' }) => {
 const CoachChat = () => {
   const { currentUser } = useAuth();
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+  const location = useLocation();
+  const [input, setInput] = useState(location.state?.prompt || '');
+  const [useLearningContext, setUseLearningContext] = useState(false);
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const [typingEffect, setTypingEffect] = useState(false);
   const [currentTypingText, setCurrentTypingText] = useState('');
   const [fullMessageText, setFullMessageText] = useState('');
-  const [chatInitialized, setChatInitialized] = useState(false);
-  const [userProfile, setUserProfile] = useState(null);
   
-  // 获取评估结果
   useEffect(() => {
-    const storedAssessment = localStorage.getItem('assessmentResults');
-    if (storedAssessment) {
-      try {
-        const assessmentData = JSON.parse(storedAssessment);
-        setUserProfile(assessmentData);
-      } catch (error) {
-        console.error('解析评估结果时出错:', error);
-      }
-    }
-  }, []);
-
-  // 初始化聊天
-  useEffect(() => {
-    if (!chatInitialized) {
-      let initialMessage = '你好！我是你的AI金融心智教练。我可以帮你解答财务问题，提供理财建议，或者讨论如何培养健康的金钱观念。请问今天我能为你做什么？';
-      
-      // 如果有评估结果，则根据结果生成定制化欢迎信息
-      if (userProfile) {
-        const { userName, resultMessage, categoryScores, categoryAdvice } = userProfile;
-        const name = userName || '您';
-        
-        // 找出用户的强项和弱项
-        let strengths = [], weaknesses = [];
-        Object.entries(categoryScores || {}).forEach(([category, score]) => {
-          if (score >= 70) {
-            strengths.push(getCategoryName(category));
-          } else if (score <= 40) {
-            weaknesses.push(getCategoryName(category));
-          }
-        });
-        
-        initialMessage = `你好${name}！很高兴见到你。我看到你已完成了财务健康评估，评估结果显示你属于"${resultMessage?.title || '财务成长阶段'}"类型。\n\n`;
-        
-        if (strengths.length > 0) {
-          initialMessage += `👍 你在${strengths.join('、')}方面表现不错。\n\n`;
-        }
-        
-        if (weaknesses.length > 0) {
-          initialMessage += `📈 我们可以一起在${weaknesses.join('、')}方面努力提升。\n\n`;
-        }
-        
-        initialMessage += `根据你的评估结果，我建议我们先聚焦以下方面：\n`;
-        const adviceToShow = categoryAdvice?.slice(0, 2) || ['建立良好的预算习惯', '制定合理的储蓄计划'];
-        initialMessage += adviceToShow.map(advice => `- ${advice}`).join('\n');
-        
-        initialMessage += `\n\n你有什么具体的财务问题想咨询，或者希望我帮助你制定哪方面的计划呢？`;
-      }
-      
-      setMessages([
-        { 
-          id: 1, 
-          sender: 'ai', 
-          text: initialMessage
-        }
-      ]);
-      
-      setChatInitialized(true);
-    }
-  }, [chatInitialized, userProfile]);
+    setMessages([{ id: 1, sender: 'ai', text: '你好，我是青盈。我们可以从一件真实的小事开始：最近有没有一笔消费或一个计划，让你不知道怎样取舍？我会帮助你看清选择，最后由你决定。' }]);
+    setInput(location.state?.prompt || '');
+    setUseLearningContext(false);
+  }, [currentUser?.uid, location.state]);
 
   // 自动滚动到最新消息
   const scrollToBottom = () => {
@@ -171,23 +115,6 @@ const CoachChat = () => {
     }
   }, [typingEffect, fullMessageText]);
 
-  // 获取分类名称函数
-  function getCategoryName(category) {
-    const categoryNames = {
-      savings: '储蓄能力',
-      risk: '风险管理',
-      emergency: '应急准备',
-      debt: '债务管理',
-      knowledge: '财务知识',
-      income: '收入稳定性',
-      goals: '财务目标',
-      tracking: '支出追踪',
-      insurance: '保险保障',
-      pressure: '应对能力'
-    };
-    return categoryNames[category] || category;
-  }
-
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -208,11 +135,8 @@ const CoachChat = () => {
         }))
       };
       
-      // 如果有评估数据，添加到上下文中
-      if (userProfile) {
-        contextData.assessment_results = userProfile;
-      }
-      
+      contextData.use_learning_context = useLearningContext;
+
       const response = await sendMessageToCoach(contextData);
       setLoading(false);
       
@@ -228,7 +152,7 @@ const CoachChat = () => {
       setLoading(false);
       setMessages(prevMessages => [
         ...prevMessages,
-        { id: Date.now() + 1, sender: 'ai', text: '抱歉，我遇到了一些问题。请稍后再试。' }
+        { id: Date.now() + 1, sender: 'ai', text: error?.response?.data?.message || '教练暂时无法回复，请稍后重试。你也可以继续成长页中的练习。' }
       ]);
       console.error('发送消息时出错:', error);
     }
@@ -261,6 +185,7 @@ const CoachChat = () => {
       </div>
       
       <Container className="py-5">
+        <Form.Check type="checkbox" id="share-learning-context" className="mb-3" label="允许教练引用我保存的资料与最近五条学习记录（会发送给 AI 服务）" checked={useLearningContext} onChange={e => setUseLearningContext(e.target.checked)} />
         <Row className="justify-content-center mb-4">
           <Col md={10} lg={8}>
             <div className="text-center mb-4">
@@ -269,7 +194,7 @@ const CoachChat = () => {
               </EnhancedBadge>
               <h1 className="display-5 fw-bold mb-3">青盈 AI 教练对话</h1>
               <p className="lead text-muted">
-                与您的AI金融心智教练进行对话，获取个性化财务建议和指导。
+                从生活中的问题开始，理解一个概念，比较选择，形成自己的理由。
               </p>
             </div>
           </Col>
@@ -277,29 +202,6 @@ const CoachChat = () => {
         
         <Row className="justify-content-center">
           <Col md={10} lg={8}>
-            {userProfile && (
-              <Card className="mb-4 border-0 rounded-4 shadow-sm bg-gradient-light">
-                <Card.Body className="py-3 px-4">
-                  <div className="d-flex align-items-center">
-                    <div className="icon-container bg-primary-light rounded-circle d-flex align-items-center justify-content-center me-3">
-                      <FaChartBar className="text-primary" size={18} />
-                    </div>
-                    <div>
-                      <h6 className="mb-0">财务状况：{userProfile.resultMessage?.title || "评估完成"}</h6>
-                      <p className="text-muted small mb-0">
-                        得分：{userProfile.score} / {40} ({Math.round((userProfile.score / 40) * 100)}%)
-                      </p>
-                    </div>
-                    <div className="ms-auto">
-                      <Badge className="rounded-pill" bg={getBadgeColor(userProfile.score)}>
-                        {getScoreLevel(userProfile.score)}
-                      </Badge>
-                    </div>
-                  </div>
-                </Card.Body>
-              </Card>
-            )}
-            
             <Card className="chat-container shadow-lg rounded-4 border-0 overflow-hidden">
               <Card.Header className="bg-gradient-primary text-white p-3 d-flex align-items-center">
                 <div className="coach-avatar bg-white rounded-circle p-2 d-flex align-items-center justify-content-center me-3">
@@ -307,7 +209,7 @@ const CoachChat = () => {
                 </div>
                 <div>
                   <h5 className="mb-0 fw-bold">青盈 AI 教练</h5>
-                  <small className="text-white-50">您的个人金融顾问</small>
+                  <small className="text-white-50">陪你思考的理财学习教练</small>
                 </div>
               </Card.Header>
               
@@ -640,25 +542,7 @@ const CoachChat = () => {
     </div>
   );
   
-  // 用户评分等级函数
-  function getScoreLevel(score) {
-    const percentage = (score / 40) * 100;
-    if (percentage >= 85) return '优秀';
-    if (percentage >= 70) return '良好';
-    if (percentage >= 55) return '中等';
-    if (percentage >= 40) return '发展中';
-    return '起步阶段';
-  }
-  
-  // 获取徽章颜色函数
-  function getBadgeColor(score) {
-    const percentage = (score / 40) * 100;
-    if (percentage >= 85) return 'success';
-    if (percentage >= 70) return 'primary';
-    if (percentage >= 55) return 'info';
-    if (percentage >= 40) return 'warning';
-    return 'secondary';
-  }
+
 };
 
 export default CoachChat; 

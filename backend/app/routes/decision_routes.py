@@ -14,7 +14,11 @@
 """
 
 import logging
+from math import isfinite
 from datetime import date, datetime
+from app.services import learning_store
+from app.services.learning_service import number, text_field
+from app.services.checkin_service import BEIJING
 
 from flask import Blueprint, request, jsonify
 
@@ -29,12 +33,26 @@ decision_bp = Blueprint('decision_bp', __name__)
 MAX_TRANSACTIONS_PER_REPORT = 2000
 """单次报告分析的最大记录数。超过此数量应改为分阶段统计，而非一次性载入。"""
 
-DEFAULT_MONTHLY_INCOME = 2000.0
-"""未指定月收入时的兜底值。
+def _income(user_id, supplied=None):
+    profile = learning_store.read_entry(user_id, 'profile') or {}
+    value = supplied if supplied is not None else profile.get('monthly_income')
+    if value is None:
+        raise ValueError('请先在“理财成长 → 我的资料”设置月收入或生活费，再进行试算。')
+    return number(value, '月收入')
 
-TODO: 月收入应作为用户档案的一部分持久化，而不是每次请求由前端传入。
-      目前由查询参数提供，仅为过渡方案。
-"""
+
+def _basis(transactions, income):
+    dates = [t.date for t in transactions]
+    return {'monthly_income': income, 'record_count': len(transactions),
+            'start': min(dates).isoformat() if dates else None,
+            'end': max(dates).isoformat() if dates else None,
+            'message': '仅基于已记录消费估算；记录可能不完整，尚未发生的必要开支仍需预留。目标时间是假设当前收支模式持续的估算，不是确定预测。'}
+
+
+@decision_bp.errorhandler(RuntimeError)
+def data_unavailable(error):
+    logger.exception('Decision data unavailable')
+    return jsonify(status='error', message='数据暂时读取失败，请稍后重试'), 503
 
 
 # ============================================================
@@ -43,10 +61,10 @@ TODO: 月收入应作为用户档案的一部分持久化，而不是每次请�
 
 def _parse_date(value):
     """把存储层的日期字段转成 date 对象。无法解析时返回 None。"""
-    if isinstance(value, date):
-        return value
     if isinstance(value, datetime):
         return value.date()
+    if isinstance(value, date):
+        return value
     if isinstance(value, str):
         try:
             return date.fromisoformat(value[:10])
@@ -59,7 +77,7 @@ def _to_engine_transaction(row):
     """存储记录 → 引擎的 Transaction。数据不合法时返回 None（跳过该条）。"""
     try:
         amount = float(row.get('amount') or 0)
-        if amount <= 0:
+        if not isfinite(amount) or amount <= 0:
             return None
         spent = _parse_date(row.get('date') or row.get('spent_at'))
         if spent is None:
@@ -109,7 +127,7 @@ def _load_engine_inputs(user_id):
     if goal_error:
         # 目标读取失败不足以让整份报告失败，降级为空目标列表
         logger.warning("读取目标失败，报告将不含目标分析: %s", goal_error)
-        raw_goals = []
+        raise RuntimeError('目标暂时读取失败，请重试')
 
     transactions = [t for t in (_to_engine_transaction(r) for r in raw_txns) if t is not None]
     goals = [g for g in (_to_engine_goal(r) for r in raw_goals) if g is not None]
@@ -128,7 +146,7 @@ def get_report(user_info):
     """获取完整决策报告。
 
     查询参数：
-        monthly_income  月收入（元），默认 2000
+        monthly_income  月收入（元），未传入时读取账号资料
         income_day      每月发生活费的日子（1-31），用于识别发薪后消费集中
         months          统计区间月数，默认按记录跨度自动推算
 
@@ -136,12 +154,16 @@ def get_report(user_info):
     """
     user_id = user_info['uid']
 
-    try:
-        monthly_income = float(request.args.get('monthly_income', DEFAULT_MONTHLY_INCOME))
-    except (TypeError, ValueError):
-        return jsonify({'status': 'error', 'message': 'monthly_income 必须是数字'}), 400
+    profile = learning_store.read_entry(user_id, 'profile') or {}
+    if profile.get('monthly_income') is None and request.args.get('monthly_income') is None:
+        return jsonify(status='success', data={'has_data': False, 'profile_required': True, 'message': '先设置月收入或生活费，再查看收支估算；记账和学习仍可正常使用。'}), 200
 
-    income_day = request.args.get('income_day')
+    try:
+        monthly_income = _income(user_id, request.args.get('monthly_income'))
+    except (TypeError, ValueError) as error:
+        return jsonify({'status': 'error', 'message': str(error)}), 400
+
+    income_day = request.args.get('income_day', profile.get('income_day'))
     if income_day is not None:
         try:
             income_day = int(income_day)
@@ -190,6 +212,7 @@ def get_report(user_info):
             'goal_count': len(goals),
             'report': report.to_dict(),
             'warnings': warnings,
+            'basis': _basis(transactions, monthly_income),
         }
     }), 200
 
@@ -218,13 +241,13 @@ def get_opportunity_cost(user_info):
     except (TypeError, ValueError):
         return jsonify({'status': 'error', 'message': 'amount 必须是数字'}), 400
 
-    if amount < 0:
+    if not isfinite(amount) or amount < 0:
         return jsonify({'status': 'error', 'message': 'amount 不能为负'}), 400
 
     try:
-        monthly_income = float(payload.get('monthly_income', DEFAULT_MONTHLY_INCOME))
-    except (TypeError, ValueError):
-        return jsonify({'status': 'error', 'message': 'monthly_income 必须是数字'}), 400
+        monthly_income = _income(user_id, payload.get('monthly_income'))
+    except (TypeError, ValueError) as error:
+        return jsonify({'status': 'error', 'message': str(error)}), 400
 
     transactions, _goals, _skipped = _load_engine_inputs(user_id)
 
@@ -246,6 +269,7 @@ def get_opportunity_cost(user_info):
         'data': {
             **cost.to_dict(),
             'monthly_surplus': monthly_surplus,
+            'basis': _basis(transactions, monthly_income),
             'message': f'这笔消费相当于你 {cost.delay_days:.0f} 天的结余',
         }
     }), 200
@@ -274,6 +298,15 @@ def list_transactions(user_info):
     }), 200
 
 
+@decision_bp.route('/checkin', methods=['GET'])
+@require_auth
+def get_checkin(user_info):
+    summary, error = user_data_service.get_checkin_summary(user_info['uid'])
+    if error:
+        return jsonify({'status': 'error', 'message': error}), 500
+    return jsonify({'status': 'success', 'data': summary}), 200
+
+
 @decision_bp.route('/transactions', methods=['POST'])
 @require_auth
 def create_transaction(user_info):
@@ -293,7 +326,7 @@ def create_transaction(user_info):
     except (TypeError, ValueError):
         return jsonify({'status': 'error', 'message': 'amount 必须是数字'}), 400
 
-    if amount <= 0:
+    if not isfinite(amount) or amount <= 0:
         return jsonify({'status': 'error', 'message': '消费金额必须大于 0'}), 400
 
     category = (payload.get('category') or '').strip()
@@ -313,14 +346,23 @@ def create_transaction(user_info):
         except (TypeError, ValueError):
             return jsonify({'status': 'error', 'message': 'hour 必须是 0-23 之间的整数'}), 400
 
+    if payload.get('planned') not in (None, '', 'planned', 'spontaneous', 'necessary'):
+        return jsonify(message='消费计划选项无效'), 400
+    try:
+        purpose = text_field(payload, 'purpose', limit=300)
+    except ValueError as error:
+        return jsonify(message=str(error)), 400
     record = {
         'amount': amount,
         'category': category,
         'date': spent_at.isoformat(),
         'merchant': (payload.get('merchant') or '').strip(),
+        'items': (payload.get('items') or '').strip(),
         'note': (payload.get('note') or '').strip(),
         'hour': hour,
         'regret': None,
+        'planned': payload.get('planned') or None,
+        'purpose': purpose,
     }
 
     success, message = user_data_service.save_user_data(
@@ -356,7 +398,7 @@ def submit_regret(user_info, transaction_id):
 
         {"regret": true}
 
-    后悔率是行为改变最强的预测因子之一，且这是用户自己的后悔数据。
+    兼容历史客户端；新版回访使用 learning 路由保存符合预期程度。
     回访产生的 ``regret`` 字段会被 ``detect_patterns`` 用于识别后悔高发的类别。
     """
     payload = request.get_json(silent=True) or {}
@@ -384,122 +426,15 @@ def submit_regret(user_info, transaction_id):
 # 单笔消费评估（语音记账/智能评估的数据来源）
 # ============================================================
 
-# 刚需类别关键词：命中任一即视为基本生活开支。
-# 判断只用于生成解释话术，不参与任何数值计算。
-NECESSITY_KEYWORDS = (
-    '餐', '饭', '食堂', '房租', '水电', '话费', '网费', '交通', '地铁',
-    '公交', '打车', '医疗', '药', '学习', '教材', '书', '打印', '生活用品',
-)
-
-
 def _judge_necessity(category: str, facts: dict, amount: float) -> dict:
-    """解释层：判断这笔消费是刚需/可选/建议暂缓，并给出原因。
-
-    判断依据 = 类别（基础） + 预算余量（修正）。数值来自 ``facts``，
-    本函数只负责把事实翻译成人话，不参与计算。
-    """
-    remaining = facts['budget']['remaining']
-    is_need = any(k in category for k in NECESSITY_KEYWORDS)
-
-    if is_need:
-        if remaining < 0:
-            return {
-                'level': 'necessary', 'label': '刚需',
-                'reason': f'「{category}」属于基本生活开支，但本月预算已超支 '
-                          f'¥{abs(remaining):.0f}，建议盘点后续支出、优先保住这笔刚需。',
-            }
-        return {
-            'level': 'necessary', 'label': '刚需',
-            'reason': f'「{category}」属于基本生活开支，预算还剩 ¥{remaining:.0f}，'
-                      f'不影响月度计划，正常记录。',
-        }
-
-    # 非刚需：用预算余量定语气
-    if remaining < 0:
-        return {
-            'level': 'postpone', 'label': '建议暂缓',
-            'reason': f'本月预算已超支 ¥{abs(remaining):.0f}，'
-                      f'这笔「{category}」属于非刚需，建议先放一放。',
-        }
-    if remaining < amount:
-        return {
-            'level': 'postpone', 'label': '建议暂缓',
-            'reason': f'这笔 ¥{amount:.0f} 会占掉剩余预算 ¥{remaining:.0f} 的 '
-                      f'{amount / remaining:.0%}，后面几天就没有余量了，建议缓一缓。',
-        }
-    if remaining >= amount * 3:
-        return {
-            'level': 'optional', 'label': '可选',
-            'reason': f'「{category}」属于非刚需消费，但预算余量充足（还剩 ¥{remaining:.0f}），'
-                      f'可以买，注意别连续超支就行。',
-        }
-    return {
-        'level': 'optional', 'label': '可选',
-        'reason': f'「{category}」属于非刚需消费，预算还剩 ¥{remaining:.0f}，'
-                  f'这笔花完要留意后面的开支。',
-    }
+    remaining = facts['budget']['remaining'] - amount
+    return {'level': 'optional', 'label': '由你判断',
+            'reason': f'按已记录支出计算，购买后本月余量约 ¥{remaining:.2f}。类别和价格不能决定这笔消费对你是否必要。'}
 
 
-def _build_advice(necessity: dict, facts: dict, amount: float, category: str) -> tuple[str, str | None]:
-    """解释层：生成个性化干预话术与平价建议。
-
-    数据全部来自 ``facts``（引擎输出的事实），话术只是这些事实的措辞。
-    """
-    similar = facts['similar']
-    goal = facts['goal']
-    parts: list[str] = []
-
-    # 主句：按合理性定语气
-    if necessity['level'] == 'necessary':
-        parts.append(f'这笔「{category}」是刚需，正常记录，不用有负罪感。')
-    elif necessity['level'] == 'postpone':
-        parts.append(f'这笔「{category}」建议先放一放——{necessity["reason"]}')
-    else:
-        parts.append(f'这笔「{category}」可以消费，但要清楚它在预算里的位置。')
-
-    # 同类消费统计
-    if similar['count_this_month'] > 0:
-        parts.append(
-            f'同类消费本月已有 {similar["count_this_month"]} 笔、共 '
-            f'¥{similar["total_this_month"]:.0f}，均价 ¥{similar["avg_amount"]:.0f}。'
-        )
-        if similar['avg_amount'] and amount > similar['avg_amount'] * 1.5:
-            parts.append(f'这笔比同类均价高 {amount / similar["avg_amount"] * 100 - 100:.0f}%，可以看看平价替代。')
-        elif similar['avg_amount'] and amount < similar['avg_amount'] * 0.5:
-            parts.append('这笔低于同类均价，支出控制得不错。')
-
-    # 储蓄影响
-    if goal['has_goal']:
-        if goal['months_before'] is not None and goal['months_after'] is not None:
-            delta = goal['months_after'] - goal['months_before']
-            if delta > 0:
-                parts.append(
-                    f'储蓄目标「{goal["name"]}」将因此多存 {delta:.1f} 个月'
-                    f'（{goal["months_before"]:.1f} → {goal["months_after"]:.1f} 个月）。'
-                )
-            elif goal['status_before'] != goal['status_after']:
-                parts.append(
-                    f'这笔会让储蓄目标「{goal["name"]}」从'
-                    f'「{goal["status_before"]}」变为「{goal["status_after"]}」。'
-                )
-            else:
-                parts.append(
-                    f'不影响储蓄目标「{goal["name"]}」的进度（仍需 {goal["months_after"]:.1f} 个月）。'
-                )
-        elif goal['status_after'] in ('无法达成', '需延期'):
-            parts.append(f'储蓄目标「{goal["name"]}」目前已无法按期达成，这笔会加重负担。')
-
-    # 平价建议（tip）：有同类均价且这笔明显偏高时给对比；否则提示设目标
-    tip = None
-    if similar['avg_amount'] and amount > similar['avg_amount'] * 1.2:
-        tip = (
-            f'平价提示：同类消费均价 ¥{similar["avg_amount"]:.0f}，'
-            f'这笔比均价多 ¥{amount - similar["avg_amount"]:.0f}，可以比价后再决定。'
-        )
-    elif not goal['has_goal'] and necessity['level'] != 'necessary':
-        tip = '提示：设定一个储蓄目标后，每笔消费都会显示它让你离目标远了多少天。'
-
-    return ' '.join(parts), tip
+def _build_advice(necessity, facts, amount, category):
+    return (necessity['reason'] + ' 它满足什么需要？会影响哪些安排？你愿意接受怎样的取舍？',
+            '现在购买、延后考虑或调整预算都可以。记录你的理由，之后再看是否符合预期。')
 
 
 @decision_bp.route('/assess', methods=['POST'])
@@ -511,7 +446,7 @@ def assess_one_purchase(user_info):
 
         {"amount": 27, "category": "饮品", "merchant": "某奶茶店", "note": "..."}
 
-    ``amount``、``category`` 必填，``monthly_income`` 可选（默认 2000）。
+    ``amount``、``category`` 必填，``monthly_income`` 可选（读取账号资料）。
 
     响应 ``data`` 结构::
 
@@ -532,7 +467,7 @@ def assess_one_purchase(user_info):
         amount = float(payload.get('amount', 0))
     except (TypeError, ValueError):
         return jsonify({'status': 'error', 'message': 'amount 必须是数字'}), 400
-    if amount <= 0:
+    if not isfinite(amount) or amount <= 0:
         return jsonify({'status': 'error', 'message': '消费金额必须大于 0'}), 400
 
     category = (payload.get('category') or '').strip()
@@ -540,16 +475,16 @@ def assess_one_purchase(user_info):
         return jsonify({'status': 'error', 'message': '消费类别不能为空'}), 400
 
     try:
-        monthly_income = float(payload.get('monthly_income', DEFAULT_MONTHLY_INCOME))
-    except (TypeError, ValueError):
-        return jsonify({'status': 'error', 'message': 'monthly_income 必须是数字'}), 400
+        monthly_income = _income(user_id, payload.get('monthly_income'))
+    except (TypeError, ValueError) as error:
+        return jsonify({'status': 'error', 'message': str(error)}), 400
 
     transactions, goals, _skipped = _load_engine_inputs(user_id)
     goal = goals[0] if goals else None
 
     try:
         facts = assess_purchase(
-            amount, category, monthly_income, transactions, goal)
+            amount, category, monthly_income, transactions, goal, today=datetime.now(BEIJING).date())
     except ValueError as e:
         return jsonify({'status': 'error', 'message': f'评估失败: {e}'}), 400
 
@@ -563,5 +498,6 @@ def assess_one_purchase(user_info):
             'necessity': necessity,
             'suggestion': suggestion,
             'tip': tip,
+            'basis': _basis(transactions, monthly_income),
         }
     }), 200

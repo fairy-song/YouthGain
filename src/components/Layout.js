@@ -83,7 +83,7 @@ const PageTransition = ({ children }) => {
 };
 
 const Layout = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [brandHovered, setBrandHovered] = useState(false);
@@ -274,6 +274,7 @@ const Layout = () => {
 
                 {currentUser ? (
                   <>
+                    <Nav.Link as={Link} to="/learning" className="text-white d-flex align-items-center"><FaBook className="me-2" />理财成长</Nav.Link>
                     <div className="nav-link-container position-relative">
                       <Nav.Link
                         as={Link}
@@ -306,6 +307,19 @@ const Layout = () => {
                       </Nav.Link>
                       <div className="nav-underline"></div>
                     </div>
+
+                    {isAdmin && (
+                      <div className="nav-link-container position-relative">
+                        <Nav.Link
+                          as={Link}
+                          to="/admin"
+                          className="text-warning d-flex align-items-center border-0 nav-link fw-medium"
+                        >
+                          <FaShieldAlt className="me-2" /> 管理后台
+                        </Nav.Link>
+                        <div className="nav-underline"></div>
+                      </div>
+                    )}
 
                     <AnimatedButton
                       variant="danger"

@@ -20,6 +20,7 @@ __app_id = 'default-app-id' # Replace with actual __app_id if provided by enviro
 
 # 开发模式下使用内存存储
 # 这只是一个简单的模拟，生产环境应使用真正的数据库
+# 为避免后端重启导致内存数据全部丢失，开发模式的数据会同步落盘到 dev_data.json
 _dev_db = {
     "users": {},
     "public": {
@@ -28,6 +29,40 @@ _dev_db = {
 }
 
 import os
+
+# 开发模式磁盘持久化文件路径：<backend>/dev_data.json
+_DEV_DB_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    'dev_data.json'
+)
+
+def _load_dev_db():
+    """启动时从 dev_data.json 恢复开发模式的内存数据，防止后端重启后数据丢失。"""
+    global _dev_db
+    if os.path.exists(_DEV_DB_PATH):
+        try:
+            with open(_DEV_DB_PATH, 'r', encoding='utf-8') as _f:
+                _loaded = json.load(_f)
+            if isinstance(_loaded, dict):
+                _dev_db = _loaded
+        except Exception as _e:
+            print(f"[dev_db] 加载 dev_data.json 失败，将使用空数据: {_e}")
+
+def persist_dev_db():
+    """Atomically persist development records; never report success after a failed write."""
+    import tempfile
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=os.path.dirname(_DEV_DB_PATH), delete=False) as handle:
+            temp_path = handle.name
+            json.dump(_dev_db, handle, ensure_ascii=False, indent=2, default=str)
+        os.replace(temp_path, _DEV_DB_PATH)
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+
+
+_load_dev_db()
 
 def get_db():
     """Helper function to get the Firestore client instance."""
@@ -46,21 +81,16 @@ def get_db():
         return None
 
 def is_dev_mode():
-    """检查是否处于开发模式"""
-    # 优先检查环境变量，因为app config可能没有被正确设置
-    if os.environ.get('DEV_MODE') == 'true':
-        return True
-    
-    try:
-        from flask import has_app_context, current_app
-        if not has_app_context():
-            return True
-        # 获取 db，如果没有 db （例如 Python 3.14 下因为 metaclass 无法导入）也强制视作开发模式使用内存DB
-        if not getattr(current_app, 'db', None):
-            return True
-        return hasattr(current_app, 'config') and current_app.config.get('DEV_MODE')
-    except Exception:
-        return True
+    """Use memory only when explicitly configured; never silently replace Firestore."""
+    from flask import has_app_context, current_app
+    if any(os.environ.get(key, '').lower() == 'production' for key in ('APP_ENV', 'FLASK_ENV')):
+        return False
+    if has_app_context():
+        if current_app.config.get('APP_ENV') == 'production':
+            return False
+        return current_app.config.get('DB_TYPE', 'memory') == 'memory'
+    return os.environ.get('DB_TYPE', 'memory') == 'memory'
+
 
 def is_mysql_mode():
     """检查是否处于 MySQL 模式"""
@@ -83,6 +113,23 @@ def get_user_collection_path(user_id, collection_name):
     except Exception:
         app_id = __app_id
     return f"artifacts/{app_id}/users/{user_id}/{collection_name}"
+
+def get_users_root_path():
+    """Constructs the root path under which every user's subcollection lives.
+
+    Firestore 模式下每个用户的私有数据位于
+    ``artifacts/{app_id}/users/{user_id}/{collection_name}``，
+    枚举中间层文档即可列出全部用户 uid（管理员功能使用）。
+    """
+    try:
+        from flask import has_app_context, current_app
+        if has_app_context():
+            app_id = getattr(current_app, '__app_id', __app_id)
+        else:
+            app_id = __app_id
+    except Exception:
+        app_id = __app_id
+    return f"artifacts/{app_id}/users"
 
 def get_public_collection_path(collection_name):
     """Constructs the path for a public collection."""
@@ -131,6 +178,7 @@ def create_user_profile(user_id, email, display_name=""):
                 "coach_messages": [],
                 "assessments": {}
             }
+        persist_dev_db()
         return user_id, None
         
     if not db: return None, "Firestore not initialized"
@@ -229,6 +277,7 @@ def update_user_profile(user_id, data_to_update):
                 data_to_update["lastLogin"] = datetime.datetime.now().isoformat()
             # 更新用户资料
             _dev_db["users"][user_id]["profile"].update(data_to_update)
+            persist_dev_db()
             return True, None
         return False, "User not found"
         
@@ -268,6 +317,7 @@ def save_assessment_results(user_id, assessment_data):
             # 标记评估已完成
             if "profile" in _dev_db["users"][user_id]:
                 _dev_db["users"][user_id]["profile"]["assessmentCompleted"] = True
+            persist_dev_db()
             return "latest", None
         return None, "User not found"
         
@@ -343,6 +393,7 @@ def save_coach_message(user_id, message_data):
         
         # 添加消息
         _dev_db["users"][user_id]["coach_messages"].append(message_data)
+        persist_dev_db()
         return msg_id, None
     
     if not db: return None, "Firestore not initialized"
@@ -443,6 +494,7 @@ def add_kb_article(article_data):
         article_data["createdAt"] = datetime.datetime.now().isoformat()
         article_data["id"] = str(uuid.uuid4())
         _dev_db["public"]["knowledge_base"].append(article_data)
+        persist_dev_db()
         return article_data["id"], None
         
     if not db: return None, "Firestore not initialized"

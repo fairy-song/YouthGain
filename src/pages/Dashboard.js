@@ -3,8 +3,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { Container, Row, Col, Card, Button, Badge, ProgressBar, Form, Spinner, Alert } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { FaChartLine, FaPiggyBank, FaWallet, FaExchangeAlt, FaRobot, FaCoins, FaChartPie, FaMoneyBillWave, FaLightbulb, FaExclamationTriangle, FaCalculator, FaMicrophone } from 'react-icons/fa';
-import { getDecisionReport, listTransactions, getOpportunityCost, createTransaction, submitRegret, getUserGoals, createGoal, deleteGoal } from '../services/api';
+import { getDecisionReport, listTransactions, getOpportunityCost, createTransaction, getUserGoals, createGoal, deleteGoal } from '../services/api';
 import VoiceBillModal from '../components/VoiceBillModal';
+import CheckinCard from '../components/CheckinCard';
+import TransactionReflection from '../components/TransactionReflection';
+import TransactionIntent from '../components/TransactionIntent';
+import { getLearningProfile, getLearning } from '../services/learning';
 
 // 增强型徽章组件
 const EnhancedBadge = ({ children, bg, className = '' }) => {
@@ -21,13 +25,14 @@ const EnhancedBadge = ({ children, bg, className = '' }) => {
 
 // 月收入默认值。
 // TODO: 月收入应作为用户档案的一部分持久化，目前由前端写死传入后端。
-const DEFAULT_MONTHLY_INCOME = 2000;
+
 
 const Dashboard = () => {
   const { currentUser } = useAuth();
 
   const [report, setReport] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [reflections, setReflections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -36,11 +41,8 @@ const Dashboard = () => {
   const [costResult, setCostResult] = useState(null);
   const [costError, setCostError] = useState('');
 
-  // 月收入：用户可设置，localStorage 记忆（后端暂未提供画像持久化，先落在本地）
-  const [monthlyIncome, setMonthlyIncome] = useState(() => {
-    const saved = localStorage.getItem('monthlyIncome');
-    return saved && !isNaN(Number(saved)) ? Number(saved) : DEFAULT_MONTHLY_INCOME;
-  });
+  const [monthlyIncome, setMonthlyIncome] = useState(undefined);
+  const [reload, setReload] = useState(0);
 
   // 语音记账弹窗开关
   const [showVoiceModal, setShowVoiceModal] = useState(false);
@@ -53,6 +55,7 @@ const Dashboard = () => {
     merchant: '',
     note: '',
     hour: '',
+    planned: '', purpose: '',
   });
   const [recordResult, setRecordResult] = useState(null); // 记账成功后的机会成本即时反馈
   const [recordError, setRecordError] = useState('');
@@ -77,13 +80,18 @@ const Dashboard = () => {
       setError('');
       try {
         // 报告、流水与目标并发拉取，三者互不依赖
-        const [reportData, txnData, goalData] = await Promise.all([
-          getDecisionReport({ monthlyIncome }),
+        const profile = await getLearningProfile();
+        if (cancelled) return;
+        setMonthlyIncome(profile.monthly_income ?? undefined);
+        const [reportData, txnData, goalData, learningData] = await Promise.all([
+          getDecisionReport({}),
           listTransactions(50),
-          getUserGoals().catch(() => ({ data: { goals: [] } })), // 目标读取失败不阻塞看板
+          getUserGoals(),
+          getLearning(),
         ]);
         if (cancelled) return;
         setReport(reportData);
+        setReflections(learningData.entries.filter(e => e.kind === 'reflection'));
         setTransactions(txnData.transactions || []);
         setGoals((goalData && goalData.data && goalData.data.goals) || []);
       } catch (e) {
@@ -96,7 +104,7 @@ const Dashboard = () => {
 
     load();
     return () => { cancelled = true; };
-  }, [monthlyIncome]); // 月收入变化时重新拉取报告（机会成本/结余都依赖它）
+  }, [currentUser?.uid, reload]); // 月收入变化时重新拉取报告（机会成本/结余都依赖它）
 
   // 试算机会成本——回答"这笔钱花了会怎样"
   const handleCostCheck = async (event) => {
@@ -138,6 +146,7 @@ const Dashboard = () => {
     }
 
     setSavingRecord(true);
+    let saved = false;
     try {
       const payload = {
         amount,
@@ -145,10 +154,13 @@ const Dashboard = () => {
         date: recordForm.date,
         merchant: recordForm.merchant.trim(),
         note: recordForm.note.trim(),
+        planned: recordForm.planned || null, purpose: recordForm.purpose,
       };
       // 小时字段可选，填写后才传给后端（用于深夜消费模式识别）
       if (recordForm.hour !== '') payload.hour = parseInt(recordForm.hour, 10);
       await createTransaction(payload);
+      saved = true;
+      setRecordForm((f) => ({ ...f, amount: '', merchant: '', note: '', hour: '', planned: '', purpose: '' }));
 
       // 即时反馈：这笔消费相当于多少天结余（后端确定性计算，前端不参与数值计算）
       try {
@@ -158,7 +170,7 @@ const Dashboard = () => {
         // 入不敷出时后端返回 409：记账已成功，只提示机会成本暂无法计算
         setRecordResult({
           unavailable: true,
-          message: costErr?.response?.data?.message || '机会成本暂时无法计算',
+          message: '账目已保存。' + (costErr?.response?.data?.message || '机会成本暂时无法计算'),
         });
       }
 
@@ -173,20 +185,9 @@ const Dashboard = () => {
       // 清空金额、商户、备注与时段，保留类别和日期方便连续记账
       setRecordForm((f) => ({ ...f, amount: '', merchant: '', note: '', hour: '' }));
     } catch (err) {
-      setRecordError(err?.response?.data?.message || err?.message || '保存失败，请确认后端服务已启动');
+      setRecordError(saved ? '账目已保存，但看板刷新失败，请点击页面上方重试，避免重复记账。' : (err?.response?.data?.message || err?.message || '保存失败，请重试'));
     } finally {
       setSavingRecord(false);
-    }
-  };
-
-  // 消费回访："这笔消费，现在回头看值吗"
-  const handleRegret = async (transactionId, regret) => {
-    try {
-      await submitRegret(transactionId, regret);
-      const txnData = await listTransactions(50);
-      setTransactions(txnData.transactions || []);
-    } catch (err) {
-      alert(err?.response?.data?.message || err?.message || '提交回访失败');
     }
   };
 
@@ -248,7 +249,7 @@ const Dashboard = () => {
       const [reportData, txnData, goalData] = await Promise.all([
         getDecisionReport({ monthlyIncome }),
         listTransactions(50),
-        getUserGoals().catch(() => ({ data: { goals: [] } })),
+        getUserGoals(),
       ]);
       setReport(reportData);
       setTransactions(txnData.transactions || []);
@@ -261,7 +262,7 @@ const Dashboard = () => {
   // 派生展示值——集中算好，避免可选链散落在 JSX 里
   const reportData = report?.has_data ? report.report : null;
   const surplus = reportData?.monthly_surplus ?? 0;
-  const income = reportData?.monthly_income ?? DEFAULT_MONTHLY_INCOME;
+  const income = reportData?.monthly_income ?? monthlyIncome ?? 0;
   const avgSpending = reportData ? Math.max(0, income - surplus) : 0;
   const spending = reportData?.spending ?? null;
   const patterns = reportData?.patterns ?? [];
@@ -308,7 +309,7 @@ const Dashboard = () => {
                 欢迎回来，{currentUser?.displayName || '同学'}
               </h1>
               <p className="lead text-muted">
-                下面的数字来自你记录的真实消费，不是估算。
+                用记录认识自己的选择。收支与目标时间基于已有数据估算，不代表全部财务状况。
               </p>
             </div>
           </Col>
@@ -318,6 +319,7 @@ const Dashboard = () => {
           <Alert variant="danger" className="rounded-4">
             <FaExclamationTriangle className="me-2" />
             {error}
+            <Button variant="link" onClick={() => setReload(v => v + 1)}>重试</Button>
           </Alert>
         )}
 
@@ -328,38 +330,16 @@ const Dashboard = () => {
           </Alert>
         )}
 
-        {/* 月收入设置：机会成本/结余计算的输入，失焦保存到 localStorage */}
-        <Row className="mb-4">
-          <Col md={4}>
-            <Card className="border-0 rounded-4 shadow-sm">
-              <Card.Body className="p-3 d-flex align-items-center gap-3">
-                <div className="icon-container bg-primary-light rounded-circle d-flex align-items-center justify-content-center">
-                  <FaWallet className="text-primary" />
-                </div>
-                <div className="flex-grow-1">
-                  <div className="text-muted small">月收入（元）</div>
-                  <Form.Control
-                    type="number"
-                    min="0"
-                    step="100"
-                    defaultValue={monthlyIncome}
-                    onBlur={(e) => {
-                      // 清空时不生效，避免误把月收入改成 0
-                      if (e.target.value === '') return;
-                      const v = Number(e.target.value);
-                      if (!isNaN(v) && v >= 0 && v !== monthlyIncome) {
-                        setMonthlyIncome(v);
-                        localStorage.setItem('monthlyIncome', String(v));
-                      }
-                    }}
-                    style={{ maxWidth: 160 }}
-                  />
-                </div>
-                <span className="text-muted small" style={{ maxWidth: 110 }}>机会成本按此计算</span>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
+        <CheckinCard key={currentUser?.uid} transactions={transactions} />
+
+        <Alert variant="light">
+          <strong>我的月收入或生活费：{monthlyIncome == null ? '尚未设置' : `¥${monthlyIncome}`}</strong>
+          <Button as={Link} to="/learning?tab=profile" variant="link">管理账号资料</Button>
+          <Button as={Link} to="/learning" variant="outline-primary" className="me-2">继续理财练习</Button>
+          <Button as={Link} to="/learning?tab=review" variant="outline-secondary">本周复盘</Button>
+          {report?.basis && <p className="small text-muted mt-3 mb-0">分析范围：{report.basis.start} 至 {report.basis.end}，{report.basis.record_count} 笔。{report.basis.message}</p>}
+          {report?.warnings?.map((warning, index) => <p key={index} className="small text-muted mb-0">{warning}</p>)}
+        </Alert>
 
         {/* 记一笔消费 —— 产品核心闭环的入口：记录当下即反馈 */}
         <Row className="mb-5">
@@ -453,6 +433,7 @@ const Dashboard = () => {
                       />
                     </Col>
                   </Row>
+                  <TransactionIntent value={recordForm} onChange={setRecordForm} />
                 </Form>
 
                 {recordError && <Alert variant="danger" className="mt-3 mb-0 small">{recordError}</Alert>}
@@ -797,11 +778,14 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <div className="table-responsive">
-                  <table className="table table-hover">
+                  <table className="table table-hover recent-transactions">
                     <thead className="table-light">
                       <tr>
                         <th scope="col">日期</th>
                         <th scope="col">类别</th>
+                        <th scope="col">商户</th>
+                        <th scope="col">消费内容</th>
+                        <th scope="col">备注</th>
                         <th scope="col" className="text-end">金额</th>
                         <th scope="col">回访</th>
               </tr>
@@ -809,42 +793,36 @@ const Dashboard = () => {
             <tbody>
               {transactions.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="text-center text-muted py-4">
+                  <td colSpan="7" className="text-center text-muted py-4">
                     还没有消费记录
                   </td>
                 </tr>
               ) : (
                 transactions.map((t) => (
                   <tr key={t.id}>
-                    <td>{t.date}</td>
+                    <td className="text-nowrap">
+                      {t.date}
+                      {t.hour !== null && t.hour !== undefined && t.hour !== '' && (
+                        <div className="small text-muted">{String(t.hour).padStart(2, '0')} 时</div>
+                      )}
+                    </td>
                     <td>
                       <Badge
-                        bg={t.regret === true ? 'danger-light' : 'secondary-light'}
-                        text={t.regret === true ? 'danger' : 'secondary'}
+                        bg="secondary-light"
+                        text="secondary"
                         className="rounded-pill px-2 py-1"
                       >
                         {t.category}
                       </Badge>
                     </td>
-                    <td className="text-end fw-medium text-danger">
+                    <td className="transaction-detail">{t.merchant || '—'}</td>
+                    <td className="transaction-detail">{t.items || '—'}</td>
+                    <td className="transaction-detail">{t.note || '—'}{t.purpose && <div className="small text-muted">当时的需要：{t.purpose}</div>}{t.planned && <div className="small text-muted">{{ planned: '提前计划', spontaneous: '临时决定', necessary: '临时必要开支' }[t.planned]}</div>}</td>
+                    <td className="text-end fw-medium text-danger text-nowrap">
                       -¥{t.amount.toLocaleString()}
                     </td>
                     <td>
-                      {t.regret === null || t.regret === undefined ? (
-                        // 未回访：提供"值/不值"两个按钮，回访结果用于后悔率统计与"后悔集中"模式识别
-                        <div className="d-flex gap-1">
-                          <Button size="sm" variant="outline-success" className="py-0 px-2" onClick={() => handleRegret(t.id, false)}>
-                            值
-                          </Button>
-                          <Button size="sm" variant="outline-danger" className="py-0 px-2" onClick={() => handleRegret(t.id, true)}>
-                            不值
-                          </Button>
-                        </div>
-                      ) : t.regret ? (
-                        <Badge bg="danger" className="rounded-pill px-2 py-1">后悔</Badge>
-                      ) : (
-                        <Badge bg="success" className="rounded-pill px-2 py-1">值得</Badge>
-                      )}
+                      <TransactionReflection transactionId={t.id} saved={reflections.find(r => r.transaction_id === String(t.id))} />
                     </td>
                   </tr>
                 ))
@@ -891,6 +869,15 @@ const Dashboard = () => {
 
       {/* 自定义CSS */}
       <style jsx>{`
+        .recent-transactions .transaction-detail {
+          min-width: 8rem;
+          max-width: 20rem;
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+        }
+        .recent-transactions th {
+          white-space: nowrap;
+        }
         .dashboard-page {
           position: relative;
           min-height: 100vh;

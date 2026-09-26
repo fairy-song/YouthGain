@@ -1,3 +1,4 @@
+import TransactionIntent from './TransactionIntent';
 // ============================================================
 // HomeVoiceRecorder.js —— 首页"记一笔账"原地录音组件
 //
@@ -5,7 +6,7 @@
 // billParser 抽取 + /decision/assess 评估 + createTransaction 保存)，
 // 但交互完全不同：
 //   点"记一笔账" → 立刻开始收音(不弹窗、不跳转、无需再点一次)
-//   停止 → 识别 → 字段回显 → AI 评估 → 确认保存，全程在首页原地完成
+//   停止 → 识别 → 字段回显 → 消费试算 → 确认保存，全程在首页原地完成
 //
 // 状态机：idle → recording → transcribing → reviewing → assessed → 保存
 // 文本输入作为兜底(不方便说话时)。
@@ -35,7 +36,6 @@ export default function HomeVoiceRecorder({ monthlyIncome, onDone }) {
   const timerRef = useRef(null);
 
   // 文本兜底
-  const [manualMode, setManualMode] = useState(false);
   const [manualText, setManualText] = useState('');
 
   // 抽取结果与表单
@@ -129,7 +129,6 @@ export default function HomeVoiceRecorder({ monthlyIncome, onDone }) {
   // 开始录音(直接开麦)
   const startListening = async () => {
     setError('');
-    setManualMode(false);
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -196,7 +195,7 @@ export default function HomeVoiceRecorder({ monthlyIncome, onDone }) {
     setForm((f) => ({ ...f, amount: String(v) }));
   };
 
-  // AI 消费评估
+  // 消费影响试算
   const handleAssess = async () => {
     const errMsg = validateBillForm(form);
     if (errMsg) { setError(errMsg); return; }
@@ -230,7 +229,9 @@ export default function HomeVoiceRecorder({ monthlyIncome, onDone }) {
         category: form.category.trim(),
         date: form.date,
         merchant: form.merchant.trim(),
+        items: form.items.trim(),
         note: form.note.trim(),
+        planned: form.planned || null, purpose: form.purpose || '',
       };
       if (form.hour !== '') payload.hour = parseInt(form.hour, 10);
       await createTransaction(payload);
@@ -262,7 +263,6 @@ export default function HomeVoiceRecorder({ monthlyIncome, onDone }) {
     setMode('idle');
     setSeconds(0);
     setError('');
-    setManualMode(false);
     setManualText('');
     setParsed(null);
     setForm(null);
@@ -283,7 +283,7 @@ export default function HomeVoiceRecorder({ monthlyIncome, onDone }) {
         <div className="text-center demo-hint">点一下，直接说话，30 秒内记完一笔</div>
         {error && <div className="demo-error">{error}</div>}
         <div className="text-center demo-alt">
-          <button type="button" className="demo-link" onClick={() => { setManualMode(true); setMode('manual'); }}>不方便说话？用文字输入</button>
+          <button type="button" className="demo-link" onClick={() => { setMode('manual'); }}>不方便说话？用文字输入</button>
         </div>
       </div>
     );
@@ -428,13 +428,14 @@ export default function HomeVoiceRecorder({ monthlyIncome, onDone }) {
           </div>
         </div>
 
+        <TransactionIntent value={form} onChange={setForm} />
         {error && <div className="demo-error">{error}</div>}
 
-        {/* AI 评估结果 */}
+        {/* 消费试算结果 */}
         {assessment && (
           <div className="demo-block demo-ai">
             <div className="demo-label">
-              <FaRobot className="me-1 text-primary" />AI 消费评估
+              <FaRobot className="me-1 text-primary" />消费影响试算
             </div>
             <div className="d-flex align-items-start gap-2 mb-2">
               <Badge pill
@@ -449,14 +450,15 @@ export default function HomeVoiceRecorder({ monthlyIncome, onDone }) {
             </div>
             {assessment.goal.has_goal && assessment.goal.status_before !== assessment.goal.status_after && (
               <div className="small text-warning mb-1">
-                储蓄目标「{assessment.goal.name}」将从「{assessment.goal.status_before}」变为「{assessment.goal.status_after}」
+                储蓄目标「{assessment.goal.name}」按上述假设，预计从「{assessment.goal.status_before}」变为「{assessment.goal.status_after}」
               </div>
             )}
             <div className="small text-muted mb-1">
-              本月已花 ¥{assessment.budget.spent_this_month.toLocaleString()}，剩 ¥{assessment.budget.remaining.toLocaleString()}
+              本月已花 ¥{assessment.budget.spent_this_month.toLocaleString()}，购买前余量 ¥{assessment.budget.remaining.toLocaleString()}
               ，结余 ¥{assessment.surplus.before.toLocaleString()} → ¥{assessment.surplus.after.toLocaleString()}
             </div>
             <div className="small">{assessment.suggestion}</div>
+            <p className="small text-muted mt-2">{assessment.basis?.message} {assessment.goal.assumption}</p>
             {assessment.tip && (
               <div className="small text-muted mt-1"><FaPiggyBank className="me-1" />{assessment.tip}</div>
             )}
@@ -467,7 +469,7 @@ export default function HomeVoiceRecorder({ monthlyIncome, onDone }) {
         <div className="d-flex gap-2 mt-3">
           {!assessment && (
             <button type="button" className="demo-ghost-btn" onClick={handleAssess} disabled={assessing || mode === 'saving'}>
-              {assessing ? '评估中…' : (<><FaRobot className="me-1" />AI 评估</>)}
+              {assessing ? '评估中…' : (<><FaRobot className="me-1" />消费试算</>)}
             </button>
           )}
           <button type="button" className="demo-start-btn flex-fill" onClick={handleSave} disabled={mode === 'saving'}>

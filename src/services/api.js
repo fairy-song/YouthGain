@@ -16,11 +16,13 @@ const API_BASE_URL = process.env.REACT_APP_API_URL ||
 
 // 创建axios实例
 const api = axios.create({
+  timeout: 30000,
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+export const authenticatedApi = api;
 
 // 请求拦截器 - 添加认证令牌
 api.interceptors.request.use(
@@ -28,6 +30,21 @@ api.interceptors.request.use(
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    // 开发模式（未配置 Firebase）下，自动携带登录邮箱头，
+    // 后端据此按 ADMIN_EMAILS 判定管理员/普通用户角色
+    if (!process.env.REACT_APP_FIREBASE_API_KEY) {
+      try {
+        const raw = localStorage.getItem('dev_current_user');
+        if (raw) {
+          const devUser = JSON.parse(raw);
+          if (devUser && devUser.email) {
+            config.headers['X-Dev-Email'] = devUser.email;
+          }
+        }
+      } catch (e) {
+        // 本地存储解析失败时忽略，不带头则后端按普通用户处理
+      }
     }
     return config;
   },
@@ -50,81 +67,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-// 通用请求函数
-async function fetchApi(endpoint, options = {}) {
-  // 根据环境选择API基础URL
-  let baseUrl;
-  
-  // 在GitHub Pages环境中使用外部API服务
-  if (isGitHubPages) {
-    baseUrl = 'https://你的API服务器地址';  // 替换为你的实际API服务地址
-    // 注意: 外部API服务需要配置CORS允许GitHub Pages域名访问
-  } else if (process.env.NODE_ENV === 'production') {
-    baseUrl = '';  // 在其他生产环境中使用相对路径
-  } else {
-    baseUrl = 'http://127.0.0.1:5001';  // 开发环境
-  }
-  
-  // 确保endpoint格式正确
-  const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const url = `${baseUrl}/api${formattedEndpoint}`;
-  
-  // 默认配置
-  const defaultOptions = {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    // 添加跨域支持
-    credentials: 'include',
-    mode: 'cors',
-  };
-  
-  // 合并配置
-  const fetchOptions = {
-    ...defaultOptions,
-    ...options,
-  };
-  
-  console.log(`正在请求API: ${url}`, options.method || 'GET');
-  
-  try {
-    const response = await fetch(url, fetchOptions);
-    
-    // 非2xx状态码
-    if (!response.ok) {
-      console.error(`API错误: ${response.status}`, response);
-      // 尝试解析错误响应
-      let errorMessage;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || errorData.error || `请求失败，状态码: ${response.status}`;
-      } catch (e) {
-        errorMessage = `请求失败，状态码: ${response.status}`;
-      }
-      throw new Error(errorMessage);
-    }
-    
-    // 尝试解析JSON响应
-    try {
-    const data = await response.json();
-    console.log(`API响应:`, data);
-    return data;
-    } catch (e) {
-      // 处理非JSON响应
-      console.log('API响应不是JSON格式');
-      return { status: 'success', message: '请求成功但返回非JSON格式' };
-    }
-  } catch (error) {
-    console.error('API请求错误:', error);
-    // 友好错误信息
-    if (error.message === 'Failed to fetch') {
-      console.error('无法连接到服务器，请确认后端服务已启动');
-      error.message = '无法连接到服务器，请确认后端服务已启动';
-    }
-    throw error;
-  }
-}
 
 // 示例：注册用户
 export const registerUser = async (userData) => {
@@ -187,55 +129,9 @@ export const fetchAssessmentResults = async (userId) => {
  * @returns {Promise} 返回AI回复
  */
 export const sendMessageToCoach = async (data) => {
-  try {
-    // 使用通用请求函数来处理请求
-    console.log('发送消息到AI教练:', data);
-    
-    // 根据环境选择正确的 API 基础 URL
-    let baseUrl;
-    if (isGitHubPages) {
-      baseUrl = process.env.REACT_APP_API_URL || 'https://你的API服务器地址';
-    } else if (process.env.NODE_ENV === 'production') {
-      baseUrl = process.env.REACT_APP_API_URL || '';
-    } else {
-      baseUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5001';
-    }
-    
-    const url = `${baseUrl}/api/coach/chat`;
-    console.log('请求 URL:', url);
-    
-    // 发送请求
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI教练响应错误:', response.status, errorText);
-      throw new Error(`服务器响应错误: ${response.status}`);
-    }
-    
-    const result = await response.json();
-    console.log('AI教练响应:', result);
-    
-    if (result.status === 'success') {
-      return { reply: result.reply };
-    } else {
-      throw new Error(result.message || '获取回复失败');
-    }
-  } catch (error) {
-    console.error('AI教练请求错误:', error);
-    // 提供更友好的错误信息
-    if (error.message.includes('无法连接到服务器') || error.message === 'Failed to fetch') {
-      throw new Error('无法连接到AI教练服务，请确认后端服务已启动');
-    } else {
-      throw new Error(`AI教练回复错误: ${error.message}`);
-    }
-  }
+  const response = await api.post('/coach/chat', data, { timeout: 60000 });
+  if (response.data.status !== 'success') throw new Error(response.data.message || '教练暂时无法回复');
+  return { reply: response.data.reply };
 };
 
 // 系统健康检查
@@ -397,6 +293,12 @@ export const getOpportunityCost = async (amount, monthlyIncome) => {
   }
 };
 
+/** 获取当前用户的每日记账打卡统计。 */
+export const getCheckin = async () => {
+  const response = await api.get('/decision/checkin');
+  return response.data.data;
+};
+
 /** 获取消费记录列表（按消费日期倒序）。 */
 export const listTransactions = async (limit = 200) => {
   try {
@@ -415,6 +317,7 @@ export const listTransactions = async (limit = 200) => {
 export const createTransaction = async (data) => {
   try {
     const response = await api.post('/decision/transactions', data);
+    window.dispatchEvent(new Event('transaction-saved'));
     return response.data.data;
   } catch (error) {
     console.error('保存消费记录失败:', error);
@@ -478,6 +381,79 @@ export const transcribeAudio = async (audioB64) => {
   }
 };
 
+// ============================================================
+// Auth / 角色
+// ============================================================
+
+/**
+ * 获取当前登录用户的角色（admin / user）。
+ * 后端根据 ADMIN_EMAILS 配置判定；开发模式下按 X-Dev-Email 模拟登录邮箱判定。
+ * @param {object} [extraHeaders] 附加请求头（开发模式传 { 'X-Dev-Email': email }）
+ * @returns {Promise<{user: object, role: string, uid: string, email: string}>}
+ */
+export const fetchMyRole = async (extraHeaders = {}) => {
+  const response = await api.get('/auth/me', { headers: extraHeaders });
+  return response.data;
+};
+
+// ============================================================
+// Admin APIs —— 管理员系统（需要管理员角色）
+// ============================================================
+
+/** 用户列表 [{uid, profile, disabled}] */
+export const adminListUsers = async () => {
+  const response = await api.get('/admin/users');
+  return response.data.data;
+};
+
+/** 用户详情 {uid, profile, disabled, data_summary} */
+export const adminGetUser = async (uid) => {
+  const response = await api.get(`/admin/users/${encodeURIComponent(uid)}`);
+  return response.data.data;
+};
+
+/** 停用/启用用户（disabled: bool） */
+export const adminSetUserStatus = async (uid, disabled) => {
+  const response = await api.put(`/admin/users/${encodeURIComponent(uid)}/status`, { disabled });
+  return response.data;
+};
+
+/** 删除用户 */
+export const adminDeleteUser = async (uid) => {
+  const response = await api.delete(`/admin/users/${encodeURIComponent(uid)}`);
+  return response.data;
+};
+
+/** 平台统计 {total_users, assessment_completed_users, ...} */
+export const adminGetStats = async () => {
+  const response = await api.get('/admin/stats');
+  return response.data.data;
+};
+
+/** 知识库文章列表 */
+export const adminListKbArticles = async () => {
+  const response = await api.get('/admin/kb');
+  return response.data.data;
+};
+
+/** 新增知识库文章 */
+export const adminCreateKbArticle = async (articleData) => {
+  const response = await api.post('/admin/kb', articleData);
+  return response.data;
+};
+
+/** 更新知识库文章 */
+export const adminUpdateKbArticle = async (articleId, articleData) => {
+  const response = await api.put(`/admin/kb/${encodeURIComponent(articleId)}`, articleData);
+  return response.data;
+};
+
+/** 删除知识库文章 */
+export const adminDeleteKbArticle = async (articleId) => {
+  const response = await api.delete(`/admin/kb/${encodeURIComponent(articleId)}`);
+  return response.data;
+};
+
 // 导出API服务
 const apiService = {
   loginUser,
@@ -507,7 +483,19 @@ const apiService = {
   deleteTransaction,
   submitRegret,
   assessPurchase,
-  transcribeAudio
+  transcribeAudio,
+  // Auth / 角色
+  fetchMyRole,
+  // Admin APIs
+  adminListUsers,
+  adminGetUser,
+  adminSetUserStatus,
+  adminDeleteUser,
+  adminGetStats,
+  adminListKbArticles,
+  adminCreateKbArticle,
+  adminUpdateKbArticle,
+  adminDeleteKbArticle
 };
 
 export default apiService;
