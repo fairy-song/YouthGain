@@ -1,0 +1,140 @@
+{
+  "version": "grounded-v1",
+  "kind": "development_smoke_benchmark",
+  "corpus_sha256": "936dc3c6a8f24031085b4fa1b45808a9c69b69d6e495a6db8903bb8412763fca",
+  "cases_sha256": "93c450f346d1b2999a72105430468150ae503876322c09e36b166ca6413b758d",
+  "retrieval_hit_at_3": 0.9090909090909091,
+  "abstention_pass": true,
+  "deterministic_checks": {
+    "purchase_remaining": true,
+    "missing_records_abstain": true,
+    "missing_income_abstain": true,
+    "truncated_records_abstain": true,
+    "wrong_answer_remediation": true,
+    "correct_answer_progression": true
+  },
+  "elapsed_ms": 108.91,
+  "cases": [
+    {
+      "id": "q01",
+      "query": "生活费到账以后如何安排必要开支和预算？",
+      "expected": "每月生活费怎么分配",
+      "retrieved": [
+        "每月生活费怎么分配",
+        "兼职收入不固定，怎么存钱",
+        "需要还是想要：购买前的三个问题"
+      ],
+      "pass": true
+    },
+    {
+      "id": "q02",
+      "query": "如何检查自动续费订阅？",
+      "expected": "自动续费体检：找回被忽略的小额支出",
+      "retrieved": [
+        "自动续费体检：找回被忽略的小额支出"
+      ],
+      "pass": true
+    },
+    {
+      "id": "q03",
+      "query": "兼职收入不固定怎么储蓄？",
+      "expected": "兼职收入不固定，怎么存钱",
+      "retrieved": [
+        "兼职收入不固定，怎么存钱",
+        "为电脑或旅行攒钱：把目标拆到每月",
+        "每月生活费怎么分配"
+      ],
+      "pass": true
+    },
+    {
+      "id": "q04",
+      "query": "想为电脑或旅行攒钱，怎样分解目标？",
+      "expected": "为电脑或旅行攒钱：把目标拆到每月",
+      "retrieved": [
+        "为电脑或旅行攒钱：把目标拆到每月"
+      ],
+      "pass": true
+    },
+    {
+      "id": "q05",
+      "query": "促销打折一定省钱吗？",
+      "expected": "促销真的省钱吗：看最终支出",
+      "retrieved": [
+        "促销真的省钱吗：看最终支出"
+      ],
+      "pass": true
+    },
+    {
+      "id": "q06",
+      "query": "分期购买怎么比较总付款？",
+      "expected": "分期购买：先比较总付款",
+      "retrieved": [
+        "分期购买：先比较总付款",
+        "兼职收入不固定，怎么存钱",
+        "促销真的省钱吗：看最终支出"
+      ],
+      "pass": true
+    },
+    {
+      "id": "q07",
+      "query": "最低还款还能免息吗？",
+      "expected": "最低还款不是免息通行证",
+      "retrieved": [
+        "最低还款不是免息通行证",
+        "看懂信用卡账单的四个位置",
+        "分期购买：先比较总付款"
+      ],
+      "pass": true
+    },
+    {
+      "id": "q08",
+      "query": "借新还旧有什么危险？",
+      "expected": "校园借贷与借新还旧：识别危险信号",
+      "retrieved": [],
+      "pass": false
+    },
+    {
+      "id": "q09",
+      "query": "基金费用怎样算入成本？",
+      "expected": "基金费用：把看不见的成本算进去",
+      "retrieved": [
+        "基金费用：把看不见的成本算进去",
+        "最低还款不是免息通行证",
+        "日息很低？还要看年化与全部费用"
+      ],
+      "pass": true
+    },
+    {
+      "id": "q10",
+      "query": "刷单返利小额到账能证明安全吗？",
+      "expected": "刷单返利：小额到账也不能证明安全",
+      "retrieved": [
+        "刷单返利：小额到账也不能证明安全",
+        "“保本高收益”：先找承诺里的漏洞"
+      ],
+      "pass": true
+    },
+    {
+      "id": "q11",
+      "query": "冒充客服要求退款怎么办？",
+      "expected": "冒充客服退款：先离开来电核实",
+      "retrieved": [
+        "冒充客服退款：先离开来电核实",
+        "为电脑或旅行攒钱：把目标拆到每月"
+      ],
+      "pass": true
+    },
+    {
+      "id": "q12",
+      "query": "天气预报会下雨吗？",
+      "expected": null,
+      "retrieved": [],
+      "pass": true
+    }
+  ],
+  "limitations": [
+    "人工编写开发集，题意接近文章标题；不是独立盲测。",
+    "未调用真实大模型，未测模型回答质量或教学效果。",
+    "未使用真实用户数据。"
+  ]
+}

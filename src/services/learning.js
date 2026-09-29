@@ -1,5 +1,8 @@
 import { authenticatedApi as api } from './api';
 
+export const getAdaptiveLearning = async () => (await api.get('/learning/adaptive')).data;
+export const submitAdaptiveAnswer = async answer => (await api.post('/learning/adaptive/answer', answer)).data.entry;
+
 export const getLearning = async () => (await api.get('/learning')).data;
 export const getLearningProfile = async () => (await api.get('/learning/profile')).data.profile;
 export const saveLearningProfile = async profile => (await api.put('/learning/profile', profile)).data.profile;

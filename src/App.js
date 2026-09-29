@@ -12,10 +12,13 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Learning from './pages/Learning';
+import Profile from './pages/Profile';
 import Assessment from './pages/Assessment';
 import CoachChat from './pages/CoachChat';
 import AdminDashboard from './pages/AdminDashboard';
 import NotFound from './pages/NotFound';
+import Onboarding from './pages/Onboarding';
+import { getLearningProfile } from './services/learning';
 
 // 信息页面组件
 import { 
@@ -30,6 +33,7 @@ import {
 
 // 布局组件
 import Layout from './components/Layout';
+import AdminLayout from './components/AdminLayout';
 
 // API连接状态组件
 const ApiStatusIndicator = () => {
@@ -61,7 +65,23 @@ const ProtectedRoute = ({ children }) => {
   return <React.Fragment key={currentUser.uid}>{children}</React.Fragment>;
 };
 
-// 管理员专属路由：未登录跳登录页，普通用户跳个人中心
+const OnboardingRoute = ({ children }) => {
+  const { currentUser, loading, initializing } = useAuth();
+  const userId = currentUser?.uid;
+  const [checking, setChecking] = useState(true);
+  const [complete, setComplete] = useState(false);
+  useEffect(() => {
+    if (!userId) return;
+    const localDone = currentUser?.email && localStorage.getItem(`onboarding_complete:${currentUser.email.toLowerCase()}`) === 'true';
+    if (localDone) { setComplete(true); setChecking(false); return; }
+    getLearningProfile().then(profile => setComplete(profile?.onboarding_complete === true)).catch(() => setComplete(false)).finally(() => setChecking(false));
+  }, [userId]);
+  if (loading || initializing || checking) return <div className="flex justify-center items-center h-screen">准备你的理财空间…</div>;
+  if (!currentUser) return <Navigate to="/login" replace />;
+  return complete ? children : <Navigate to="/onboarding" replace />;
+};
+
+// 管理员专属路由，等待角色恢复后再判断权限。
 const AdminRoute = ({ children }) => {
   const { currentUser, isAdmin, loading, initializing } = useAuth();
 
@@ -70,11 +90,11 @@ const AdminRoute = ({ children }) => {
   }
 
   if (!currentUser) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/admin/login" replace />;
   }
 
   if (!isAdmin) {
-    return <Navigate to="/dashboard" />;
+    return <Navigate to="/admin/login" replace />;
   }
 
   return <React.Fragment key={currentUser.uid}>{children}</React.Fragment>;
@@ -103,6 +123,14 @@ function App() {
         <Route path="/YouthGain/*" element={<Navigate to="/" replace />} />
         <Route path="YouthGain/*" element={<Navigate to="/" replace />} />
         
+        <Route path="/admin/login" element={<main className="admin-login"><Login key="admin" adminMode /></main>} />
+        <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<AdminDashboard section="users" />} />
+          <Route path="knowledge" element={<AdminDashboard section="kb" />} />
+          <Route path="*" element={<Navigate to="/admin" replace />} />
+        </Route>
+
         {/* 公共路由 */}
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
@@ -111,11 +139,13 @@ function App() {
           
           {/* 受保护的路由 */}
           <Route path="dashboard" element={
-            <ProtectedRoute>
+            <OnboardingRoute>
               <Dashboard />
-            </ProtectedRoute>
+            </OnboardingRoute>
           } />
+          <Route path="onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="learning" element={<ProtectedRoute><Learning /></ProtectedRoute>} />
+          <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="assessment" element={
             <ProtectedRoute>
               <Assessment />
@@ -126,12 +156,6 @@ function App() {
               <CoachChat />
             </ProtectedRoute>
           } />
-          <Route path="admin" element={
-            <AdminRoute>
-              <AdminDashboard />
-            </AdminRoute>
-          } />
-          
           {/* 信息页面路由 */}
           <Route path="info/team" element={<TeamPage />} />
           <Route path="info/contact" element={<ContactPage />} />

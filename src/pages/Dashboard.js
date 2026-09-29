@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Container, Row, Col, Card, Button, Badge, ProgressBar, Form, Spinner, Alert } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
-import { FaChartLine, FaPiggyBank, FaWallet, FaExchangeAlt, FaRobot, FaCoins, FaChartPie, FaMoneyBillWave, FaLightbulb, FaExclamationTriangle, FaCalculator, FaMicrophone } from 'react-icons/fa';
-import { getDecisionReport, listTransactions, getOpportunityCost, createTransaction, getUserGoals, createGoal, deleteGoal } from '../services/api';
+import { Container, Row, Col, Card, Button, Badge, Form, Spinner, Alert } from 'react-bootstrap';
+import { Link, useSearchParams } from 'react-router-dom';
+import { FaPiggyBank, FaExchangeAlt, FaCoins, FaChartPie, FaMoneyBillWave, FaLightbulb, FaExclamationTriangle, FaMicrophone } from 'react-icons/fa';
+import { getDecisionReport, listTransactions, getOpportunityCost, createTransaction, getUserGoals, createGoal, deleteGoal, updateGoal } from '../services/api';
+import FinanceVisuals, { dateKey } from '../components/FinanceVisuals';
+import BackfillBillModal from '../components/ledger/BackfillBillModal';
 import VoiceBillModal from '../components/VoiceBillModal';
-import CheckinCard from '../components/CheckinCard';
+import SectionNav from '../components/SectionNav';
+import UpcomingExpenses from '../components/UpcomingExpenses';
+import CoachHelp from '../components/CoachHelp';
+import LedgerGoals from '../components/ledger/LedgerGoals';
+import LedgerAnalysis from '../components/ledger/LedgerAnalysis';
 import TransactionReflection from '../components/TransactionReflection';
 import TransactionIntent from '../components/TransactionIntent';
 import { getLearningProfile, getLearning } from '../services/learning';
@@ -29,29 +35,28 @@ const EnhancedBadge = ({ children, bg, className = '' }) => {
 
 const Dashboard = () => {
   const { currentUser } = useAuth();
+  const [params] = useSearchParams();
+  const tab = ['goals', 'upcoming', 'analysis'].includes(params.get('tab')) ? params.get('tab') : 'overview';
 
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [report, setReport] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [reflections, setReflections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // 机会成本试算
-  const [costAmount, setCostAmount] = useState('');
-  const [costResult, setCostResult] = useState(null);
-  const [costError, setCostError] = useState('');
-
   const [monthlyIncome, setMonthlyIncome] = useState(undefined);
   const [reload, setReload] = useState(0);
 
   // 语音记账弹窗开关
   const [showVoiceModal, setShowVoiceModal] = useState(false);
+  const [showBackfillModal, setShowBackfillModal] = useState(false);
 
   // 记账表单状态
   const [recordForm, setRecordForm] = useState({
     amount: '',
     category: '餐饮',
-    date: new Date().toISOString().slice(0, 10),
+    date: dateKey(),
     merchant: '',
     note: '',
     hour: '',
@@ -63,6 +68,7 @@ const Dashboard = () => {
 
   // 储蓄目标管理状态
   const [goals, setGoals] = useState([]);
+  const [goalPlanResult, setGoalPlanResult] = useState(null);
   const [goalForm, setGoalForm] = useState({
     title: '',
     target_amount: '',
@@ -105,28 +111,6 @@ const Dashboard = () => {
     load();
     return () => { cancelled = true; };
   }, [currentUser?.uid, reload]); // 月收入变化时重新拉取报告（机会成本/结余都依赖它）
-
-  // 试算机会成本——回答"这笔钱花了会怎样"
-  const handleCostCheck = async (event) => {
-    event.preventDefault();
-    setCostError('');
-    setCostResult(null);
-
-    const amount = parseFloat(costAmount);
-    if (isNaN(amount) || amount <= 0) {
-      setCostError('请输入大于 0 的金额');
-      return;
-    }
-
-    try {
-      const result = await getOpportunityCost(amount, monthlyIncome);
-      setCostResult(result);
-    } catch (e) {
-      // 用户入不敷出时后端返回 409，把原因原样告诉用户，
-      // 而不是显示"计算失败"这种没有信息量的提示。
-      setCostError(e?.response?.data?.message || e?.message || '计算失败');
-    }
-  };
 
   // 记一笔消费：保存记录 → 立即给出机会成本反馈 → 刷新报告与流水
   const handleRecordTransaction = async (event) => {
@@ -230,6 +214,24 @@ const Dashboard = () => {
   };
 
   // 删除储蓄目标（先确认，避免误删）
+  const handleGoalPaid = async (goalId) => {
+    try {
+      await updateGoal(goalId, { status: 'completed', current_amount: 0 });
+      const goalData = await getUserGoals();
+      setGoals(goalData?.data?.goals || []);
+    } catch (err) { setGoalError(err?.response?.data?.message || '目标更新失败'); }
+  };
+
+  const handleGoalEdit = async (event, goalId) => {
+    event.preventDefault();
+    const values = new FormData(event.currentTarget);
+    try {
+      await updateGoal(goalId, { current_amount: Number(values.get('current_amount')), deadline: values.get('deadline') });
+      const goalData = await getUserGoals();
+      setGoals(goalData?.data?.goals || []);
+    } catch (err) { setGoalError(err?.response?.data?.message || '目标更新失败'); }
+  };
+
   const handleGoalDelete = async (goalId) => {
     if (!window.confirm('确定删除这个目标吗？')) return;
     try {
@@ -303,13 +305,13 @@ const Dashboard = () => {
           <Col md={10}>
             <div className="mb-4">
               <EnhancedBadge bg="primary" className="mb-3">
-                <span className="fw-medium text-white">个人中心</span>
+                <span className="fw-medium text-white">我的账本</span>
               </EnhancedBadge>
               <h1 className="display-5 fw-bold mb-3">
                 欢迎回来，{currentUser?.displayName || '同学'}
               </h1>
               <p className="lead text-muted">
-                用记录认识自己的选择。收支与目标时间基于已有数据估算，不代表全部财务状况。
+                记录消费，看清去向。分析仅基于已有记录。
               </p>
             </div>
           </Col>
@@ -330,28 +332,34 @@ const Dashboard = () => {
           </Alert>
         )}
 
-        <CheckinCard key={currentUser?.uid} transactions={transactions} />
+        <SectionNav label="账本功能" active={tab} items={[["overview", "收支记录", "/dashboard"], ["goals", "储蓄目标", "/dashboard?tab=goals"], ["upcoming", "未来开支", "/dashboard?tab=upcoming"], ["analysis", "详细分析", "/dashboard?tab=analysis"]]} />
+        {tab === 'overview' && <FinanceVisuals transactions={transactions} selectedCategory={categoryFilter} onCategory={setCategoryFilter} />}
 
-        <Alert variant="light">
-          <strong>我的月收入或生活费：{monthlyIncome == null ? '尚未设置' : `¥${monthlyIncome}`}</strong>
-          <Button as={Link} to="/learning?tab=profile" variant="link">管理账号资料</Button>
-          <Button as={Link} to="/learning" variant="outline-primary" className="me-2">继续理财练习</Button>
-          <Button as={Link} to="/learning?tab=review" variant="outline-secondary">本周复盘</Button>
-          {report?.basis && <p className="small text-muted mt-3 mb-0">分析范围：{report.basis.start} 至 {report.basis.end}，{report.basis.record_count} 笔。{report.basis.message}</p>}
-          {report?.warnings?.map((warning, index) => <p key={index} className="small text-muted mb-0">{warning}</p>)}
-        </Alert>
 
+        <div className="d-flex flex-wrap gap-2 mb-4">
+          <Link to="/learning?tab=decision" className="btn btn-outline-success btn-sm">买之前，比较选择</Link>
+          <CoachHelp prompt="我正在查看账本，请帮我理解已记录的收支与未来安排。先问我想了解哪一部分。" />
+        </div>
+        {tab === 'analysis' && <><Alert variant="light">
+          <strong>月收入或生活费：{monthlyIncome == null ? '尚未设置' : `¥${monthlyIncome}`}</strong>
+          <Button as={Link} to="/profile" variant="link">修改财务资料</Button>
+          {report?.basis && <p className="small mt-2">分析范围：{report.basis.start} 至 {report.basis.end}，{report.basis.record_count} 笔。{report.basis.message}</p>}
+          {report?.warnings?.map((warning, index) => <p key={index} className="small mb-0">{warning}</p>)}
+        </Alert><LedgerAnalysis {...{ surplus, income, avgSpending, spending, discretionary, goal, patterns }} /></>}
+        {tab === 'upcoming' && <UpcomingExpenses key={currentUser?.uid} />}
+        {tab === 'overview' && <>
         {/* 记一笔消费 —— 产品核心闭环的入口：记录当下即反馈 */}
-        <Row className="mb-5">
+        <Row className="mb-5" id="record-expense">
           <Col md={12}>
             <Card className="border-0 rounded-4 shadow-sm dashboard-card">
               <Card.Body className="p-4">
-                <div className="d-flex align-items-center mb-3">
+                <div className="d-flex flex-wrap gap-2 align-items-center mb-3">
                   <div className="icon-container bg-success-light rounded-circle d-flex align-items-center justify-content-center me-3">
                     <FaPiggyBank className="text-success" />
                   </div>
                   <h5 className="card-title mb-0">记一笔消费</h5>
                   <span className="text-muted small ms-2">记录后立即告诉你这笔钱相当于几天结余</span>
+                  <Button variant="outline-success" size="sm" className="rounded-pill" onClick={() => setShowBackfillModal(true)}>补记账单</Button>
                   <Button
                     variant="outline-success"
                     size="sm"
@@ -457,315 +465,9 @@ const Dashboard = () => {
           </Col>
         </Row>
 
-        <Row className="g-4 mb-5">
-          <Col md={4}>
-            <Card className="h-100 border-0 rounded-4 shadow-sm dashboard-card">
-              <Card.Body className="p-4">
-                <div className="d-flex align-items-center mb-3">
-                  <div className="icon-container bg-primary-light rounded-circle d-flex align-items-center justify-content-center me-3">
-                    <FaChartLine className="text-primary" />
-                  </div>
-                  <h5 className="card-title mb-0">月结余</h5>
-                </div>
-                <h2 className={`fw-bold mb-3 ${surplus >= 0 ? 'text-success' : 'text-danger'}`}>
-                  ¥{surplus.toLocaleString()}
-                </h2>
-                <div className="d-flex justify-content-between mb-1">
-                  <span className="text-muted">月收入</span>
-                  <span className="fw-medium">¥{income.toLocaleString()}</span>
-                </div>
-                <div className="d-flex justify-content-between">
-                  <span className="text-muted">月均支出</span>
-                  <span className="fw-medium">¥{Math.round(avgSpending).toLocaleString()}</span>
-                </div>
-                <div className="mt-3 pt-3 border-top">
-                  <span className={`badge rounded-pill px-3 py-2 ${surplus > 0 ? 'bg-success-light text-success' : 'bg-danger-light text-danger'}`}>
-                    {surplus > 0 ? '每月还能存下钱' : '支出已超过收入'}
-                  </span>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-          
-          <Col md={4}>
-            <Card className="h-100 border-0 rounded-4 shadow-sm dashboard-card">
-              <Card.Body className="p-4">
-                <div className="d-flex align-items-center mb-3">
-                  <div className="icon-container bg-info-light rounded-circle d-flex align-items-center justify-content-center me-3">
-                    <FaPiggyBank className="text-info" />
-                  </div>
-                  <h5 className="card-title mb-0">支出结构</h5>
-                </div>
-                {spending ? (
-                  <>
-                    <div className="progress-container mb-3">
-                      <ProgressBar className="progress-bar-thick">
-                        <ProgressBar
-                          now={spending.total > 0 ? (spending.fixed_total / spending.total) * 100 : 0}
-                          variant="secondary"
-                        />
-                        <ProgressBar
-                          now={spending.total > 0 ? (spending.variable_total / spending.total) * 100 : 0}
-                          variant="info"
-                        />
-                      </ProgressBar>
-                    </div>
-                    <div className="d-flex justify-content-between mb-1">
-                      <span className="text-muted">改不了（固定）</span>
-                      <span className="fw-medium">¥{Math.round(spending.fixed_total).toLocaleString()}</span>
-                    </div>
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted">能调整（变动）</span>
-                      <span className="fw-bold text-info">¥{Math.round(spending.variable_total).toLocaleString()}</span>
-                    </div>
-                    <div className="mt-3 pt-3 border-top">
-                      <span className="text-muted small">
-                        你真正有决定权的钱：¥{Math.round(discretionary).toLocaleString()}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-muted mb-0">记录几笔消费后，这里会显示你的支出结构。</p>
-                )}
-              </Card.Body>
-            </Card>
-          </Col>
-          
-          <Col md={4}>
-            <Card className="h-100 border-0 rounded-4 shadow-sm dashboard-card">
-              <Card.Body className="p-4">
-                <div className="d-flex align-items-center mb-3">
-                  <div className="icon-container bg-warning-light rounded-circle d-flex align-items-center justify-content-center me-3">
-                    <FaWallet className="text-warning" />
-                  </div>
-                  <h5 className="card-title mb-0">储蓄目标</h5>
-                </div>
-                {goal ? (
-                  <>
-                    <h4 className="fw-bold mb-3">{goal.goal_name}</h4>
-                    <div className="d-flex justify-content-between mb-1">
-                      <span className="text-muted">还差</span>
-                      <span className="fw-medium">¥{Math.round(goal.remaining).toLocaleString()}</span>
-                    </div>
-                    <div className="d-flex justify-content-between mb-1">
-                      <span className="text-muted">按当前结余需要</span>
-                      <span className="fw-medium">
-                        {goal.months_needed != null ? `${goal.months_needed} 个月` : '无法达成'}
-                      </span>
-                    </div>
-                    <div className="mt-3 pt-3 border-top">
-                      <span className={`badge rounded-pill px-3 py-2 ${
-                        ['可达', '已达成'].includes(goal.status)
-                          ? 'bg-success-light text-success'
-                          : 'bg-warning-light text-warning'
-                      }`}>
-                        {goal.status}
-                      </span>
-                      {goal.shortfall > 0 && (
-                        <span className="text-muted small ms-2">
-                          每月还差 ¥{Math.round(goal.shortfall).toLocaleString()}
-                        </span>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-muted mb-0">还没有设定储蓄目标。</p>
-                )}
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-
-        {/* 储蓄目标管理 —— 设定目标，让每笔消费都有参照 */}
-        <Row className="g-4 mb-5">
-          <Col md={5}>
-            <Card className="h-100 border-0 rounded-4 shadow-sm dashboard-card">
-              <Card.Body className="p-4">
-                <div className="d-flex align-items-center mb-3">
-                  <div className="icon-container bg-warning-light rounded-circle d-flex align-items-center justify-content-center me-3">
-                    <FaWallet className="text-warning" />
-                  </div>
-                  <h5 className="card-title mb-0">设定储蓄目标</h5>
-                </div>
-                <Form onSubmit={handleGoalCreate}>
-                  <Form.Group className="mb-3">
-                    <Form.Label className="small text-muted">目标名称</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="例如：换新手机"
-                      value={goalForm.title}
-                      onChange={(e) => setGoalForm({ ...goalForm, title: e.target.value })}
-                    />
-                  </Form.Group>
-                  <Row>
-                    <Col>
-                      <Form.Group className="mb-3">
-                        <Form.Label className="small text-muted">目标金额（元）</Form.Label>
-                        <Form.Control
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="8000"
-                          value={goalForm.target_amount}
-                          onChange={(e) => setGoalForm({ ...goalForm, target_amount: e.target.value })}
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col>
-                      <Form.Group className="mb-3">
-                        <Form.Label className="small text-muted">已存金额（元）</Form.Label>
-                        <Form.Control
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="0"
-                          value={goalForm.current_amount}
-                          onChange={(e) => setGoalForm({ ...goalForm, current_amount: e.target.value })}
-                        />
-                      </Form.Group>
-                    </Col>
-                  </Row>
-                  <Form.Group className="mb-3">
-                    <Form.Label className="small text-muted">截止日期</Form.Label>
-                    <Form.Control
-                      type="date"
-                      required
-                      value={goalForm.deadline}
-                      onChange={(e) => setGoalForm({ ...goalForm, deadline: e.target.value })}
-                    />
-                  </Form.Group>
-                  {goalError && <Alert variant="danger" className="small py-2">{goalError}</Alert>}
-                  <Button type="submit" variant="warning" className="rounded-pill px-4" disabled={savingGoal}>
-                    {savingGoal ? '保存中…' : '创建目标'}
-                  </Button>
-                </Form>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col md={7}>
-            <Card className="h-100 border-0 rounded-4 shadow-sm dashboard-card">
-              <Card.Body className="p-4">
-                <div className="d-flex align-items-center mb-3">
-                  <div className="icon-container bg-warning-light rounded-circle d-flex align-items-center justify-content-center me-3">
-                    <FaCoins className="text-warning" />
-                  </div>
-                  <h5 className="card-title mb-0">我的目标</h5>
-                </div>
-                {goals.length === 0 ? (
-                  <p className="text-muted mb-0">
-                    还没有设定目标。设定一个目标后，每次消费都会显示它让你离目标更远了多少天。
-                  </p>
-                ) : (
-                  <div className="d-flex flex-column gap-3">
-                    {goals.map((g) => {
-                      const target = Number(g.target_amount) || 0;
-                      const current = Number(g.current_amount) || 0;
-                      const progress = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
-                      const statusLabel = g.status === 'active' ? '进行中' : g.status === 'completed' ? '已完成' : '已取消';
-                      return (
-                        <div key={g.id} className="border rounded-3 p-3">
-                          <div className="d-flex align-items-center justify-content-between mb-2">
-                            <strong>{g.title}</strong>
-                            <div className="d-flex align-items-center gap-2">
-                              <Badge pill bg={g.status === 'active' ? 'warning' : 'success'} text={g.status === 'active' ? 'dark' : 'white'}>
-                                {statusLabel}
-                              </Badge>
-                              <Button size="sm" variant="outline-danger" onClick={() => handleGoalDelete(g.id)}>
-                                删除
-                              </Button>
-                            </div>
-                          </div>
-                          <ProgressBar now={progress} variant="warning" className="mb-2" />
-                          <div className="d-flex justify-content-between text-muted small">
-                            <span>已存 ¥{current.toLocaleString()} / ¥{target.toLocaleString()}</span>
-                            <span>{progress}%</span>
-                          </div>
-                          {g.deadline && <div className="text-muted small mt-1">截止：{g.deadline}</div>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-
-        {/* 机会成本试算 + 行为模式发现 —— 产品核心机制 */}
-        <Row className="g-4 mb-5">
-          <Col md={5}>
-            <Card className="h-100 border-0 rounded-4 shadow-sm dashboard-card">
-              <Card.Body className="p-4">
-                <div className="d-flex align-items-center mb-3">
-                  <div className="icon-container bg-primary-light rounded-circle d-flex align-items-center justify-content-center me-3">
-                    <FaCalculator className="text-primary" />
-                  </div>
-                  <h5 className="card-title mb-0">这笔钱花了会怎样？</h5>
-                </div>
-                <p className="text-muted small">
-                  输入一笔想买的金额，看看它会让你的储蓄目标推迟多久。
-                </p>
-                <Form onSubmit={handleCostCheck} className="d-flex gap-2 mb-3">
-                  <Form.Control
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={costAmount}
-                    onChange={(e) => setCostAmount(e.target.value)}
-                    placeholder="金额（元）"
-                  />
-                  <Button type="submit" variant="primary" className="rounded-pill px-4">算算</Button>
-                </Form>
-
-                {costError && <Alert variant="warning" className="mb-0 small">{costError}</Alert>}
-
-                {costResult && (
-                  <div className="text-center py-2">
-                    <div className="display-5 fw-bold text-primary">
-                      {Math.round(costResult.delay_days)} 天
-                    </div>
-                    <p className="text-muted mb-0">{costResult.message}</p>
-                  </div>
-                )}
-              </Card.Body>
-            </Card>
-          </Col>
-
-          <Col md={7}>
-            <Card className="h-100 border-0 rounded-4 shadow-sm dashboard-card">
-              <Card.Body className="p-4">
-                <div className="d-flex align-items-center mb-3">
-                  <div className="icon-container bg-success-light rounded-circle d-flex align-items-center justify-content-center me-3">
-                    <FaLightbulb className="text-success" />
-                  </div>
-                  <h5 className="card-title mb-0">你注意不到的模式</h5>
-                </div>
-                {patterns.length === 0 ? (
-                  <p className="text-muted mb-0">
-                    数据还不够多，或者你的消费习惯相当稳定——目前没有发现值得提醒的模式。
-                  </p>
-                ) : (
-                  patterns.slice(0, 3).map((p, index, arr) => (
-                    <div
-                      key={p.kind}
-                      className={index === arr.length - 1 ? '' : 'mb-3 pb-3 border-bottom'}
-                    >
-                      <div className="d-flex align-items-center mb-1">
-                        {p.severity === 'warning' && (
-                          <FaExclamationTriangle className="text-warning me-2" size={14} />
-                        )}
-                        <strong>{p.title}</strong>
-                      </div>
-                      <p className="text-muted small mb-0">{p.detail}</p>
-                    </div>
-                  ))
-                )}
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-
-        <Row className="mb-5">
+        </>}
+        {tab === 'goals' && <LedgerGoals {...{ goals, goalForm, setGoalForm, goalError, savingGoal, handleGoalCreate, handleGoalDelete, handleGoalPaid, handleGoalEdit, goalPlanResult, setGoalPlanResult, currentUser }} />}
+        {tab === 'overview' && <Row className="mb-5">
           <Col md={12}>
             <Card className="border-0 rounded-4 shadow-sm dashboard-card">
               <Card.Body className="p-4">
@@ -774,7 +476,7 @@ const Dashboard = () => {
                     <div className="icon-container bg-secondary-light rounded-circle d-flex align-items-center justify-content-center me-3">
                       <FaExchangeAlt className="text-secondary" />
                     </div>
-                    <h5 className="card-title mb-0">最近消费</h5>
+                    <h5 className="card-title mb-0">最近消费</h5>{categoryFilter && <Button variant="link" onClick={() => setCategoryFilter('')}>{categoryFilter} · 清除筛选</Button>}
                   </div>
                 </div>
                 <div className="table-responsive">
@@ -798,7 +500,7 @@ const Dashboard = () => {
                   </td>
                 </tr>
               ) : (
-                transactions.map((t) => (
+                transactions.filter(t => !categoryFilter || (t.category || '未分类') === categoryFilter).map((t) => (
                   <tr key={t.id}>
                     <td className="text-nowrap">
                       {t.date}
@@ -833,33 +535,17 @@ const Dashboard = () => {
               </Card.Body>
             </Card>
           </Col>
-        </Row>
+        </Row>}
         
-        <Row className="justify-content-center">
-          <Col md={8} lg={6}>
-            <Card className="border-0 rounded-4 shadow-sm dashboard-card bg-gradient-primary text-white text-center">
-              <Card.Body className="p-4">
-                <div className="icon-container bg-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3">
-                  <FaRobot className="text-primary" size={24} />
-      </div>
-                <h4 className="mb-3">需要财务建议?</h4>
-                <p className="mb-4">与AI金融教练对话，获取个性化财务建议和指导，制定适合您的财务计划。</p>
-                <Button 
-                  as={Link} 
-                  to="/coach" 
-                  variant="light" 
-                  size="lg" 
-                  className="rounded-pill btn-glow px-4 py-2"
-                >
-                  开始对话 <FaRobot className="ms-2" />
-                </Button>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
       </Container>
       
       {/* 语音记账 + AI 消费评估弹窗 */}
+      {showBackfillModal && <BackfillBillModal onClose={() => setShowBackfillModal(false)} onSaved={async () => {
+        const [updatedReport, updatedTransactions] = await Promise.all([getDecisionReport({ monthlyIncome }), listTransactions(50)]);
+        setReport(updatedReport);
+        setTransactions(updatedTransactions.transactions || []);
+        setCategoryFilter('');
+      }} />}
       <VoiceBillModal
         show={showVoiceModal}
         onClose={() => setShowVoiceModal(false)}

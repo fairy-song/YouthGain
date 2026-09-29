@@ -79,6 +79,11 @@ def validate_profile(data):
         'monthly_income': None if income in (None, '') else number(income, '月收入'),
         'income_day': day or None, 'topic': topic,
         'personal_rule': text_field(data, 'personal_rule', limit=300),
+        'onboarding_complete': bool(data.get('onboarding_complete', False)),
+        'current_balance': None if data.get('current_balance') in (None, '') else number(data.get('current_balance'), '当前可用余额'),
+        'essential_monthly': None if data.get('essential_monthly') in (None, '') else number(data.get('essential_monthly'), '每月必要开支'),
+        'emergency_buffer': None if data.get('emergency_buffer') in (None, '') else number(data.get('emergency_buffer'), '应急预留'),
+        'income_sources': data.get('income_sources', []),
     }
 
 
@@ -130,7 +135,7 @@ def enum_field(data, name, choices):
 
 
 def learning_summary(entries, now=None):
-    activities = [e for e in entries if e.get('kind') in ('exercise', 'review', 'decision', 'reflection')]
+    activities = [e for e in entries if e.get('kind') in ('exercise', 'review', 'decision', 'reflection', 'diagnostic')]
     completed = {e['lesson_id'] for e in activities if e.get('kind') == 'exercise'}
     return {
         'completed_lessons': sorted(completed),

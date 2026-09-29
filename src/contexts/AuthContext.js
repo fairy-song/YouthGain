@@ -16,7 +16,7 @@ export function useAuth() {
 const FIREBASE_ENABLED = Boolean(app);
 
 // 把 Firebase 常见错误码翻译成用户能看懂的中文
-function translateFirebaseError(code) {
+export function translateFirebaseError(code) {
   const messages = {
     'auth/email-already-in-use': '该邮箱已被注册，请直接登录',
     'auth/invalid-email': '邮箱格式不正确',
@@ -37,7 +37,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   // 当前登录用户是否为管理员。角色由后端 /api/auth/me 权威判定
-  // （后端按 ADMIN_EMAILS 配置；DEV_MODE 下固定返回 admin）。
+  // （包括开发模式，后端都按 ADMIN_EMAILS 配置判定）。
   const [isAdmin, setIsAdmin] = useState(false);
   // 首次挂载时正在恢复登录状态（Firebase 模式下 onAuthStateChanged 是异步的），
   // 保护路由需要等待它结束，否则会误把已登录用户重定向到登录页。
@@ -57,8 +57,7 @@ export function AuthProvider({ children }) {
       const data = await fetchMyRole(headers);
       return data && data.role === 'admin';
     } catch (e) {
-      console.warn('获取用户角色失败，按普通用户处理:', e);
-      return false;
+      throw new Error(e.response?.data?.error || '暂时无法验证登录权限，请确认后台服务已启动后重试');
     }
   }, []);
 
@@ -74,15 +73,19 @@ export function AuthProvider({ children }) {
           const parsed = JSON.parse(storedUser);
           setCurrentUser(parsed);
           devEmail = parsed.email || '';
-          const storedProfile = localStorage.getItem('dev_user_profile');
+          const storedProfile = localStorage.getItem(`dev_user_profile:${(parsed.email || '').toLowerCase()}`) || localStorage.getItem('dev_user_profile');
           if (storedProfile) setUserProfile(JSON.parse(storedProfile));
         }
       } catch (e) {
         console.error('恢复开发模式登录态失败:', e);
       }
       // 开发模式也按后端角色判定（模拟专用管理员账号）
-      resolveAdminRole(devEmail).then(setIsAdmin);
-      setInitializing(false);
+      if (!devEmail) {
+        setInitializing(false);
+        return;
+      }
+      resolveAdminRole(devEmail).then(setIsAdmin).catch(() => setIsAdmin(false))
+        .finally(() => setInitializing(false));
       return;
     }
 
@@ -142,6 +145,7 @@ export function AuthProvider({ children }) {
 
         // 存储到localStorage模拟持久化
         localStorage.setItem('dev_current_user', JSON.stringify(mockUser));
+        localStorage.setItem(`dev_user_profile:${email.toLowerCase()}`, JSON.stringify(mockProfile));
         localStorage.setItem('dev_user_profile', JSON.stringify(mockProfile));
 
         // 开发模式按实际登录邮箱判定角色（模拟专用管理员账号）
@@ -178,8 +182,11 @@ export function AuthProvider({ children }) {
     try {
       setError('');
       setLoading(true);
+      email = email.trim();
 
       if (!auth) {
+        // 先验证后台可用及角色，再建立本地登录态。
+        const admin = await resolveAdminRole(email);
         // 开发模式模拟登录
         const mockUser = {
           uid: 'dev-user-' + Math.random().toString(36).substring(2, 9),
@@ -201,10 +208,10 @@ export function AuthProvider({ children }) {
 
         // 存储到localStorage模拟持久化
         localStorage.setItem('dev_current_user', JSON.stringify(mockUser));
+        localStorage.setItem(`dev_user_profile:${email.toLowerCase()}`, JSON.stringify(mockProfile));
         localStorage.setItem('dev_user_profile', JSON.stringify(mockProfile));
 
         // 开发模式按实际登录邮箱判定角色（模拟专用管理员账号）
-        const admin = await resolveAdminRole(email);
         setIsAdmin(admin);
         setLoading(false);
         return { user: mockUser, role: admin ? 'admin' : 'user' };

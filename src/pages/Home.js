@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Container, Row, Col, Card, Button, Badge } from 'react-bootstrap';
 import { FaArrowRight, FaMicrophone, FaRobot, FaPiggyBank, FaUndoAlt, FaCheckCircle, FaShieldAlt } from 'react-icons/fa';
 import HomeVoiceRecorder from '../components/HomeVoiceRecorder';
+import HomeCoach from '../components/HomeCoach';
 
 // ============================================================
 // Home.js —— 首页(SaaS 明亮风格)
@@ -171,6 +172,8 @@ const Home = () => {
           </Row>
         </Container>
       </section>
+
+      <Container className="py-4"><HomeCoach /></Container>
 
       {/* ======== 核心功能 ======== */}
       <section className="features-saas py-5 animate-on-scroll" style={{ opacity: 0 }}>

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { app } from './firebase';
 
 // 这里是API服务模块，用于处理与后端的通信
 
@@ -33,7 +34,7 @@ api.interceptors.request.use(
     }
     // 开发模式（未配置 Firebase）下，自动携带登录邮箱头，
     // 后端据此按 ADMIN_EMAILS 判定管理员/普通用户角色
-    if (!process.env.REACT_APP_FIREBASE_API_KEY) {
+    if (!app && !config.headers['X-Dev-Email']) {
       try {
         const raw = localStorage.getItem('dev_current_user');
         if (raw) {
@@ -499,3 +500,12 @@ const apiService = {
 };
 
 export default apiService;
+
+// 用户端和管理员端读取同一份知识库内容。
+export const fetchKnowledgeArticles = async () => {
+  const response = await api.get('/knowledge');
+  return response.data.articles || [];
+};
+
+export const getGoalPlan = async () => (await api.get('/decision/goal-plan')).data;
+export const saveGoalPlan = async (plan) => (await api.put('/decision/goal-plan', plan)).data;

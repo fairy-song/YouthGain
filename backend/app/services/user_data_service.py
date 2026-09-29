@@ -73,7 +73,7 @@ class UserDataService:
                 timestamps = [doc.to_dict().get('timestamp') for doc in docs]
             from .learning_store import read_entries
             timestamps.extend(day + 'T12:00:00+08:00' for e in read_entries(user_id)
-                              if e.get('kind') in ('exercise', 'decision', 'review', 'reflection')
+                              if e.get('kind') in ('exercise', 'decision', 'review', 'reflection', 'diagnostic')
                               for day in e.get('activity_days', [e.get('updated_at', '')[:10]]))
             return build_checkin_summary(timestamps), None
         except Exception as e:

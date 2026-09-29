@@ -31,9 +31,60 @@ def test_auth_required_and_account_isolation(client):
     assert call(client, 'get', '/api/learning/profile', user='bob').json['profile'] == {}
 
 
+def test_onboarding_completion_persists_and_is_account_scoped(client):
+    payload = {'current_balance': 1200, 'monthly_income': 2000, 'income_day': 1,
+               'essential_monthly': 1000, 'emergency_buffer': 200,
+               'income_sources': ['allowance'], 'onboarding_complete': True,
+               'topic': 'budget', 'personal_rule': ''}
+    assert call(client, 'put', '/api/learning/profile', payload).status_code == 200
+    assert call(client, 'get', '/api/learning/profile').json['profile']['onboarding_complete'] is True
+    assert call(client, 'get', '/api/learning/profile', user='bob').json['profile'] == {}
+    call(client, 'put', '/api/learning/profile', {'monthly_income': 2500})
+    saved = call(client, 'get', '/api/learning/profile').json['profile']
+    assert saved['current_balance'] == 1200
+    assert saved['essential_monthly'] == 1000
+    assert saved['onboarding_complete'] is True
+    result = call(client, 'get', '/api/decision/goal-plan').json
+    assert result['source'] == 'profile'
+    assert result['result'] is not None
+    assert result['plan']['balance'] == 1200
+    assert result['plan']['buffer'] == 200
+    assert any(e['kind'] == 'expense' for e in result['plan']['events'])
+
+
 @pytest.mark.parametrize('value', [-1, 'NaN', 'Infinity', True, 'abc', 100000001])
 def test_invalid_income_rejected(client, value):
     assert call(client, 'put', '/api/learning/profile', {'monthly_income': value}).status_code == 400
+
+
+def test_shared_balance_tracks_new_expenses_without_repeat_input(client):
+    from app.services.checkin_service import BEIJING
+    today = datetime.now(BEIJING).date().isoformat()
+    call(client, 'put', '/api/learning/profile', {'current_balance': 1000, 'essential_monthly': 0,
+                                               'emergency_buffer': 100, 'monthly_income': 0})
+    assert call(client, 'get', '/api/decision/goal-plan').json['result']['free_now'] == 900
+    response = call(client, 'post', '/api/decision/transactions', {'amount': 80, 'category': '餐饮', 'date': today})
+    assert response.status_code in (200, 201)
+    calculated = call(client, 'get', '/api/decision/goal-plan').json
+    assert calculated['plan']['balance'] == 920
+    assert calculated['result']['free_now'] == 820
+    call(client, 'put', '/api/learning/profile', {'current_balance': 920})
+    assert call(client, 'get', '/api/decision/goal-plan').json['plan']['balance'] == 920
+
+
+def test_aged_balance_still_calculates_without_adding_expected_income(client):
+    from datetime import timedelta
+    from app.services import learning_store
+    from app.services.checkin_service import BEIJING
+    call(client, 'put', '/api/learning/profile', {'current_balance': 1000, 'essential_monthly': 0,
+                                               'emergency_buffer': 100, 'monthly_income': 2000, 'income_day': 1})
+    profile = learning_store.read_entry('alice', 'profile')
+    profile['balance_confirmed_on'] = (datetime.now(BEIJING).date() - timedelta(days=40)).isoformat()
+    learning_store.write_entry('alice', 'profile', profile)
+    response = call(client, 'get', '/api/decision/goal-plan').json
+    assert response['stale'] is True
+    assert response['result']['free_now'] == 900
+    assert response['plan']['balance'] == 1000
 
 
 def test_no_default_income_and_zero_income_supported(client):

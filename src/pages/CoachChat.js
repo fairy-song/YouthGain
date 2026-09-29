@@ -5,8 +5,9 @@ import { Container, Row, Col, Card, Form, Button, Badge, Spinner } from 'react-b
 import { FaPaperPlane, FaRobot, FaUser, FaLightbulb, FaCoins, FaChartLine, FaMoneyBillWave } from 'react-icons/fa';
 import 'animate.css';
 import ReactMarkdown from 'react-markdown';
+import '../components/FinanceVisuals.css';
 import remarkGfm from 'remark-gfm';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -63,6 +64,7 @@ const CoachChat = () => {
   const location = useLocation();
   const [input, setInput] = useState(location.state?.prompt || '');
   const [useLearningContext, setUseLearningContext] = useState(false);
+  const [purchaseAmount, setPurchaseAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const [typingEffect, setTypingEffect] = useState(false);
@@ -136,6 +138,7 @@ const CoachChat = () => {
       };
       
       contextData.use_learning_context = useLearningContext;
+      if (useLearningContext && purchaseAmount !== '') contextData.purchase_amount = purchaseAmount;
 
       const response = await sendMessageToCoach(contextData);
       setLoading(false);
@@ -185,7 +188,9 @@ const CoachChat = () => {
       </div>
       
       <Container className="py-5">
-        <Form.Check type="checkbox" id="share-learning-context" className="mb-3" label="允许教练引用我保存的资料与最近五条学习记录（会发送给 AI 服务）" checked={useLearningContext} onChange={e => setUseLearningContext(e.target.checked)} />
+        <Link to={/^\/(dashboard|learning)(\?|$)/.test(location.state?.returnTo || '') ? location.state.returnTo : '/'} className="btn btn-link mb-3">← 返回刚才的页面</Link>
+        <Form.Check type="checkbox" id="share-learning-context" className="mb-3" label="允许教练引用资料、最近五条学习记录及消费汇总计算（会发送给 AI 服务）" checked={useLearningContext} onChange={e => setUseLearningContext(e.target.checked)} />
+        {useLearningContext && <Form.Group controlId="coach-purchase-amount" className="mb-3"><Form.Label>本次试算金额（元，可选）</Form.Label><Form.Control type="number" min="0.01" max="100000000" step="0.01" value={purchaseAmount} onChange={e => setPurchaseAmount(e.target.value)} placeholder="填写明确金额，避免从聊天文字猜测" /><Form.Text>只做一次性支出试算，不自动记账。每次发送消息时使用此金额，可随时清空。</Form.Text></Form.Group>}
         <Row className="justify-content-center mb-4">
           <Col md={10} lg={8}>
             <div className="text-center mb-4">
@@ -293,12 +298,7 @@ const CoachChat = () => {
               <h5 className="mb-3 d-flex align-items-center">
                 <FaLightbulb className="text-warning me-2" /> 提示:
               </h5>
-              <ul className="mb-0 ps-4">
-                <li>尝试询问如何制定个人财务计划</li>
-                <li>您可以咨询投资基础知识或风险管理</li>
-                <li>讨论如何建立健康的消费习惯</li>
-                <li>寻求有关债务管理或储蓄策略的建议</li>
-              </ul>
+              <div className="fv-prompt-chips">{['我想买一件东西，帮我比较选择', '帮我安排这周的生活费', '一起回看我最近的一次消费'].map(prompt => <button type="button" key={prompt} onClick={() => setInput(prompt)}>{prompt}</button>)}</div>
       </div>
           </Col>
         </Row>
@@ -545,4 +545,4 @@ const CoachChat = () => {
 
 };
 
-export default CoachChat; 
+export default CoachChat;

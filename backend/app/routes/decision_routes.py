@@ -14,8 +14,9 @@
 """
 
 import logging
+import calendar
 from math import isfinite
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from app.services import learning_store
 from app.services.learning_service import number, text_field
 from app.services.checkin_service import BEIJING
@@ -130,7 +131,7 @@ def _load_engine_inputs(user_id):
         raise RuntimeError('目标暂时读取失败，请重试')
 
     transactions = [t for t in (_to_engine_transaction(r) for r in raw_txns) if t is not None]
-    goals = [g for g in (_to_engine_goal(r) for r in raw_goals) if g is not None]
+    goals = [g for g in (_to_engine_goal(r) for r in raw_goals if r.get('status', 'active') == 'active') if g is not None]
     skipped = len(raw_txns) - len(transactions)
 
     return transactions, goals, skipped
@@ -139,6 +140,67 @@ def _load_engine_inputs(user_id):
 # ============================================================
 # 报告
 # ============================================================
+
+@decision_bp.route('/goal-plan', methods=['GET', 'PUT'])
+@require_auth
+def goal_plan(user_info):
+    import hashlib
+    import json
+    from app.services.goal_planner import validate_plan, build_plan, draft_plan, recorded_spending, cents
+    uid = user_info['uid']
+    today = datetime.now(BEIJING).date()
+    try:
+        plan = (validate_plan(request.get_json(silent=True), today) if request.method == 'PUT'
+                else learning_store.read_entry(uid, 'goal_cashflow'))
+        goals, error = user_data_service.get_user_data(uid, 'goals', limit=1000)
+        if error or len(goals) >= 1000:
+            raise RuntimeError('目标读取不完整')
+        profile = learning_store.read_entry(uid, 'profile') or {}
+        if request.method == 'GET' and profile.get('current_balance') is not None and profile.get('essential_monthly') is not None and profile.get('emergency_buffer') is not None:
+            confirmed_on = profile.get('balance_confirmed_on') or str(profile.get('updated_at', ''))[:10]
+            stale = confirmed_on != today.isoformat()
+            balance_deficit = 0
+            if profile.get('balance_recorded_total') is not None:
+                rows, txn_error = user_data_service.get_user_data(uid, 'transactions', limit=2000)
+                if txn_error or len(rows) >= 2000:
+                    raise RuntimeError('消费记录读取不完整，请稍后重试')
+                estimated = cents(profile['current_balance'], '余额') - (recorded_spending(rows, today) - profile['balance_recorded_total'])
+                age = (today - date.fromisoformat(confirmed_on)).days
+                # Never assume an expected payment has arrived. Ask for a balance
+                # check on an income day, after a week, or if records imply a deficit.
+                anchor = date.fromisoformat(confirmed_on)
+                elapsed_income = any(
+                    day.day == min(profile.get('income_day') or 32, calendar.monthrange(day.year, day.month)[1])
+                    for day in (anchor + timedelta(days=i) for i in range(1, min(age, 32) + 1))
+                ) if profile.get('income_day') else False
+                stale = age >= 7 or age < 0 or elapsed_income or estimated < 0
+                balance_deficit = max(0, -estimated) / 100
+                profile = {**profile, 'current_balance': max(0, estimated) / 100}
+            draft = draft_plan(today, goals, profile, learning_store.read_entries(uid))
+            prepared = validate_plan(draft, today)
+            result = build_plan(prepared, goals)
+            if balance_deficit:
+                result['free_now'] = 0
+                result['reserve_now'] = 0
+                for goal in result['goals']:
+                    goal.update(reserve_now=0, schedule=[], shortfall=goal['remaining'])
+            return jsonify(status='success', plan=prepared, result=result, stale=stale,
+                           source='profile', balance_confirmed_on=confirmed_on, balance_deficit=balance_deficit)
+        if not plan:
+            draft = draft_plan(today, goals, learning_store.read_entry(uid, 'profile') or {}, learning_store.read_entries(uid))
+            return jsonify(status='success', plan=None, draft=draft, result=None)
+        signature = hashlib.sha256(json.dumps(
+            sorted([{k: str(g.get(k, '')) for k in ('id', 'status', 'deadline', 'target_amount', 'current_amount')}
+                    for g in goals], key=lambda g: g['id']), sort_keys=True).encode()).hexdigest()
+        if request.method == 'GET' and (plan['as_of'] != today.isoformat() or plan.get('goal_signature') != signature):
+            return jsonify(status='success', plan=plan, result=None, stale=True)
+        result = build_plan(plan, goals)
+        if request.method == 'PUT':
+            plan = learning_store.write_entry(uid, 'goal_cashflow', {**plan, 'kind': 'goal_cashflow', 'goal_signature': signature})
+        return jsonify(status='success', plan=plan, result=result,
+                       stale=plan['as_of'] != today.isoformat())
+    except (ValueError, TypeError) as error:
+        return jsonify(status='error', message=str(error)), 400
 
 @decision_bp.route('/report', methods=['GET'])
 @require_auth

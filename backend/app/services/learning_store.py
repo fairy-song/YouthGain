@@ -49,7 +49,7 @@ def write_entry(user_id, entry_id, payload):
     previous_record = read_entry(user_id, entry_id) or {}
     record = {**payload, 'id': entry_id, 'updated_at': now,
               'created_at': previous_record.get('created_at', now)}
-    if payload.get('kind') in ('exercise', 'decision', 'review', 'reflection'):
+    if payload.get('kind') in ('exercise', 'decision', 'review', 'reflection', 'diagnostic'):
         days = set(previous_record.get('activity_days', []))
         if previous_record.get('updated_at'):
             days.add(previous_record['updated_at'][:10])

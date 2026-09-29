@@ -72,6 +72,9 @@ def create_app():
     app.register_blueprint(learning_bp, url_prefix='/api/learning')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
 
+    from .routes.knowledge_routes import knowledge_bp
+    app.register_blueprint(knowledge_bp, url_prefix='/api/knowledge')
+
     @app.route('/api/health', methods=['GET'])
     def health_check():
         return {"status": "healthy", "message": "API服务正常运行中"}, 200

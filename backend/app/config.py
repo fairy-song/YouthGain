@@ -23,7 +23,7 @@ class Config:
     DEV_MODE = os.environ.get('DEV_MODE', 'false').lower() == 'true'
 
     # 管理员邮箱列表（逗号分隔）。登录后邮箱命中该列表的用户自动拥有管理员角色，
-    # 可访问 /api/admin/* 管理接口。本地开发时 DEV_MODE=true 一律按管理员身份访问。
+    # 可访问 /api/admin/* 管理接口。本地开发模式同样按邮箱列表校验管理员身份。
     ADMIN_EMAILS = [e.strip().lower() for e in os.environ.get('ADMIN_EMAILS', '').split(',') if e.strip()]
 
     # 数据库类型: memory (内存开发模式), mysql (MySQL 数据库模式), firestore (Firebase Firestore 模式)
@@ -35,4 +35,4 @@ class Config:
     MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
     MYSQL_USER = os.environ.get('MYSQL_USER', 'root')
     MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', '')
-    MYSQL_DB = os.environ.get('MYSQL_DB', 'youthgain')
+    MYSQL_DB = os.environ.get('MYSQL_DB', 'youthgain')

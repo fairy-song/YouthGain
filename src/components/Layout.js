@@ -6,12 +6,13 @@ import {
   Row, Col, Card, ListGroup
 } from 'react-bootstrap';
 import {
-  FaHome, FaUser, FaBrain, FaRobot,
+  FaHome,
   FaBook, FaQuestionCircle, FaInfoCircle,
   FaLock, FaFileContract, FaShieldAlt
 } from 'react-icons/fa';
 import { CSSTransition, SwitchTransition } from 'react-transition-group';
 import 'animate.css';
+import { mainNavigation } from '../services/navigation';
 import MobileNavBar from './MobileNavBar';
 
 // 自定义CSS样式
@@ -118,6 +119,7 @@ const Layout = () => {
           z-index: 100;
           width: 100%;
         }
+
         
         .footer-wrapper {
           position: relative;
@@ -274,39 +276,7 @@ const Layout = () => {
 
                 {currentUser ? (
                   <>
-                    <Nav.Link as={Link} to="/learning" className="text-white d-flex align-items-center"><FaBook className="me-2" />理财成长</Nav.Link>
-                    <div className="nav-link-container position-relative">
-                      <Nav.Link
-                        as={Link}
-                        to="/dashboard"
-                        className="text-white d-flex align-items-center border-0 nav-link"
-                      >
-                        <FaUser className="me-2" /> 个人中心
-                      </Nav.Link>
-                      <div className="nav-underline"></div>
-                    </div>
-
-                    <div className="nav-link-container position-relative">
-                      <Nav.Link
-                        as={Link}
-                        to="/assessment"
-                        className="text-white d-flex align-items-center border-0 nav-link"
-                      >
-                        <FaBrain className="me-2" /> 心智评估
-                      </Nav.Link>
-                      <div className="nav-underline"></div>
-                    </div>
-
-                    <div className="nav-link-container position-relative">
-                      <Nav.Link
-                        as={Link}
-                        to="/coach"
-                        className="text-white d-flex align-items-center border-0 nav-link"
-                      >
-                        <FaRobot className="me-2" /> AI教练
-                      </Nav.Link>
-                      <div className="nav-underline"></div>
-                    </div>
+                    {mainNavigation.filter(item => item.path !== '/').map(item => <Nav.Link key={item.path} as={Link} to={item.path} aria-current={location.pathname === item.path ? 'page' : undefined} className="text-white d-flex align-items-center">{item.label}</Nav.Link>)}
 
                     {isAdmin && (
                       <div className="nav-link-container position-relative">
@@ -337,10 +307,12 @@ const Layout = () => {
                         to="/login"
                         className="text-white d-flex align-items-center border-0 nav-link"
                       >
-                        登录
+                        用户登录
                       </Nav.Link>
                       <div className="nav-underline"></div>
                     </div>
+
+                    <Nav.Link as={Link} to="/admin/login" className="text-white">管理员登录</Nav.Link>
 
                     <AnimatedButton
                       as={Link}
@@ -539,4 +511,4 @@ const Layout = () => {
   );
 };
 
-export default Layout; 
+export default Layout;

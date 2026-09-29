@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app.services.auth_service import is_dev_bypass_enabled, verify_firebase_token, dev_email, resolve_role
+from app.services.auth_service import is_dev_bypass_enabled, verify_firebase_token, dev_email, resolve_role, dev_user_info
 # from app.services.firestore_service import get_user_profile # Already handled in verify_firebase_token
 
 auth_bp = Blueprint('auth_bp', __name__)
@@ -14,21 +14,10 @@ def verify_token_route():
     if is_dev_bypass_enabled():
         return jsonify({
             "message": "Token verified successfully (DEV MODE)",
-            "user": {
-                "uid": "test_user_id",
-                "email": "test@example.com",
-                "profile": {
-                    "displayName": "测试用户",
-                    "email": "test@example.com",
-                    "createdAt": "2023-01-01T00:00:00Z",
-                    "lastLogin": "2023-01-01T00:00:00Z",
-                    "assessmentCompleted": False,
-                    "goals": []
-                }
-            }
+            "user": dev_user_info(dev_email())
         }), 200
-        
-    data = request.get_json()
+
+    data = request.get_json(silent=True) or {}
     id_token = data.get('idToken')
 
     if not id_token:
@@ -53,7 +42,7 @@ def get_current_user():
         return jsonify({
             "user": {
                 "displayName": "测试用户",
-                "email": "test@example.com",
+                "email": dev_email(),
                 "createdAt": "2023-01-01T00:00:00Z",
                 "lastLogin": "2023-01-01T00:00:00Z",
                 "assessmentCompleted": False,

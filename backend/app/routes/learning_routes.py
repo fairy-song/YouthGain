@@ -8,8 +8,27 @@ from app.services.learning_service import (
 )
 from app.services.checkin_service import BEIJING
 from app.services.user_data_service import user_data_service
+from app.services.adaptive_learning import recommend, grade
 
 learning_bp = Blueprint('learning', __name__)
+
+
+@learning_bp.route('/adaptive', methods=['GET'])
+@require_auth
+def adaptive(user_info):
+    entries = store.read_entries(user_info['uid'])
+    profile = next((e for e in entries if e['id'] == 'profile'), {})
+    return jsonify(recommend(entries, profile.get('topic', 'budget')))
+
+
+@learning_bp.route('/adaptive/answer', methods=['POST'])
+@require_auth
+def adaptive_answer(user_info):
+    data = payload()
+    record = grade(data.get('item_id'), data.get('choice'))
+    # Preserve each submission for audit; recommendation counts unique items only.
+    entry = store.write_entry(user_info['uid'], f'diagnostic:{uuid4()}', record)
+    return jsonify(entry=entry), 201
 
 
 @learning_bp.errorhandler(ValueError)
@@ -44,7 +63,20 @@ def overview(user_info):
 def profile(user_info):
     if request.method == 'GET':
         return jsonify(profile=store.read_entry(user_info['uid'], 'profile') or {})
-    record = store.write_entry(user_info['uid'], 'profile', validate_profile(payload()))
+    updates = payload()
+    previous = store.read_entry(user_info['uid'], 'profile') or {}
+    validated = validate_profile({**previous, **updates})
+    # Updating a learning preference must not erase the financial/onboarding fields.
+    validated['balance_confirmed_on'] = (datetime.now(BEIJING).date().isoformat()
+                                         if 'current_balance' in updates else previous.get('balance_confirmed_on'))
+    validated['balance_recorded_total'] = previous.get('balance_recorded_total')
+    if 'current_balance' in updates:
+        from app.services.goal_planner import recorded_spending
+        rows, error = user_data_service.get_user_data(user_info['uid'], 'transactions', limit=2000)
+        if error or len(rows) >= 2000:
+            raise RuntimeError('无法读取完整消费记录，余额尚未确认')
+        validated['balance_recorded_total'] = recorded_spending(rows, datetime.now(BEIJING).date())
+    record = store.write_entry(user_info['uid'], 'profile', validated)
     return jsonify(profile=record)
 
 

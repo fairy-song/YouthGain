@@ -11,6 +11,7 @@
 """
 
 import os
+import hashlib
 from functools import wraps
 
 from flask import request, jsonify
@@ -87,7 +88,10 @@ def dev_user_info(email=None):
     与生产行为保持一致：只有命中 ADMIN_EMAILS 的邮箱才是管理员。
     """
     email = (email or DEV_USER_EMAIL).strip()
-    return {'uid': DEV_USER_ID, 'email': email, 'profile': None, 'role': resolve_role(email)}
+    # Keep the local bypass convenient while preserving account isolation. The
+    # old fixed UID made every typed email read the same user's records.
+    uid = 'dev-user-' + hashlib.sha256(email.lower().encode('utf-8')).hexdigest()[:24]
+    return {'uid': uid, 'email': email, 'profile': None, 'role': resolve_role(email)}
 
 
 def dev_email():

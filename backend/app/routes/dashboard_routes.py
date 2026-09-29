@@ -167,6 +167,21 @@ def update_goal(user_info, goal_id):
                 'status': 'error',
                 'message': '更新数据不能为空'
             }), 400
+
+        from app.services.learning_service import number
+        from datetime import date
+        if not isinstance(updates, dict):
+            return jsonify(status='error', message='目标更新格式无效'), 400
+        try:
+            for key in ('current_amount', 'target_amount'):
+                if key in updates:
+                    updates[key] = number(updates[key], '目标金额', 0.01 if key == 'target_amount' else 0)
+            if 'deadline' in updates:
+                updates['deadline'] = date.fromisoformat(updates['deadline']).isoformat()
+            if 'status' in updates and updates['status'] not in ('active', 'completed', 'cancelled'):
+                raise ValueError('目标状态无效')
+        except (ValueError, TypeError) as error:
+            return jsonify(status='error', message=str(error)), 400
         
         success, message = user_data_service.update_user_data(
             user_id,

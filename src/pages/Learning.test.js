@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import Learning from './Learning';
+import Profile from './Profile';
 import { getLearning, getWeeklyFacts, saveLearningEntry, saveLearningProfile } from '../services/learning';
 import { assessPurchase } from '../services/api';
 
@@ -19,7 +20,7 @@ const state = {
   lessons: [{ id: 'needs', day: 1, topic: 'budget', title: '我的钱要照顾什么', concept: '先安排必要开支', scenario: '月底需要交费', prompt: '写下你的安排' }],
   entries: [], summary: { completed_lessons: [], practice_count: 0, decision_count: 0, review_count: 0, checkin: { total_days: 0 }, abilities: [] },
 };
-const renderPage = (tab = 'practice') => render(<MemoryRouter initialEntries={[`/learning?tab=${tab}`]}><Learning /></MemoryRouter>);
+const renderPage = (tab = 'practice') => render(<MemoryRouter initialEntries={[`/learning?tab=${tab}`]}>{tab === 'profile' ? <Profile /> : <Learning />}</MemoryRouter>);
 
 beforeEach(() => {
   jest.clearAllMocks();

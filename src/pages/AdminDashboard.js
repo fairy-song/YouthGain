@@ -1,13 +1,14 @@
+import { knowledgeCategories, legacyCategories } from '../services/knowledgeCategories';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+
+
 import {
   adminGetStats, adminListUsers, adminGetUser, adminSetUserStatus, adminDeleteUser,
   adminListKbArticles, adminCreateKbArticle, adminUpdateKbArticle, adminDeleteKbArticle,
 } from '../services/api';
 import {
-  FaChartBar, FaUsers, FaBook, FaShieldAlt, FaSearch, FaTrashAlt,
-  FaPlus, FaEdit, FaBan, FaCheckCircle, FaSyncAlt, FaArrowLeft,
+  FaChartBar, FaUsers, FaBook, FaSearch, FaTrashAlt,
+  FaPlus, FaEdit, FaBan, FaCheckCircle, FaSyncAlt,
   FaUserShield, FaClipboardCheck, FaComments, FaCreditCard, FaBullseye, FaFileAlt,
 } from 'react-icons/fa';
 
@@ -23,73 +24,20 @@ const STAT_CARDS = [
   { key: 'total_kb_articles', label: '知识库文章', icon: <FaFileAlt />, color: 'var(--yg-secondary)' },
 ];
 
-const KB_CATEGORIES = [
-  { id: '', name: '未分类' },
-  { id: 'basic', name: '基础金融' },
-  { id: 'investment', name: '投资理财' },
-  { id: 'credit', name: '信用管理' },
-  { id: 'tax', name: '税务规划' },
-  { id: 'property', name: '房产金融' },
-  { id: 'retirement', name: '退休规划' },
-  { id: 'education', name: '教育金融' },
-];
+const KB_CATEGORIES = [{ id: '', name: '未分类' }, ...knowledgeCategories, ...legacyCategories];
 
 const EMPTY_KB_FORM = {
   title: '', summary: '', content: '', category: '',
   tags: '', image: '', readTime: 5, date: new Date().toISOString().slice(0, 10),
 };
 
-const AdminDashboard = () => {
-  const { currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState('stats');
-
-  return (
-    <div className="py-4">
-      {/* 顶部栏 */}
-      <div className="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
-        <div className="d-flex align-items-center gap-2">
-          <FaShieldAlt style={{ color: 'var(--yg-primary)', fontSize: '1.6rem' }} />
-          <div>
-            <h1 className="fs-4 fw-bold mb-0" style={{ color: 'var(--yg-ink)' }}>管理后台</h1>
-            <div className="text-muted" style={{ fontSize: '0.85rem' }}>当前管理员：{currentUser?.email || '—'}</div>
-          </div>
-        </div>
-        <Link to="/dashboard" className="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1">
-          <FaArrowLeft /> 返回个人中心
-        </Link>
-      </div>
-
-      {/* Tab 切换 */}
-      <ul className="nav nav-tabs mb-4" style={{ borderBottomColor: 'var(--yg-line)' }}>
-        {[
-          { id: 'stats', label: '平台统计', icon: <FaChartBar /> },
-          { id: 'users', label: '用户管理', icon: <FaUsers /> },
-          { id: 'kb', label: '知识库管理', icon: <FaBook /> },
-        ].map((tab) => (
-          <li className="nav-item" key={tab.id}>
-            <button
-              type="button"
-              className={`nav-link d-inline-flex align-items-center gap-2 ${activeTab === tab.id ? 'active' : ''}`}
-              style={{
-                color: activeTab === tab.id ? 'var(--yg-primary-text)' : 'var(--yg-muted)',
-                borderColor: activeTab === tab.id ? 'var(--yg-primary-border)' : 'transparent',
-                borderBottom: activeTab === tab.id ? '2px solid var(--yg-primary)' : undefined,
-                background: 'transparent',
-              }}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.icon} {tab.label}
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      {activeTab === 'stats' && <StatsTab />}
-      {activeTab === 'users' && <UsersTab />}
-      {activeTab === 'kb' && <KbTab />}
-    </div>
-  );
-};
+const AdminDashboard = ({ section = 'stats' }) => (
+  <>
+    {section === 'stats' && <StatsTab />}
+    {section === 'users' && <UsersTab />}
+    {section === 'kb' && <KbTab />}
+  </>
+);
 
 // ============================================================
 // 平台统计

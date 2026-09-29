@@ -1,275 +1,64 @@
-import React, { useState } from 'react';
-import InfoPageHeader from './InfoPageHeader';
-import { FaSearch, FaBookOpen, FaChartLine, FaHandHoldingUsd, FaHome, FaPiggyBank, FaUniversity, FaBriefcase, FaGraduationCap } from 'react-icons/fa';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import { fetchKnowledgeArticles } from '../../services/api';
+import { knowledgeCategories, legacyCategories } from '../../services/knowledgeCategories';
+import KnowledgeTools from '../../components/KnowledgeTools';
+import './KnowledgePage.css';
 
-const KnowledgePage = () => {
-  // 状态
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('all');
-  
-  // 分类数据
-  const categories = [
-    { id: 'all', name: '全部', icon: <FaBookOpen /> },
-    { id: 'basic', name: '基础金融', icon: <FaPiggyBank /> },
-    { id: 'investment', name: '投资理财', icon: <FaChartLine /> },
-    { id: 'credit', name: '信用管理', icon: <FaUniversity /> },
-    { id: 'tax', name: '税务规划', icon: <FaBriefcase /> },
-    { id: 'property', name: '房产金融', icon: <FaHome /> },
-    { id: 'retirement', name: '退休规划', icon: <FaHandHoldingUsd /> },
-    { id: 'education', name: '教育金融', icon: <FaGraduationCap /> }
-  ];
-  
-  // 文章数据 - 实际应用中应该从API获取
-  const articles = [
-    {
-      id: 1,
-      title: '如何建立个人应急基金',
-      summary: '本文介绍应急基金的重要性、合理规模以及如何逐步建立你的应急资金储备。',
-      category: 'basic',
-      readTime: 5,
-      date: '2024-02-15',
-      image: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 2,
-      title: '股票投资入门：基本概念和策略',
-      summary: '了解股票市场的基本运作机制、常见术语解释以及适合新手的投资策略。',
-      category: 'investment',
-      readTime: 8,
-      date: '2024-02-10',
-      image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 3,
-      title: '信用评分的影响因素及提升方法',
-      summary: '详细解析影响个人信用评分的关键因素，以及如何通过良好的财务习惯提高信用分数。',
-      category: 'credit',
-      readTime: 6,
-      date: '2024-02-05',
-      image: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 4,
-      title: '个人所得税专项扣除全指南',
-      summary: '全面介绍个人所得税专项附加扣除的六大类目，帮助你合法节税。',
-      category: 'tax',
-      readTime: 10,
-      date: '2024-01-28',
-      image: 'https://images.unsplash.com/photo-1586486855514-8c10fda68a5b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 5,
-      title: '首次购房者必读：按揭贷款详解',
-      summary: '针对首次购房人群，解析房贷类型、利率计算、还款方式以及申请流程。',
-      category: 'property',
-      readTime: 12,
-      date: '2024-01-20',
-      image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 6,
-      title: '退休金规划：30岁前应做的准备',
-      summary: '年轻人如何通过提前规划，利用复利效应为退休生活奠定坚实基础。',
-      category: 'retirement',
-      readTime: 7,
-      date: '2024-01-15',
-      image: 'https://images.unsplash.com/photo-1556742077-0a6b6a4a4ac4?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 7,
-      title: '子女教育金规划指南',
-      summary: '如何为子女的教育费用做长期规划，包括不同阶段的费用预估和投资建议。',
-      category: 'education',
-      readTime: 9,
-      date: '2024-01-10',
-      image: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 8,
-      title: '预算管理：50/30/20法则详解',
-      summary: '学习如何使用50/30/20预算法则有效管理个人收入，平衡需求与储蓄。',
-      category: 'basic',
-      readTime: 5,
-      date: '2024-01-05',
-      image: 'https://images.unsplash.com/photo-1554224154-22dec7ec8818?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 9,
-      title: '指数基金投资策略',
-      summary: '了解指数基金的特点、优势以及如何将其纳入长期投资组合的方法。',
-      category: 'investment',
-      readTime: 8,
-      date: '2023-12-28',
-      image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 10,
-      title: '如何正确使用信用卡',
-      summary: '信用卡的聪明使用技巧，避免常见陷阱，提高个人信用评分。',
-      category: 'credit',
-      readTime: 6,
-      date: '2023-12-20',
-      image: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 11,
-      title: '年终奖金税务优化方案',
-      summary: '解析年终奖的计税方式，并提供合法的税务筹划建议，最大化奖金实际收益。',
-      category: 'tax',
-      readTime: 7,
-      date: '2023-12-15',
-      image: 'https://images.unsplash.com/photo-1633158829585-23ba8f7c8caf?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 12,
-      title: '房贷提前还款的利弊分析',
-      summary: '探讨房贷提前还款的优缺点，帮助你根据个人财务状况做出明智决策。',
-      category: 'property',
-      readTime: 9,
-      date: '2023-12-10',
-      image: 'https://images.unsplash.com/photo-1560518883-f5138f1ee1a1?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-    }
-  ];
-  
-  // 处理搜索输入变化
-  const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
-  };
-  
-  // 筛选文章
-  const filteredArticles = articles.filter(article => {
-    const matchesCategory = activeCategory === 'all' || article.category === activeCategory;
-    const matchesSearch = article.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          article.summary.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
-  
-  return (
-    <div className="knowledge-page bg-neutral-50 min-h-screen pb-20">
-      {/* 页面标题 */}
-      <InfoPageHeader 
-        title="金融知识库" 
-        subtitle="探索丰富的金融知识内容，提升你的财务素养"
-        category="resources"
-      />
-      
-      <div className="container mx-auto px-4">
-        {/* 搜索和筛选区 */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="flex flex-col md:flex-row md:items-center mb-6">
-            <div className="relative flex-grow mb-4 md:mb-0 md:mr-4">
-              <input
-                type="text"
-                placeholder="搜索金融知识..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="w-full px-10 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-success-500"
-              />
-              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" />
-            </div>
-            
-            <div className="text-center">
-              <span className="text-neutral-600 mr-2 hidden md:inline">共找到 {filteredArticles.length} 个结果</span>
-            </div>
-          </div>
-          
-          {/* 分类标签 */}
-          <div className="flex flex-wrap gap-2">
-            {categories.map(category => (
-              <button
-                key={category.id}
-                className={`flex items-center px-4 py-2 rounded-full border transition-colors ${
-                  activeCategory === category.id
-                    ? 'bg-success-600 text-white border-success-600'
-                    : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-100'
-                }`}
-                onClick={() => setActiveCategory(category.id)}
-              >
-                <span className="mr-2">{category.icon}</span>
-                {category.name}
-              </button>
-            ))}
-          </div>
-        </div>
-        
-        {/* 文章卡片网格 */}
-        {filteredArticles.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredArticles.map(article => (
-              <div key={article.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="h-48 overflow-hidden">
-                  <img 
-                    src={article.image} 
-                    alt={article.title} 
-                    className="w-full h-full object-cover transition-transform hover:scale-105"
-                  />
-                </div>
-                <div className="p-5">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-xs font-medium text-neutral-500">{article.date}</span>
-                    <span className="text-xs font-medium text-neutral-500">{article.readTime} 分钟阅读</span>
-                  </div>
-                  <h3 className="text-xl font-bold text-neutral-800 mb-2">{article.title}</h3>
-                  <p className="text-neutral-600 mb-4 line-clamp-3">{article.summary}</p>
-                  <button className="text-success-600 font-medium hover:text-success-800 inline-flex items-center">
-                    阅读全文
-                    <svg className="w-4 h-4 ml-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <div className="text-4xl text-neutral-300 mb-4">😕</div>
-            <h3 className="text-xl font-bold text-neutral-800 mb-2">未找到相关内容</h3>
-            <p className="text-neutral-600 mb-4">
-              尝试调整搜索关键词或选择不同的分类
-            </p>
-            <button 
-              onClick={() => {
-                setSearchQuery('');
-                setActiveCategory('all');
-              }}
-              className="text-success-600 font-medium hover:text-success-800"
-            >
-              清除所有筛选条件
-            </button>
-          </div>
-        )}
-        
-        {/* 热门专题 */}
-        <div className="mt-16">
-          <h2 className="text-2xl font-bold text-neutral-800 mb-6">热门专题</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-gradient-to-r from-primary-700 to-primary-900 rounded-lg shadow-md p-6 text-white">
-              <h3 className="text-xl font-bold mb-3">新手理财入门</h3>
-              <p className="mb-4 opacity-90">从零开始学习财务管理的基本概念和实用技巧，为财务自由打下坚实基础。</p>
-              <button className="bg-white text-primary-700 px-4 py-2 rounded-md font-medium transition-colors hover:bg-primary-50">
-                开始学习
-              </button>
-            </div>
-            <div className="bg-gradient-to-r from-secondary-700 to-secondary-900 rounded-lg shadow-md p-6 text-white">
-              <h3 className="text-xl font-bold mb-3">投资组合构建</h3>
-              <p className="mb-4 opacity-90">了解如何根据个人风险偏好和财务目标，构建适合自己的多元化投资组合。</p>
-              <button className="bg-white text-secondary-600 px-4 py-2 rounded-md font-medium transition-colors hover:bg-secondary-50">
-                开始学习
-              </button>
-            </div>
-            <div className="bg-gradient-to-r from-success-600 to-success-800 rounded-lg shadow-md p-6 text-white">
-              <h3 className="text-xl font-bold mb-3">家庭财务规划</h3>
-              <p className="mb-4 opacity-90">掌握家庭预算管理、保险规划、教育金储备等实用知识，保障家庭财务安全。</p>
-              <button className="bg-white text-success-600 px-4 py-2 rounded-md font-medium transition-colors hover:bg-success-50">
-                开始学习
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default KnowledgePage; 
+const goals = [
+  ['budget', '管好生活费'], ['saving', '开始存钱'], ['spending', '减少冲动消费'],
+  ['credit', '看懂借贷成本'], ['investment', '了解投资风险'], ['safety', '保护我的钱'],
+];
+const markdownComponents = { a: ({ node, children, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer">{children}</a> };
+function Article({ article, back }) {
+  const content = article.content || '正文尚未补充。';
+  const answerIndex = content.indexOf('## 参考答案');
+  const sourceIndex = content.indexOf('## 资料来源', answerIndex);
+  const hasAnswer = answerIndex >= 0 && sourceIndex > answerIndex;
+  return <article className="kb-article">
+    <Link to={back} className="btn btn-outline-secondary btn-sm mb-4">← 返回知识库</Link>
+    <div className="kb-eyebrow">青盈 · 理财实践指南</div><h1>{article.title}</h1>
+    <p className="text-muted">更新于 {article.date || '未标注'} · 约 {article.readTime || 3} 分钟阅读</p>
+    <p className="kb-summary">{article.summary}</p>
+    <ReactMarkdown components={markdownComponents}>{hasAnswer ? content.slice(0, answerIndex) : content}</ReactMarkdown>
+    {hasAnswer && <><details className="kb-answer"><summary>想好后，查看参考答案</summary><ReactMarkdown components={markdownComponents}>{content.slice(answerIndex + '## 参考答案'.length, sourceIndex)}</ReactMarkdown></details><ReactMarkdown components={markdownComponents}>{content.slice(sourceIndex)}</ReactMarkdown></>}
+    <div className="kb-next"><h2>把知识用起来</h2><Link to="/dashboard" className="btn btn-outline-primary me-2">查看消费与目标</Link><Link to="/learning" className="btn btn-outline-primary">继续学习与练习</Link></div>
+  </article>;
+}
+export default function KnowledgePage() {
+  const [params, setParams] = useSearchParams();
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const category = params.get('category') || 'all';
+  const query = params.get('q') || '';
+  const articleId = params.get('article');
+  const load = useCallback(async () => {
+    setLoading(true); setError('');
+    try { setArticles(await fetchKnowledgeArticles()); }
+    catch { setError('知识库暂时无法加载，请检查连接后重试。'); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { window.scrollTo(0, 0); }, [articleId]);
+  function change(key, value) { const next = new URLSearchParams(params); next.delete('article'); value ? next.set(key, value) : next.delete(key); setParams(next, { replace: key === 'q' }); }
+  const categoryList = [...knowledgeCategories, ...legacyCategories.filter(c => articles.some(a => a.category === c.id))];
+  const unknownCategories = [...new Set(articles.map(a => a.category || 'uncategorized'))].filter(id => !categoryList.some(c => c.id === id));
+  unknownCategories.forEach(id => categoryList.push({ id, name: id === 'uncategorized' ? '未分类' : id }));
+  const filtered = articles.filter(a => (category === 'all' || (a.category || 'uncategorized') === category) && [a.title, a.summary, ...(a.tags || [])].join(' ').toLowerCase().includes(query.trim().toLowerCase()));
+  const selected = articles.find(a => String(a.id) === articleId);
+  const backParams = new URLSearchParams(params); backParams.delete('article');
+  const back = `/info/knowledge${backParams.toString() ? '?' + backParams.toString() : ''}`;
+  return <div className="kb-page"><div className="container">
+    {loading ? <div role="status" className="py-5 text-center">正在加载知识库…</div> : error ? <div role="alert" className="alert alert-warning">{error} <button className="btn btn-sm btn-outline-dark" onClick={load}>重新加载</button></div> : articleId ? selected ? <Article key={selected.id} article={selected} back={back} /> : <div className="kb-empty"><h1>这篇文章暂不可用</h1><p>内容可能已被管理员删除。</p><Link to={back}>返回知识库</Link></div> : <>
+      <header className="kb-hero"><div className="kb-eyebrow">YOUTHGAIN · 知识与行动</div><h1>让每一笔钱，<br />都有更清楚的安排。</h1><p>从生活费、储蓄到消费与反诈。读懂一个问题，尝试一个行动。</p><div className="kb-hero-meta">{articles.length} 篇实用指南 · 生活情境 · 行动清单</div></header>
+      <section className="kb-goals" aria-labelledby="goal-title"><h2 id="goal-title">你现在最想解决什么？</h2><div className="d-flex flex-wrap gap-2">{goals.map(([id, name]) => <button key={id} className={`btn ${category === id ? 'btn-dark' : 'btn-outline-secondary'}`} aria-pressed={category === id} onClick={() => change('category', id)}>{name}</button>)}</div></section>
+      <section className="kb-catalogue" aria-labelledby="catalogue-title"><div className="d-flex flex-wrap gap-3 align-items-center justify-content-between mb-3"><h2 id="catalogue-title">探索知识库</h2><label className="kb-search">搜索文章<input className="form-control" type="search" value={query} onChange={e => change('q', e.target.value)} placeholder="试试：分期、自动续费、应急" /></label></div>
+      <div className="d-flex flex-wrap gap-2 mb-3">{[{ id: 'all', name: '全部' }, ...categoryList].map(c => <button className={`btn btn-sm ${category === c.id ? 'btn-primary' : 'btn-light'}`} aria-pressed={category === c.id} key={c.id} onClick={() => change('category', c.id)}>{c.name}</button>)}</div>
+      <p className="text-muted" role="status">找到 {filtered.length} 篇文章</p>
+      {filtered.length ? <div className="row g-4">{filtered.map((a, i) => { const next = new URLSearchParams(params); next.set('article', a.id); return <div className="col-12 col-md-6 col-xl-4" key={a.id}><article className="kb-card"><div className="kb-card-top"><span>{categoryList.find(c => c.id === a.category)?.name || '未分类'}</span><span>{String(i + 1).padStart(2, '0')}</span></div><h3><Link to={`?${next.toString()}`}>{a.title}</Link></h3><p>{a.summary}</p><div className="kb-card-bottom"><span>约 {a.readTime || 3} 分钟 · {a.date || '日期未标注'}</span><Link to={`?${next.toString()}`} aria-label={`阅读全文：${a.title}`}>阅读全文 →</Link></div></article></div>; })}</div> : <div className="kb-empty"><h3>没有找到相关内容</h3><p>换一个关键词，或者看看其他板块。</p><button className="btn btn-outline-secondary" onClick={() => setParams({})}>清除筛选</button></div>}
+      </section><KnowledgeTools />
+    </>}
+  </div></div>;
+}
