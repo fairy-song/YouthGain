@@ -439,4 +439,115 @@ a:hover {
 hr {
   border-color: var(--yg-line);
   opacity: 1;
-} 
+}
+
+/* ============================================================
+   用户端精致化：年轻卡片感（参考内容社区）
+   ============================================================ */
+
+body {
+  background: linear-gradient(160deg, var(--yg-wash-from) 0%, var(--yg-wash-to) 100%) fixed;
+  min-height: 100vh;
+}
+
+/* 卡片：大圆角 + 柔和悬浮阴影，去掉硬边框 */
+.card {
+  border: none;
+  border-radius: 18px;
+  box-shadow: var(--yg-shadow-sm);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  overflow: hidden;
+}
+
+.card:hover {
+  box-shadow: var(--yg-shadow);
+}
+
+/* 表单：更大圆角、更透气的内边距 */
+.form-control,
+.form-select {
+  border-radius: 12px;
+  padding: 10px 14px;
+  border-color: var(--yg-line);
+  background-color: #fff;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--yg-primary);
+  box-shadow: 0 0 0 0.2rem rgba(var(--yg-primary-rgb), 0.15);
+}
+
+/* 按钮：圆角更柔和 */
+.btn {
+  border-radius: 12px;
+  font-weight: 600;
+  padding: 8px 20px;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  box-shadow: 0 6px 16px rgba(var(--yg-primary-rgb), 0.3);
+}
+
+/* 页面大标题：加品牌色装饰 */
+h1 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--yg-primary-deep);
+}
+
+/* 页面入场动画 */
+.container {
+  animation: fadeUp 0.4s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 顶部用户信息卡：渐变头部 */
+.profile-hero {
+  background: linear-gradient(135deg, var(--yg-primary) 0%, var(--yg-primary-deep) 100%);
+  color: #fff;
+  border-radius: 18px;
+  padding: 22px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 10px 24px rgba(var(--yg-primary-rgb), 0.3);
+  margin-bottom: 1.5rem;
+}
+
+.profile-hero-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.profile-hero-name {
+  font-size: 19px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.profile-hero-email {
+  font-size: 13px;
+  opacity: 0.85;
+}

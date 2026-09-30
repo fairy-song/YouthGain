@@ -16,6 +16,7 @@ import Profile from './pages/Profile';
 import Assessment from './pages/Assessment';
 import CoachChat from './pages/CoachChat';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminOrb from './pages/AdminOrb';
 import NotFound from './pages/NotFound';
 import Onboarding from './pages/Onboarding';
 import { getLearningProfile } from './services/learning';
@@ -125,9 +126,11 @@ function App() {
         
         <Route path="/admin/login" element={<main className="admin-login"><Login key="admin" adminMode /></main>} />
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-          <Route index element={<AdminDashboard />} />
+          <Route index element={<AdminOrb />} />
+          <Route path="stats" element={<AdminDashboard />} />
           <Route path="users" element={<AdminDashboard section="users" />} />
           <Route path="knowledge" element={<AdminDashboard section="kb" />} />
+          <Route path="coach" element={<AdminDashboard section="coach" />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>
 

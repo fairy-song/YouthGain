@@ -33,7 +33,13 @@ export default function Profile() {
   };
   return <Container className="py-4 pb-5" style={{ maxWidth: 900 }}>
     <h1>我的</h1><p className="text-muted">账户与财务资料，统一在这里管理。</p>
-    <Card className="mb-4"><Card.Body><strong>{currentUser?.displayName || '我的账号'}</strong><div className="text-muted">{currentUser?.email}</div></Card.Body></Card>
+    <div className="profile-hero">
+      <div className="profile-hero-avatar">{((currentUser?.displayName || currentUser?.email || '?')[0]).toUpperCase()}</div>
+      <div>
+        <div className="profile-hero-name">{currentUser?.displayName || '我的账号'}</div>
+        <div className="profile-hero-email">{currentUser?.email}</div>
+      </div>
+    </div>
     {error && <Alert variant="warning">{error}<Button variant="link" onClick={() => setRetry(v => v + 1)}>重新加载</Button></Alert>}
     {notice && <Alert variant="success" role="status">{notice}</Alert>}
     {!data ? !error && <Spinner role="status" /> : <Card><Card.Body className="p-4">
