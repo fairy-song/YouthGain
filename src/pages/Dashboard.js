@@ -41,12 +41,22 @@ const Dashboard = () => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [report, setReport] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [monthlyBudget, setMonthlyBudget] = useState(null);
   const [reflections, setReflections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const [monthlyIncome, setMonthlyIncome] = useState(undefined);
   const [reload, setReload] = useState(0);
+  useEffect(() => {
+    const refresh = () => setReload(v => v + 1);
+    window.addEventListener('transaction-saved', refresh);
+    window.addEventListener('learning-saved', refresh);
+    return () => {
+      window.removeEventListener('transaction-saved', refresh);
+      window.removeEventListener('learning-saved', refresh);
+    };
+  }, []);
 
   // 语音记账弹窗开关
   const [showVoiceModal, setShowVoiceModal] = useState(false);
@@ -99,6 +109,7 @@ const Dashboard = () => {
         setReport(reportData);
         setReflections(learningData.entries.filter(e => e.kind === 'reflection'));
         setTransactions(txnData.transactions || []);
+      setMonthlyBudget(txnData.monthly_budget || null);
         setGoals((goalData && goalData.data && goalData.data.goals) || []);
       } catch (e) {
         if (cancelled) return;
@@ -165,6 +176,7 @@ const Dashboard = () => {
       ]);
       setReport(reportData);
       setTransactions(txnData.transactions || []);
+      setMonthlyBudget(txnData.monthly_budget || null);
 
       // 清空金额、商户、备注与时段，保留类别和日期方便连续记账
       setRecordForm((f) => ({ ...f, amount: '', merchant: '', note: '', hour: '' }));
@@ -255,6 +267,7 @@ const Dashboard = () => {
       ]);
       setReport(reportData);
       setTransactions(txnData.transactions || []);
+      setMonthlyBudget(txnData.monthly_budget || null);
       setGoals((goalData && goalData.data && goalData.data.goals) || []);
     } catch (e) {
       setError(e?.response?.data?.message || e?.message || '刷新数据失败');
@@ -333,7 +346,7 @@ const Dashboard = () => {
         )}
 
         <SectionNav label="账本功能" active={tab} items={[["overview", "收支记录", "/dashboard"], ["goals", "储蓄目标", "/dashboard?tab=goals"], ["upcoming", "未来开支", "/dashboard?tab=upcoming"], ["analysis", "详细分析", "/dashboard?tab=analysis"]]} />
-        {tab === 'overview' && <FinanceVisuals transactions={transactions} selectedCategory={categoryFilter} onCategory={setCategoryFilter} />}
+        {tab === 'overview' && <FinanceVisuals monthlyBudget={monthlyBudget} transactions={transactions} selectedCategory={categoryFilter} onCategory={setCategoryFilter} />}
 
 
         <div className="d-flex flex-wrap gap-2 mb-4">

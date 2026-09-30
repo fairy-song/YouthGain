@@ -10,11 +10,11 @@ export default function LedgerAnalysis({ surplus, income, avgSpending, spending,
                   <div className="icon-container bg-primary-light rounded-circle d-flex align-items-center justify-content-center me-3">
                     <FaChartLine className="text-primary" />
                   </div>
-                  <h5 className="card-title mb-0">月结余</h5>
+                  <h5 className="card-title mb-0">月均结余估算</h5>
                 </div>
                 <h2 className={`fw-bold mb-3 ${surplus >= 0 ? 'text-success' : 'text-danger'}`}>
                   ¥{surplus.toLocaleString()}
-                </h2>
+                </h2><p className="small text-muted">月收入减去记录区间的月均支出；不是账户余额，也不是本月预算剩余。漏记会影响估算。</p>
                 <div className="d-flex justify-content-between mb-1">
                   <span className="text-muted">月收入</span>
                   <span className="fw-medium">¥{income.toLocaleString()}</span>
@@ -25,7 +25,7 @@ export default function LedgerAnalysis({ surplus, income, avgSpending, spending,
                 </div>
                 <div className="mt-3 pt-3 border-top">
                   <span className={`badge rounded-pill px-3 py-2 ${surplus > 0 ? 'bg-success-light text-success' : 'bg-danger-light text-danger'}`}>
-                    {surplus > 0 ? '每月还能存下钱' : '支出已超过收入'}
+                    {surplus > 0 ? '按记录估算有结余' : '按记录估算结余不足'}
                   </span>
                 </div>
               </Card.Body>

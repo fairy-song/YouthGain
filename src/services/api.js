@@ -330,6 +330,7 @@ export const createTransaction = async (data) => {
 export const deleteTransaction = async (transactionId) => {
   try {
     const response = await api.delete(`/decision/transactions/${transactionId}`);
+    window.dispatchEvent(new Event('transaction-saved'));
     return response.data;
   } catch (error) {
     console.error('删除消费记录失败:', error);

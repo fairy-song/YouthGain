@@ -11,31 +11,24 @@ def cents(value, label):
 
 
 def recorded_spending(rows, today):
-    """Total dated expenses used to reconcile a confirmed balance snapshot."""
     total = 0
     for row in rows:
         day = str(row.get('date') or row.get('spent_at') or '')[:10]
-        try:
-            parsed = date.fromisoformat(day)
-        except ValueError:
-            raise ValueError('消费记录日期不完整，请先核对记录')
+        parsed = date.fromisoformat(day)
         if parsed <= today:
             total += cents(row.get('amount'), '消费金额')
     return total
 
 
-def recorded_spending(rows, today):
-    """Total dated expenses used to reconcile a confirmed balance snapshot."""
-    total = 0
-    for row in rows:
-        day = str(row.get('date') or row.get('spent_at') or '')[:10]
-        try:
-            parsed = date.fromisoformat(day)
-        except ValueError:
-            raise ValueError('消费记录日期不完整，请先核对记录')
-        if parsed <= today:
-            total += cents(row.get('amount'), '消费金额')
-    return total
+def estimate_balance(profile, rows, today):
+    """Reconcile recorded expenses without changing the confirmed snapshot."""
+    if profile.get('current_balance') is None:
+        return None
+    baseline = profile.get('balance_recorded_total')
+    if baseline is None:
+        return None
+    return (cents(profile['current_balance'], '余额') -
+            (recorded_spending(rows, today) - baseline)) / 100
 
 
 def draft_plan(today, goals, profile, entries):

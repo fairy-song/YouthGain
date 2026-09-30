@@ -117,9 +117,9 @@ const Home = () => {
               </EnhancedBadge>
 
               <h1 className="hero-title mb-4">
-                生活费怎么花，
+                看清生活费去向，
                 <br />
-                <span className="text-primary">学会做自己的决定</span>
+                <span className="text-primary">买之前想清楚取舍</span>
               </h1>
 
               <p className="hero-sub mb-4 mx-auto mx-lg-0">
@@ -130,7 +130,7 @@ const Home = () => {
               <div className="d-flex gap-3 justify-content-center justify-content-lg-start flex-wrap mb-4">
                 {currentUser ? (
                   <AnimatedButton as={Link} to="/learning" variant="success" size="lg" className="rounded-pill btn-primary-glow px-5 py-3 fw-bold text-white">
-                    开始我的理财练习 <FaArrowRight className="ms-2" />
+                    比较一笔消费 <FaArrowRight className="ms-2" />
                   </AnimatedButton>
                 ) : (
                   <>

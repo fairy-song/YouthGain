@@ -62,8 +62,8 @@ test('load failure is distinguishable from empty data and can retry', async () =
 
 test('weekly review can be completed on a week without spending', async () => {
   renderPage('review');
-  fireEvent.change(await screen.findByLabelText('本周一件值得回看的事：发生了什么，是否符合预期？'), { target: { value: '本周没有消费，重新检查了计划' } });
-  fireEvent.change(screen.getByLabelText('下周想试的一件小事：何时、怎样做？'), { target: { value: '周日列出考试开支' } });
+  fireEvent.change(await screen.findByLabelText('这周哪笔消费值得回看？（没有消费也可以回看计划）'), { target: { value: '本周没有消费，重新检查了计划' } });
+  fireEvent.change(screen.getByLabelText('下周想保持或调整什么？'), { target: { value: '周日列出考试开支' } });
   fireEvent.change(screen.getByLabelText('我的理财原则初稿'), { target: { value: '先想起未来的必要开支' } });
   fireEvent.click(screen.getByRole('button', { name: '保存本周复盘' }));
   await waitFor(() => expect(saveLearningEntry).toHaveBeenCalledWith('review', expect.objectContaining({ principle: '先想起未来的必要开支' })));

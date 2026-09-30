@@ -146,7 +146,7 @@ def _load_engine_inputs(user_id):
 def goal_plan(user_info):
     import hashlib
     import json
-    from app.services.goal_planner import validate_plan, build_plan, draft_plan, recorded_spending, cents
+    from app.services.goal_planner import validate_plan, build_plan, draft_plan, estimate_balance, cents
     uid = user_info['uid']
     today = datetime.now(BEIJING).date()
     try:
@@ -164,7 +164,7 @@ def goal_plan(user_info):
                 rows, txn_error = user_data_service.get_user_data(uid, 'transactions', limit=2000)
                 if txn_error or len(rows) >= 2000:
                     raise RuntimeError('消费记录读取不完整，请稍后重试')
-                estimated = cents(profile['current_balance'], '余额') - (recorded_spending(rows, today) - profile['balance_recorded_total'])
+                estimated = round(estimate_balance(profile, rows, today) * 100)
                 age = (today - date.fromisoformat(confirmed_on)).days
                 # Never assume an expected payment has arrived. Ask for a balance
                 # check on an income day, after a week, or if records imply a deficit.
@@ -354,9 +354,26 @@ def list_transactions(user_info):
     if error:
         return jsonify({'status': 'error', 'message': error}), 500
 
+    today = datetime.now(BEIJING).date().isoformat()
+    month = today[:7]
+    all_rows, summary_error = user_data_service.get_user_data(
+        user_info['uid'], 'transactions', limit=MAX_TRANSACTIONS_PER_REPORT)
+    profile = learning_store.read_entry(user_info['uid'], 'profile') or {}
+    budget = profile.get('monthly_income')
+    complete = not summary_error and len(all_rows or []) < MAX_TRANSACTIONS_PER_REPORT
+    from decimal import Decimal
+    spent = sum((Decimal(str(row['amount'])) for row in (all_rows or [])
+                 if str(row.get('date', ''))[:7] == month
+                 and str(row.get('date', ''))[:10] <= today
+                 and row.get('amount') is not None), Decimal('0')) if complete else None
+    monthly_budget = {'month': month, 'budget': budget,
+                      'spent': float(spent) if spent is not None else None,
+                      'remaining': float(Decimal(str(budget)) - spent)
+                      if budget is not None and spent is not None else None,
+                      'complete': complete}
     return jsonify({
         'status': 'success',
-        'data': {'transactions': rows, 'count': len(rows)}
+        'data': {'transactions': rows, 'count': len(rows), 'monthly_budget': monthly_budget}
     }), 200
 
 

@@ -49,12 +49,26 @@ def payload():
     return data
 
 
+def balance_profile(uid, record):
+    from app.services.goal_planner import estimate_balance
+    if not record:
+        return {}
+    record = dict(record)
+    record['estimated_balance'] = None
+    if record.get('current_balance') is not None and record.get('balance_recorded_total') is not None:
+        rows, error = user_data_service.get_user_data(uid, 'transactions', limit=2000)
+        if error or len(rows) >= 2000:
+            raise RuntimeError('消费记录读取不完整，请稍后重试')
+        record['estimated_balance'] = estimate_balance(record, rows, datetime.now(BEIJING).date())
+    return record
+
+
 @learning_bp.route('', methods=['GET'])
 @require_auth
 def overview(user_info):
     entries = store.read_entries(user_info['uid'])
     profile = next((e for e in entries if e['id'] == 'profile'), {})
-    return jsonify(profile=profile, topics=TOPICS, lessons=LESSONS,
+    return jsonify(profile=balance_profile(user_info['uid'], profile), topics=TOPICS, lessons=LESSONS,
                    entries=[e for e in entries if e['id'] != 'profile'], summary=learning_summary(entries))
 
 
@@ -62,7 +76,7 @@ def overview(user_info):
 @require_auth
 def profile(user_info):
     if request.method == 'GET':
-        return jsonify(profile=store.read_entry(user_info['uid'], 'profile') or {})
+        return jsonify(profile=balance_profile(user_info['uid'], store.read_entry(user_info['uid'], 'profile') or {}))
     updates = payload()
     previous = store.read_entry(user_info['uid'], 'profile') or {}
     validated = validate_profile({**previous, **updates})
@@ -77,7 +91,7 @@ def profile(user_info):
             raise RuntimeError('无法读取完整消费记录，余额尚未确认')
         validated['balance_recorded_total'] = recorded_spending(rows, datetime.now(BEIJING).date())
     record = store.write_entry(user_info['uid'], 'profile', validated)
-    return jsonify(profile=record)
+    return jsonify(profile=balance_profile(user_info['uid'], record))
 
 
 @learning_bp.route('/entries/<kind>', methods=['POST'])

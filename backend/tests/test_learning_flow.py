@@ -241,3 +241,38 @@ def test_single_purchase_does_not_reduce_all_future_monthly_savings():
                             Goal('旅行', 1400), today=date(2026, 9, 24))
     assert facts['goal']['months_before'] == 2.0
     assert facts['goal']['months_after'] == 2.5
+
+
+def test_balance_and_month_budget_follow_records(client):
+    today = datetime.now().date().isoformat()
+    assert call(client, 'put', '/api/learning/profile', {'current_balance': 1000, 'monthly_income': 2000}).status_code == 200
+    response = call(client, 'post', '/api/decision/transactions', {'date': today, 'amount': 100, 'category': '餐饮'})
+    assert response.status_code == 201
+    assert call(client, 'get', '/api/learning/profile').json['profile']['estimated_balance'] == 900
+    budget = call(client, 'get', '/api/decision/transactions?limit=1').json['data']['monthly_budget']
+    assert budget['spent'] == 100
+    assert budget['remaining'] == 1900
+    call(client, 'put', '/api/learning/profile', {'topic': 'risk'})
+    assert call(client, 'get', '/api/learning/profile').json['profile']['estimated_balance'] == 900
+    call(client, 'put', '/api/learning/profile', {'current_balance': 800})
+    call(client, 'post', '/api/decision/transactions', {'date': today, 'amount': 20, 'category': '餐饮'})
+    assert call(client, 'get', '/api/learning/profile').json['profile']['estimated_balance'] == 780
+    assert call(client, 'get', '/api/decision/transactions?limit=1').json['data']['monthly_budget']['remaining'] == 1880
+
+
+def test_budget_excludes_old_and_future_records_and_delete_restores_balance(client):
+    from datetime import timedelta
+    from app.services.checkin_service import BEIJING
+    today = datetime.now(BEIJING).date()
+    last_month = today.replace(day=1) - timedelta(days=1)
+    call(client, 'put', '/api/learning/profile', {'current_balance': 1000, 'monthly_income': 2000})
+    for day, amount in [(last_month, 50), (today + timedelta(days=1), 300)]:
+        assert call(client, 'post', '/api/decision/transactions', {'date': day.isoformat(), 'amount': amount, 'category': '餐饮'}).status_code == 201
+    response = call(client, 'post', '/api/decision/transactions', {'date': today.isoformat(), 'amount': 100, 'category': '餐饮'})
+    budget = call(client, 'get', '/api/decision/transactions?limit=1').json['data']['monthly_budget']
+    assert budget['remaining'] == 1900
+    assert call(client, 'get', '/api/learning/profile').json['profile']['estimated_balance'] == 850
+    tid = response.json['data']['id']
+    assert call(client, 'delete', f'/api/decision/transactions/{tid}').status_code == 200
+    assert call(client, 'get', '/api/learning/profile').json['profile']['estimated_balance'] == 950
+    assert call(client, 'get', '/api/decision/transactions?limit=1').json['data']['monthly_budget']['remaining'] == 2000

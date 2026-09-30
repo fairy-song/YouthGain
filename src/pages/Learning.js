@@ -6,7 +6,6 @@ import { assessPurchase } from '../services/api';
 import { ComparisonBars } from '../components/FinanceVisuals';
 import SectionNav from '../components/SectionNav';
 import CoachHelp from '../components/CoachHelp';
-import CheckinCard from '../components/CheckinCard';
 import AdaptivePractice from '../components/AdaptivePractice';
 import { getLearning, getWeeklyFacts, saveLearningEntry, saveDecisionOutcome, learningError } from '../services/learning';
 
@@ -33,7 +32,7 @@ function LearningContent() {
   const { currentUser } = useAuth();
   const location = useLocation();
   const requestedTab = new URLSearchParams(location.search).get('tab');
-  const tab = ['practice', 'decision', 'review', 'growth'].includes(requestedTab) ? requestedTab : 'practice';
+  const tab = ['practice', 'decision', 'review', 'growth'].includes(requestedTab) ? requestedTab : 'decision';
   const [data, setData] = useState(null);
   const [profile, setProfile] = useState(blankProfile);
   const [facts, setFacts] = useState(null);
@@ -79,7 +78,7 @@ function LearningContent() {
   };
 
   if (!data) return <Container className="py-5" style={{ maxWidth: 1050 }}>
-    <h1>理财成长</h1>{error ? <Alert variant="warning">{error}<Button variant="link" onClick={() => setRetry(v => v + 1)}>重试</Button></Alert> : <div role="status"><Spinner size="sm" /> 正在读取你的成长记录…</div>}
+    <h1>消费决策</h1>{error ? <Alert variant="warning">{error}<Button variant="link" onClick={() => setRetry(v => v + 1)}>重试</Button></Alert> : <div role="status"><Spinner size="sm" /> 正在读取你的记录…</div>}
   </Container>;
 
   const entries = data.entries;
@@ -94,16 +93,16 @@ function LearningContent() {
 
   return <Container className="py-4 pb-5" style={{ maxWidth: 1050 }}>
     <div className="mb-4">
-      <Badge bg="success" className="mb-3">认识自己 · 理解取舍 · 自主决定</Badge>
-      <h1 className="fw-bold">今天，练习一个小选择</h1>
-      <p className="text-muted">每次几分钟，按自己的节奏来。</p>
+      <Badge bg="success" className="mb-3">看清影响 · 自主选择 · 回看消费</Badge>
+      <h1 className="fw-bold">消费决策与复盘</h1>
+      <p className="text-muted">买之前比较影响，买之后回看体验。</p>
     </div>
     {error && <Alert variant="warning" role="alert">{error} <Button variant="link" disabled={busy} onClick={() => setRetry(v => v + 1)}>刷新重试</Button></Alert>}
     {notice && <Alert variant="success" role="status" dismissible onClose={() => setNotice('')}>{notice}</Alert>}
-    {data.profile.monthly_income == null && <Alert variant="info">先设置生活费或月收入，让消费试算有依据；也可以直接开始学习。 <Button as={Link} to="/profile" variant="link">设置我的资料</Button></Alert>}
-    <SectionNav label="成长功能" active={tab} items={[
-      ['practice', '情境练习', '/learning?tab=practice'], ['decision', '消费选择', '/learning?tab=decision'],
-      ['review', '每周复盘', '/learning?tab=review'], ['growth', '成长记录', '/learning?tab=growth'],
+    {data.profile.monthly_income == null && <Alert variant="info">先设置生活费或月收入，让消费试算有依据；情境练习不需要先填写资料。 <Button as={Link} to="/profile" variant="link">设置我的资料</Button></Alert>}
+    <SectionNav label="消费决策功能" active={tab} items={[
+      ['decision', '消费选择', '/learning?tab=decision'],
+      ['review', '每周复盘', '/learning?tab=review'], ['growth', '历史记录', '/learning?tab=growth'],
     ]} />
     {['decision', 'review'].includes(tab) && pendingExpenses.length > 0 && <Alert variant="info">
       <strong>别忘了你安排的开支</strong>
@@ -111,10 +110,10 @@ function LearningContent() {
       <small>这些事项未自动扣除，也不一定已经记账。比较消费选择时，请一起考虑。</small>
     </Alert>}
 
-    <div className="d-flex gap-3 mb-3"><Link to="/assessment">自我探索</Link><Link to="/info/knowledge">知识与工具</Link></div>
+
     {tab === 'practice' && <>
-      <AdaptivePractice key={currentUser?.uid || 'guest'} />
-      <div className="d-flex justify-content-between mb-2"><span>七次练习，可以分七天完成，也可以随时继续</span><strong>{completed.length} / 7</strong></div>
+<details className="mb-4"><summary>选择题：试着判断一个情境</summary><AdaptivePractice key={currentUser?.uid || 'guest'} /></details>
+      <div className="d-flex justify-content-between mb-2"><span>任选一个情境，随时开始、跳过或重做</span><strong>{completed.length} / 7</strong></div>
       <ProgressBar now={completed.length / 7 * 100} aria-label="练习完成进度" className="mb-4" />
       <Row className="g-4"><Col md={4}><div className="d-grid gap-2">{orderedLessons.map(l => <Button key={l.id} variant={lesson.id === l.id ? 'primary' : 'outline-secondary'} className="text-start" onClick={() => { setSelected(l.id); setReflection(entries.find(e => e.lesson_id === l.id)?.reflection || ''); }}>{completed.includes(l.id) ? '✓ ' : ''}练习 {l.day} · {l.title}</Button>)}</div><p className="small text-muted mt-3">按你选择的主题优先展示。完成次数记录参与情况，不代表能力评分。</p><Button as={Link} to="/assessment" variant="link">先做一次自我探索</Button></Col>
         <Col md={8}><Card className="border-0 shadow-sm"><Card.Body className="p-4">
@@ -130,12 +129,12 @@ function LearningContent() {
 
     {['decision', 'review'].includes(tab) && <div className="mb-3"><CoachHelp prompt={tab === 'decision' ? '我正在比较一笔消费，请先问我一个问题，帮助我考虑需要和取舍。' : '我正在做每周复盘，请帮助我回看一次选择，并确定下周的小行动。'} /></div>}
     {tab === 'decision' && <>
-      <Card className="border-0 shadow-sm mb-4"><Card.Body className="p-4"><h2 className="h4">这次选择，对我意味着什么？</h2><p className="text-muted">记录打算购买的东西。选择没有统一答案，先想清需要和取舍。</p>
+      <Card className="border-0 shadow-sm mb-4"><Card.Body className="p-4"><h2 className="h4">看看这笔消费对本月安排的影响</h2><p className="text-muted">填写金额和类别即可比较。保存选择只记录计划，不会扣款或自动记账；实际购买后再去账本记一笔。</p>
         {data.profile.personal_rule && <Alert variant="info">你给自己的提醒：{data.profile.personal_rule}</Alert>}
         <Form onSubmit={e => { e.preventDefault(); run(async () => { await saveLearningEntry('decision', { ...decision, alternative_amount: decision.alternative_amount || 0 }); setDecision(blankDecision); setComparison(null); }, '选择和理由已保存。实际购买后可到记账页记录支出，再回来回访。'); }}>
           <Row><Col md={6}><Form.Group controlId="choice-amount" className="mb-3"><Form.Label>计划金额（元）</Form.Label><Form.Control required type="number" min="0.01" max="100000000" step="0.01" value={decision.amount} onChange={e => setDecisionField('amount', e.target.value)} /></Form.Group></Col><Col md={6}><Form.Group controlId="choice-category" className="mb-3"><Form.Label>商品或消费类别</Form.Label><Form.Control required maxLength={80} value={decision.category} onChange={e => setDecisionField('category', e.target.value)} /></Form.Group></Col></Row>
-          <div className="fv-prompt-chips" aria-label="选择消费需要">{['日常必需', '学习或工作', '休闲放松', '社交往来'].map(v => <button type="button" key={v} onClick={() => setDecisionField('need', v)}>{v}</button>)}</div>
-          <WritingField label="它满足了我的什么需要？" value={decision.need} onChange={v => setDecisionField('need', v)} maxLength={300} />
+          <details className="mb-3"><summary>补充消费需要（可选）</summary><div className="fv-prompt-chips" aria-label="选择消费需要">{['日常必需', '学习或工作', '休闲放松', '社交往来'].map(v => <button type="button" key={v} onClick={() => setDecisionField('need', v)}>{v}</button>)}</div>
+          <WritingField required={false} label="它满足了我的什么需要？" value={decision.need} onChange={v => setDecisionField('need', v)} maxLength={300} /></details>
           <Form.Group controlId="alternative-amount" className="mb-3"><Form.Label>想比较的另一种预算（元，可选）</Form.Label><Form.Control type="number" min="0" max="100000000" step="0.01" value={decision.alternative_amount} onChange={e => setDecisionField('alternative_amount', e.target.value)} /></Form.Group>
           <Button variant="outline-primary" disabled={busy || !(Number(decision.amount) > 0) || !decision.category.trim()} className="mb-3" onClick={() => run(async () => {
             const result = await assessPurchase({ amount: Number(decision.amount), category: decision.category });
@@ -151,7 +150,7 @@ function LearningContent() {
           {comparison && <details className="mb-3"><summary>查看试算说明与依据</summary><Alert variant="light"><p>{comparison.result.suggestion}</p><p>现在购买：按已记录数据，购买后本月余量 ¥{(comparison.result.budget.remaining - Number(decision.amount)).toFixed(2)}。</p><p>延后考虑：这次暂不支出 ¥{Number(decision.amount).toFixed(2)}，未来需要和价格仍可能变化。</p>{comparison.alternative && <p>调整预算：按已记录数据，购买后本月余量 ¥{(comparison.alternative.budget.remaining - Number(decision.alternative_amount)).toFixed(2)}。</p>}<small>{comparison.result.basis?.message || '仅基于已记录消费估算，尚未记录的必要开支仍需预留。'}</small></Alert></details>}
           {comparison && <p className="small text-muted">仅按已记录数据估算，未来必要开支仍需预留。</p>}
           <Form.Group controlId="choice-result" className="mb-3"><Form.Label>我目前的选择</Form.Label><Form.Select value={decision.choice} onChange={e => setDecision({ ...decision, choice: e.target.value })}>{Object.entries(choiceLabels).map(([v, label]) => <option key={v} value={v}>{label}</option>)}</Form.Select></Form.Group>
-          <WritingField label="我这样选的理由，以及愿意接受的取舍" value={decision.reason} onChange={v => setDecision({ ...decision, reason: v })} />
+          <WritingField required={false} label="我这样选的理由，以及愿意接受的取舍（可选）" value={decision.reason} onChange={v => setDecision({ ...decision, reason: v })} />
           <Button type="submit" disabled={busy}>保存我的选择</Button> <Button as={Link} to="/dashboard" variant="outline-secondary">已购买，去记账</Button>
         </Form>
       </Card.Body></Card>
@@ -165,28 +164,27 @@ function LearningContent() {
       </Card.Body></Card>)}
     </>}
 
-    {tab === 'review' && <Card className="border-0 shadow-sm"><Card.Body className="p-4"><h2 className="h4">每周一次，把经历变成自己的方法</h2>
+    {tab === 'review' && <Card className="border-0 shadow-sm"><Card.Body className="p-4"><h2 className="h4">简短回看这一周</h2>
       {factsError && <Alert variant="warning">{factsError}<Button variant="link" onClick={() => setRetry(v => v + 1)}>重试</Button></Alert>}
       {facts && <Alert variant="light">{facts.start} 至 {facts.end}：已记录 {facts.count} 笔，共 ¥{facts.total.toFixed(2)}。<div className="small">{facts.message}{facts.limited && ' 当前只读取最近 2000 笔，汇总可能不完整。'}</div></Alert>}
       {previousReview && <Alert variant="info">上次想尝试：{previousReview.next_action}</Alert>}
       {reviews.find(e => e.week === facts?.start) && <p className="text-success">本周已复盘，重新保存会更新本周记录。<Button variant="link" onClick={() => setReview(reviews.find(e => e.week === facts?.start))}>继续编辑</Button></p>}
       <Form onSubmit={e => { e.preventDefault(); run(() => saveLearningEntry('review', review), '本周复盘已保存，下周可以回看这次行动。'); }}>
-        <WritingField label="上次的小行动有没有帮助？（首次可跳过）" required={false} maxLength={500} value={review.previous_action_result} onChange={v => setReview({ ...review, previous_action_result: v })} />
-        <WritingField label="本周一件值得回看的事：发生了什么，是否符合预期？" value={review.observation} onChange={v => setReview({ ...review, observation: v })} />
-        <div className="fv-prompt-chips" aria-label="下周行动灵感">{['周日花五分钟检查下周必要开支', '下次临时购物前先比较两个方案', '周末回看一笔消费是否符合预期'].map(v => <button type="button" key={v} onClick={() => setReview({ ...review, next_action: v })}>{v}</button>)}</div><WritingField label="下周想试的一件小事：何时、怎样做？" maxLength={500} value={review.next_action} onChange={v => setReview({ ...review, next_action: v })} />
-        <WritingField label="我的理财原则初稿" maxLength={500} value={review.principle} onChange={v => setReview({ ...review, principle: v })} />
+        <WritingField label="这周哪笔消费值得回看？（没有消费也可以回看计划）" value={review.observation} onChange={v => setReview({ ...review, observation: v })} />
+        <div className="fv-prompt-chips" aria-label="下周行动灵感">{['周日花五分钟检查下周必要开支', '下次临时购物前先比较两个方案', '周末回看一笔消费是否符合预期'].map(v => <button type="button" key={v} onClick={() => setReview({ ...review, next_action: v })}>{v}</button>)}</div><WritingField label="下周想保持或调整什么？" maxLength={500} value={review.next_action} onChange={v => setReview({ ...review, next_action: v })} />
+        <details className="mb-3"><summary>补充行动反馈和个人原则（可选）</summary><WritingField label="上次的小行动有没有帮助？（可选）" required={false} maxLength={500} value={review.previous_action_result} onChange={v => setReview({ ...review, previous_action_result: v })} /><WritingField required={false} label="我的理财原则初稿" maxLength={500} value={review.principle} onChange={v => setReview({ ...review, principle: v })} />
         <Form.Group controlId="review-pressure" className="mb-3"><Form.Label>这些练习带给我的感受</Form.Label><Form.Select value={review.pressure} onChange={e => setReview({ ...review, pressure: e.target.value })}><option value="helpful">更清楚自己的想法</option><option value="neutral">暂时没有明显变化</option><option value="pressure">有些压力，想放慢节奏</option></Form.Select></Form.Group>
-        <Button type="submit" disabled={busy}>保存本周复盘</Button>
+        </details><Button type="submit" disabled={busy}>保存本周复盘</Button>
       </Form>
     </Card.Body></Card>}
 
     {tab === 'growth' && <>
-      <CheckinCard key={currentUser?.uid} />
-      <Row className="g-3 mb-4">{[['完成练习', data.summary.practice_count], ['自主选择', data.summary.decision_count], ['每周复盘', data.summary.review_count], ['参与天数', data.summary.checkin.total_days]].map(([label, count]) => <Col xs={6} md={3} key={label}><Card className="h-100"><Card.Body><div className="text-muted">{label}</div><strong className="fs-2">{count}</strong></Card.Body></Card></Col>)}</Row>
-      <p className="text-muted">成长记录展示你练习过什么，不以省钱金额、连续天数或自评分数评判能力。</p>
-      {data.summary.abilities.map(a => <div key={a.topic} className="mb-3"><div className="d-flex justify-content-between"><span>{a.title}</span><span>{a.completed} / {a.total} 次练习</span></div><ProgressBar now={a.completed / a.total * 100} aria-label={a.title} /></div>)}
+      <h2 className="h4">历史记录</h2><p className="text-muted">回看曾经的决定与下一步行动。</p>
+      {!entries.some(e => ['decision', 'review'].includes(e.kind)) && <p>暂时没有记录，比较消费或完成复盘后可选择保存。</p>}
+      {entries.filter(e => ['decision', 'review'].includes(e.kind)).sort((a, b) => String(b.updated_at || b.created_at || b.week || '').localeCompare(String(a.updated_at || a.created_at || a.week || ''))).map(e => <Card key={e.id} className="mb-3"><Card.Body>{e.kind === 'decision' ? <><h3 className="h6">{e.category} · ¥{e.amount} · {choiceLabels[e.choice]}</h3>{e.reason && <p>{e.reason}</p>}{e.outcome && <p>回访：{outcomeLabels[e.outcome]} {e.reflection}</p>}</> : <><h3 className="h6">{e.week} · 每周复盘</h3><p>{e.observation}</p><strong>下一步：{e.next_action}</strong></>}</Card.Body></Card>)}
       <h2 className="h4 mt-4">我逐渐形成的原则</h2>{!reviews.length && <p>完成第一次每周复盘后，你的原则会出现在这里。</p>}
-      {reviews.map(r => <Card key={r.id} className="mb-3"><Card.Body><small className="text-muted">{r.week} 这一周</small><p className="fw-bold mt-2">{r.principle}</p><p>我的观察：{r.observation}</p><p className="mb-0">下一步：{r.next_action}</p>{r.previous_action_result && <p className="mt-2 mb-0">上次行动反馈：{r.previous_action_result}</p>}</Card.Body></Card>)}
+      {reviews.filter(r => r.principle).map(r => <Card key={r.id} className="mb-3"><Card.Body><small className="text-muted">{r.week} 这一周</small><p className="fw-bold mt-2">{r.principle}</p><p>我的观察：{r.observation}</p><p className="mb-0">下一步：{r.next_action}</p>{r.previous_action_result && <p className="mt-2 mb-0">上次行动反馈：{r.previous_action_result}</p>}</Card.Body></Card>)}
     </>}
+    <div className="d-flex gap-3 mt-4"><Link to="/learning?tab=practice">情境练习（可选）</Link><Link to="/info/knowledge">知识库</Link>{tab === 'practice' && <Link to="/assessment">自我探索（可选）</Link>}</div>
   </Container>;
 }

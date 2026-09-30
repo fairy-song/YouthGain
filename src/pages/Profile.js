@@ -17,6 +17,11 @@ export default function Profile() {
   const [busy, setBusy] = useState(false);
   const [retry, setRetry] = useState(0);
   useEffect(() => {
+    const refresh = () => setRetry(v => v + 1);
+    window.addEventListener('transaction-saved', refresh);
+    return () => window.removeEventListener('transaction-saved', refresh);
+  }, []);
+  useEffect(() => {
     let active = true;
     setData(null); setError('');
     getLearning().then(result => {
@@ -38,12 +43,18 @@ export default function Profile() {
     {notice && <Alert variant="success" role="status">{notice}</Alert>}
     {!data ? !error && <Spinner role="status" /> : <Card><Card.Body className="p-4">
       <h2 className="h4">我的财务资料</h2><p className="text-muted">首次引导的信息已保留，修改后目标规划和消费试算自动使用新资料。</p>
-      <Form onSubmit={e => { e.preventDefault(); run(async () => { const updates = Object.fromEntries(Object.entries(profile).filter(([key, value]) => String(value ?? '') !== String(data.profile[key] ?? ''))); const saved = await saveLearningProfile(updates); setData(previous => ({ ...previous, profile: saved })); setProfile({ ...saved, monthly_income: saved.monthly_income ?? '', income_day: saved.income_day ?? '' }); }, '资料已保存。'); }}>
-        <Row>{[['current_balance', '核对当前余额'], ['essential_monthly', '每月必要生活开支'], ['emergency_buffer', '应急预留']].map(([key, label]) => <Col md={4} key={key}><Form.Group controlId={`finance-${key}`} className="mb-3"><Form.Label>{label}（元）</Form.Label><Form.Control type="number" min="0" max="100000000" step="0.01" value={profile[key] ?? ''} onChange={e => setProfile({ ...profile, [key]: e.target.value })} /></Form.Group></Col>)}</Row>
+      <Alert variant={data.profile.estimated_balance < 0 ? 'warning' : 'info'}>
+        <strong>按记账估算的当前余额：{data.profile.estimated_balance == null ? '请先核对实际余额' : `¥${Number(data.profile.estimated_balance).toFixed(2)}`}</strong>
+        {data.profile.current_balance != null && <div>上次核对余额：¥{Number(data.profile.current_balance).toFixed(2)}（{data.profile.balance_confirmed_on || '日期未记录'}）</div>}
+        <div className="small">仅扣除核对后新增的已发生支出；预计收入未计入，漏记可能导致估算与实际不同。</div>
+      </Alert>
+      <Form onSubmit={e => { e.preventDefault(); run(async () => { const updates = Object.fromEntries(Object.entries(profile).filter(([key, value]) => String(value ?? '') !== String(data.profile[key] ?? ''))); delete updates.estimated_balance; const saved = await saveLearningProfile(updates); setData(previous => ({ ...previous, profile: saved })); setProfile({ ...saved, monthly_income: saved.monthly_income ?? '', income_day: saved.income_day ?? '' }); }, '资料已保存。'); }}>
+        <Row>{[['current_balance', '核对实际余额'], ['essential_monthly', '每月必要生活开支'], ['emergency_buffer', '应急预留']].map(([key, label]) => <Col md={4} key={key}><Form.Group controlId={`finance-${key}`} className="mb-3"><Form.Label>{label}（元）</Form.Label><Form.Control type="number" min="0" max="100000000" step="0.01" value={profile[key] ?? ''} onChange={e => setProfile({ ...profile, [key]: e.target.value })} /></Form.Group></Col>)}</Row>
         <Row><Col md={6}><Form.Group controlId="learning-income" className="mb-3"><Form.Label>月收入或生活费（元，可暂不填写）</Form.Label><Form.Control type="number" min="0" max="100000000" step="0.01" value={profile.monthly_income} onChange={e => setProfile({ ...profile, monthly_income: e.target.value })} /></Form.Group></Col>
           <Col md={6}><Form.Group controlId="learning-income-day" className="mb-3"><Form.Label>通常每月几号到账（可选）</Form.Label><Form.Control type="number" min="1" max="31" step="1" value={profile.income_day} onChange={e => setProfile({ ...profile, income_day: e.target.value })} /></Form.Group></Col></Row>
         <Form.Group controlId="learning-topic" className="mb-3"><Form.Label>我想先练习</Form.Label><Form.Select value={profile.topic} onChange={e => setProfile({ ...profile, topic: e.target.value })}>{data.topics.map(t => <option value={t.id} key={t.id}>{t.title}：{t.description}</option>)}</Form.Select></Form.Group>
         <ProfileWritingField label="我的自定规则（可选，例如：临时大额消费先考虑一天，紧急需要除外）" value={profile.personal_rule} onChange={v => setProfile({ ...profile, personal_rule: v })} required={false} maxLength={300} />
+        <Button variant="outline-primary" className="me-2" disabled={busy || profile.current_balance === '' || profile.current_balance == null} onClick={() => run(async () => { const saved = await saveLearningProfile({ current_balance: profile.current_balance }); setData(previous => ({ ...previous, profile: saved })); setProfile({ ...saved, monthly_income: saved.monthly_income ?? '', income_day: saved.income_day ?? '' }); }, '实际余额已核对。')}>确认实际余额</Button>
         <Button type="submit" disabled={busy}>{busy ? '保存中…' : '保存资料'}</Button> <Button as={Link} to="/dashboard?tab=goals" variant="outline-secondary">查看储蓄目标</Button>
       </Form>
     </Card.Body></Card>}

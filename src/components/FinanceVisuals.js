@@ -27,7 +27,7 @@ export function ComparisonBars({ items, label = '方案余量比较' }) {
   </div>)}<small className="text-muted">中线为零；左侧为不足，右侧为剩余。</small></div>;
 }
 
-export default function FinanceVisuals({ transactions, onCategory, selectedCategory = '' }) {
+export default function FinanceVisuals({ transactions, monthlyBudget, onCategory, selectedCategory = '' }) {
   const [view, setView] = useState('category');
   const { rows, categories, days } = summarizeTransactions(transactions);
   const total = categories.reduce((s, c) => s + c.value, 0);
@@ -39,6 +39,12 @@ export default function FinanceVisuals({ transactions, onCategory, selectedCateg
   let offset = 0;
   return <section className="fv-panel mb-4" aria-labelledby="spending-visual-title">
     <div className="fv-heading"><div><span className="fv-eyebrow">看见每一笔</span><h2 id="spending-visual-title">消费概览</h2></div><div className="fv-tabs" aria-label="图表类型">{[['category', '支出构成'], ['week', '近七天']].map(([key, title]) => <button type="button" key={key} aria-pressed={view === key} onClick={() => setView(key)}>{title}</button>)}</div></div>
+    <div className="mb-3 p-3 rounded bg-light" role="status">
+      <div className="text-muted">{monthlyBudget?.month || dateKey().slice(0, 7)} · {monthlyBudget?.remaining < 0 ? '本月超支' : '本月预算剩余'}</div>
+      <strong className={monthlyBudget?.remaining < 0 ? 'h3 text-danger' : 'h3 text-success'}>{monthlyBudget?.remaining == null ? (monthlyBudget?.budget == null ? '请在“我的”填写月生活费或收入' : '消费记录不完整，暂无法计算') : money(Math.abs(monthlyBudget.remaining))}</strong>
+      {monthlyBudget?.spent != null && <div>本月已记录支出 {money(monthlyBudget.spent)}{monthlyBudget.budget != null && ` · 本月预算 ${money(monthlyBudget.budget)}`}</div>}
+      <div className="small text-muted">以月生活费或收入作为预算，仅扣本月已发生的记录，不含历史积蓄；尚未扣除未来开支，漏记会影响结果。</div>
+    </div>
     <p className="fv-caption">基于已加载的最近 {transactions.length} 笔记录（最多 50 笔），可能不完整；不含未来日期及非正数金额。</p>
     {!rows.length ? <div className="fv-empty">还没有可展示的消费。记下第一笔，看看钱花在哪里。</div> : view === 'category' ? <div className="fv-donut-layout">
       <svg viewBox="0 0 240 240" className="fv-donut" role="img" aria-label={`支出构成，已加载记录合计 ${money(total)}；各类别金额见旁边按钮`}>

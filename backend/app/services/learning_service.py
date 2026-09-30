@@ -109,8 +109,8 @@ def validate_entry(kind, data):
             raise ValueError('请选择现在购买、延后考虑或调整预算')
         return None, {'kind': kind, 'amount': number(data.get('amount'), '金额', 0.01),
                       'category': text_field(data, 'category', True, 80),
-                      'need': text_field(data, 'need', True, 300), 'choice': choice,
-                      'reason': text_field(data, 'reason', True),
+                      'need': text_field(data, 'need', False, 300), 'choice': choice,
+                      'reason': text_field(data, 'reason', False),
                       'alternative_amount': number(data.get('alternative_amount', 0), '替代预算'),
                       'outcome': None}
     if kind == 'review':
@@ -120,7 +120,7 @@ def validate_entry(kind, data):
             'kind': kind, 'week': week.isoformat(),
             'observation': text_field(data, 'observation', True),
             'next_action': text_field(data, 'next_action', True, 500),
-            'principle': text_field(data, 'principle', True, 500),
+            'principle': text_field(data, 'principle', False, 500),
             'previous_action_result': text_field(data, 'previous_action_result', limit=500),
             'pressure': enum_field(data, 'pressure', ('helpful', 'neutral', 'pressure')),
         }
