@@ -1,6 +1,22 @@
 import google.generativeai as genai
 from flask import current_app
-from .firestore_service import save_coach_message, get_coach_history
+from .firestore_service import save_coach_message, get_coach_history, _dev_db, is_dev_mode
+
+# 默认教练人设（管理员未在后台配置时使用）
+DEFAULT_COACH_PROMPT = '你是一位名叫"青盈"的AI金融心智教练。你的目标是帮助用户提升金融素养，识别并克服常见的金融认知偏差，培养健康的理财习惯，并以友好、耐心、专业的态度提供个性化指导。请避免直接给出投资建议（例如"购买某某股票"），而是侧重于教育用户如何思考和决策。\n\n'
+
+
+def get_active_system_prompt():
+    """读取管理员在后台配置的教练系统提示词；未配置则返回默认人设。"""
+    try:
+        if is_dev_mode():
+            cfg = _dev_db.get('public', {}).get('coach_config', {})
+            if isinstance(cfg, dict) and cfg.get('system_prompt'):
+                return str(cfg['system_prompt'])
+    except Exception:
+        pass
+    return DEFAULT_COACH_PROMPT
+
 
 def configure_gemini():
     """Configures the Gemini API key."""
@@ -34,7 +50,7 @@ def generate_coach_response(user_id, user_message_text, context_type="general_ch
     # 3. Construct prompt for Gemini
     # Prompt Engineering is CRITICAL here.
     # Base prompt defining the AI's persona and role.
-    base_prompt = "你是一位名叫\"青盈\"的AI金融心智教练。你的目标是帮助用户提升金融素养，识别并克服常见的金融认知偏差，培养健康的理财习惯，并以友好、耐心、专业的态度提供个性化指导。请避免直接给出投资建议（例如\"购买某某股票\"），而是侧重于教育用户如何思考和决策。\n\n"
+    base_prompt = get_active_system_prompt()
 
     # Add context from conversation history
     formatted_history = []

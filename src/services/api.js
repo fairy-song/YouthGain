@@ -432,6 +432,24 @@ export const adminGetStats = async () => {
   return response.data.data;
 };
 
+/** 获取 AI 教练系统提示词配置 */
+export const adminGetCoachConfig = async () => {
+  const response = await api.get('/admin/coach-config');
+  return response.data.data;
+};
+
+/** 保存 AI 教练系统提示词 */
+export const adminSaveCoachConfig = async (systemPrompt) => {
+  const response = await api.put('/admin/coach-config', { system_prompt: systemPrompt });
+  return response.data.data;
+};
+
+/** 恢复默认教练人设 */
+export const adminResetCoachConfig = async () => {
+  const response = await api.post('/admin/coach-config/reset');
+  return response.data.data;
+};
+
 /** 知识库文章列表 */
 export const adminListKbArticles = async () => {
   const response = await api.get('/admin/kb');

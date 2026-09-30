@@ -209,8 +209,8 @@ const CoachChat = () => {
           <Col md={10} lg={8}>
             <Card className="chat-container shadow-lg rounded-4 border-0 overflow-hidden">
               <Card.Header className="bg-gradient-primary text-white p-3 d-flex align-items-center">
-                <div className="coach-avatar bg-white rounded-circle p-2 d-flex align-items-center justify-content-center me-3">
-                  <FaRobot className="text-primary" size={20} />
+                <div className="coach-avatar rounded-circle me-3 overflow-hidden" style={{ width: 40, height: 40 }}>
+                  <img src="/coach-avatar.svg" alt="AI 教练" style={{ width: '100%', height: '100%' }} />
                 </div>
                 <div>
                   <h5 className="mb-0 fw-bold">青盈 AI 教练</h5>

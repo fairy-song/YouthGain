@@ -96,6 +96,38 @@ def platform_stats(user_info):
 
 
 # ============================================================
+# AI 教练配置
+# ============================================================
+
+@admin_bp.route('/coach-config', methods=['GET'])
+@require_admin
+def get_coach_config_route(user_info):
+    cfg, error = admin_service.get_coach_config()
+    if error:
+        return _err(error, 500)
+    return _ok(cfg)
+
+
+@admin_bp.route('/coach-config', methods=['PUT'])
+@require_admin
+def save_coach_config_route(user_info):
+    data = request.get_json(silent=True) or {}
+    cfg, error = admin_service.save_coach_config(data.get('system_prompt', ''))
+    if error:
+        return _err(error, 400)
+    return _ok(cfg, '教练配置已保存')
+
+
+@admin_bp.route('/coach-config/reset', methods=['POST'])
+@require_admin
+def reset_coach_config_route(user_info):
+    cfg, error = admin_service.reset_coach_config()
+    if error:
+        return _err(error, 500)
+    return _ok(cfg, '已恢复默认人设')
+
+
+# ============================================================
 # 知识库内容管理
 # ============================================================
 

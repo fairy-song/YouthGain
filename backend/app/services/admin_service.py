@@ -150,11 +150,16 @@ def get_user_detail(uid):
             'disabled': bool(profile.get('disabled', False)),
             'data_summary': {
                 'assessments': len(record.get('assessments', {})),
-                'goals': len(record.get('goals', [])),
+                'goals': len(_as_list(record.get('goals'))),
                 'coach_messages': len(record.get('coach_messages', [])),
                 'transactions': _size_of(record.get('transactions')),
-                'learning_entries': len(record.get('learning_entries', {})),
+                'learning_entries': len(_learning_entries_list(record.get('learning_entries'))),
             },
+            # 明细数据：供管理员钻取查看用户的具体行为
+            'transactions': _as_list(record.get('transactions')),
+            'goals': _as_list(record.get('goals')),
+            'learning_entries': _learning_entries_list(record.get('learning_entries')),
+            'assessments': _as_list(record.get('assessments')),
         }, None
 
     db = get_db()
@@ -247,6 +252,30 @@ def _size_of(value):
     return 0
 
 
+def _as_list(value):
+    """把 dict/list 统一成 list（dict 时按 values 展开）。"""
+    if isinstance(value, list):
+        return value
+    if isinstance(value, dict):
+        return [v for v in value.values()]
+    return []
+
+
+def _learning_entries_list(value):
+    """learning_entries 是 dict（key 如 'exercise:needs'），展开成 [{key, ...data}]。"""
+    if isinstance(value, list):
+        return value
+    if isinstance(value, dict):
+        out = []
+        for k, v in value.items():
+            if isinstance(v, dict):
+                out.append({'key': k, **v})
+            else:
+                out.append({'key': k, 'value': v})
+        return out
+    return []
+
+
 # ============================================================
 # 平台统计
 # ============================================================
@@ -282,13 +311,21 @@ def get_platform_stats():
                     stats[key] = 0
             if MySQLHelper.execute_query("SHOW TABLES LIKE 'kb_articles'"):
                 stats['total_kb_articles'] = MySQLHelper.execute_one("SELECT COUNT(*) AS c FROM kb_articles")['c'] or 0
+            stats.setdefault('growth_trend', [])
+            stats.setdefault('category_breakdown', [])
+            stats.setdefault('regret_breakdown', [])
             return stats, None
         except Exception as e:
             return None, str(e)
 
     if is_dev_mode():
+        from collections import Counter
         users = _dev_db.get('users', {})
         stats['total_users'] = len(users)
+        day_counts = Counter()
+        cat_amount = {}
+        cat_count = {}
+        cat_regret = {}
         for record in users.values():
             profile = record.get('profile', {}) or {}
             if profile.get('assessmentCompleted'):
@@ -298,6 +335,43 @@ def get_platform_stats():
             stats['total_transactions'] += _size_of(record.get('transactions'))
             stats['total_goals'] += _size_of(record.get('goals'))
             stats['total_coach_messages'] += len(record.get('coach_messages', []))
+            # 注册日（优先 profile.createdAt，其次首笔交易时间，兜底今天）
+            created = profile.get('createdAt') or profile.get('created_at')
+            day = str(created)[:10] if created else ''
+            if not day:
+                txs = _as_list(record.get('transactions'))
+                if txs:
+                    day = str(txs[0].get('timestamp') or txs[0].get('date') or '')[:10]
+            if not day:
+                day = datetime.date.today().isoformat()
+            day_counts[day] += 1
+            # 消费聚合
+            for t in _as_list(record.get('transactions')):
+                cat = t.get('category') or '其他'
+                amt = 0.0
+                try:
+                    amt = float(t.get('amount') or 0)
+                except (TypeError, ValueError):
+                    pass
+                cat_amount[cat] = cat_amount.get(cat, 0) + amt
+                cat_count[cat] = cat_count.get(cat, 0) + 1
+                if t.get('regret'):
+                    cat_regret[cat] = cat_regret.get(cat, 0) + 1
+        stats['growth_trend'] = [
+            {'date': d, 'count': c} for d, c in sorted(day_counts.items())[-14:]
+        ]
+        stats['category_breakdown'] = [
+            {'category': c, 'total_amount': round(cat_amount[c], 2), 'count': cat_count[c]}
+            for c in sorted(cat_amount, key=lambda x: -cat_amount[x])
+        ]
+        stats['regret_breakdown'] = sorted(
+            [{'category': c,
+              'regret_count': cat_regret.get(c, 0),
+              'total_count': cat_count[c],
+              'regret_rate': round(cat_regret.get(c, 0) / cat_count[c] * 100, 1) if cat_count[c] else 0}
+             for c in cat_count],
+            key=lambda x: -x['regret_rate'],
+        )
         stats['total_kb_articles'] = len(_dev_db.get('public', {}).get('knowledge_base', []))
         return stats, None
 
@@ -324,6 +398,9 @@ def get_platform_stats():
                     pass
         kb_docs = list(db.collection(get_public_collection_path('knowledge_base')).limit(MAX_ADMIN_USERS).get())
         stats['total_kb_articles'] = len(kb_docs)
+        stats.setdefault('growth_trend', [])
+        stats.setdefault('category_breakdown', [])
+        stats.setdefault('regret_breakdown', [])
         return stats, None
     except Exception as e:
         return None, str(e)
@@ -507,3 +584,37 @@ def _split_tags(raw):
     if not raw:
         return []
     return [t.strip() for t in raw.replace('，', ',').split(',') if t.strip()]
+
+
+# ============================================================
+# AI 教练配置（系统提示词运营）
+# ============================================================
+
+def get_coach_config():
+    """返回当前教练系统提示词 {system_prompt, is_default}。"""
+    from .coach_service import get_active_system_prompt, DEFAULT_COACH_PROMPT
+    prompt = get_active_system_prompt()
+    is_default = (prompt == DEFAULT_COACH_PROMPT)
+    return {'system_prompt': prompt, 'is_default': is_default, 'default_prompt': DEFAULT_COACH_PROMPT.rstrip()}, None
+
+
+def save_coach_config(system_prompt):
+    """保存教练系统提示词。"""
+    prompt = str(system_prompt or '').strip()
+    if not prompt:
+        return None, '提示词不能为空'
+    if is_dev_mode():
+        _dev_db.setdefault('public', {})['coach_config'] = {'system_prompt': prompt}
+        persist_dev_db()
+        return {'system_prompt': prompt, 'is_default': False}, None
+    # MySQL/Firestore 模式暂只支持 dev 持久化
+    return {'system_prompt': prompt, 'is_default': False}, None
+
+
+def reset_coach_config():
+    """恢复默认教练人设。"""
+    from .coach_service import DEFAULT_COACH_PROMPT
+    if is_dev_mode():
+        _dev_db.get('public', {}).pop('coach_config', None)
+        persist_dev_db()
+    return {'system_prompt': DEFAULT_COACH_PROMPT.rstrip(), 'is_default': True}, None
