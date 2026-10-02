@@ -313,7 +313,7 @@ export const listTransactions = async (limit = 200) => {
 
 /**
  * 新增一笔消费记录。
- * @param {Object} data 必填 amount / category / date(YYYY-MM-DD)，可选 merchant / note / hour
+ * @param {Object} data 必填 amount / category / date(YYYY-MM-DD)，可选 merchant / items / note / hour
  */
 export const createTransaction = async (data) => {
   try {

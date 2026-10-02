@@ -5,6 +5,7 @@
 import os
 import datetime
 import uuid
+from decimal import Decimal
 from typing import Dict, List, Optional, Any
 from .firestore_service import (
     get_db, 
@@ -51,6 +52,47 @@ class UserDataService:
     def db(self):
         # Services are imported before requests; resolve the current app lazily.
         return get_db()
+
+    def get_monthly_spending(self, user_id, today):
+        """按实际消费日期汇总本月支出，不受账单列表和报告条数上限影响。"""
+        start = today.replace(day=1)
+        tomorrow = today + datetime.timedelta(days=1)
+        try:
+            if is_mysql_mode():
+                row = MySQLHelper.execute_one(
+                    'SELECT COALESCE(SUM(amount), 0) AS spent FROM transactions '
+                    'WHERE user_id = %s AND spent_at >= %s AND spent_at < %s AND amount > 0',
+                    (user_id, start, tomorrow))
+                return Decimal(str(row['spent'])), None
+            if is_dev_mode():
+                rows = _dev_db['users'].get(user_id, {}).get('transactions', [])
+                if isinstance(rows, dict):
+                    rows = rows.values()
+            else:
+                if not self.db:
+                    return None, '数据库未初始化'
+                # 旧记录可能使用 spent_at；仅查询 date 会遗漏这部分历史消费。
+                docs = self.db.collection(get_user_collection_path(user_id, 'transactions')).select(
+                    ['date', 'spent_at', 'amount']).stream()
+                rows = (doc.to_dict() for doc in docs)
+            total = Decimal('0')
+            for row in rows:
+                value = row.get('date') or row.get('spent_at')
+                if isinstance(value, datetime.datetime):
+                    spent_date = value.date()
+                elif isinstance(value, datetime.date):
+                    spent_date = value
+                else:
+                    spent_date = datetime.date.fromisoformat(str(value)[:10])
+                if start <= spent_date <= today:
+                    amount = Decimal(str(row['amount']))
+                    if not amount.is_finite():
+                        raise ValueError('消费金额无效')
+                    if amount > 0:
+                        total += amount
+            return total, None
+        except Exception as error:
+            return None, f'本月支出统计失败: {error}'
 
     def get_checkin_summary(self, user_id):
         """读取所有记账时间，不受最近消费列表的条数限制。"""

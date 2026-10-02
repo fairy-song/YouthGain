@@ -276,3 +276,52 @@ def test_budget_excludes_old_and_future_records_and_delete_restores_balance(clie
     assert call(client, 'delete', f'/api/decision/transactions/{tid}').status_code == 200
     assert call(client, 'get', '/api/learning/profile').json['profile']['estimated_balance'] == 950
     assert call(client, 'get', '/api/decision/transactions?limit=1').json['data']['monthly_budget']['remaining'] == 2000
+
+
+def test_month_budget_keeps_yesterdays_spending_and_resets_only_next_month(client, monkeypatch):
+    from app.routes import decision_routes
+    class Clock(datetime):
+        current = datetime(2026, 10, 1, 20)
+        @classmethod
+        def now(cls, tz=None):
+            return cls.current.replace(tzinfo=tz)
+    monkeypatch.setattr(decision_routes, 'datetime', Clock)
+    call(client, 'put', '/api/learning/profile', {'monthly_income': 2000})
+    call(client, 'post', '/api/decision/transactions', {'date': '2026-10-01', 'amount': 100, 'category': '餐饮'})
+    assert call(client, 'get', '/api/decision/transactions?limit=1').json['data']['monthly_budget']['remaining'] == 1900
+    Clock.current = datetime(2026, 10, 2, 8)
+    assert call(client, 'get', '/api/decision/transactions?limit=1').json['data']['monthly_budget']['remaining'] == 1900
+    call(client, 'post', '/api/decision/transactions', {'date': '2026-10-02', 'amount': 25.5, 'category': '餐饮'})
+    budget = call(client, 'get', '/api/decision/transactions?limit=1').json['data']['monthly_budget']
+    assert budget['spent'] == 125.5
+    assert budget['remaining'] == 1874.5
+    Clock.current = datetime(2026, 11, 1, 8)
+    assert call(client, 'get', '/api/decision/transactions?limit=1').json['data']['monthly_budget']['remaining'] == 2000
+
+
+def test_month_budget_includes_legacy_dates_and_more_than_report_limit(client, monkeypatch):
+    from app.routes import decision_routes
+    from app.services import firestore_service as fs
+    from app.services.checkin_service import BEIJING
+    today = datetime.now(BEIJING).date()
+    call(client, 'put', '/api/learning/profile', {'monthly_income': 10000})
+    fs._dev_db['users']['alice']['transactions'] = [
+        {'id': str(i), 'date': today.isoformat(), 'amount': 0.1}
+        for i in range(decision_routes.MAX_TRANSACTIONS_PER_REPORT + 1)]
+    fs._dev_db['users']['alice']['transactions'].append(
+        {'id': 'legacy', 'spent_at': today.replace(day=1).isoformat(), 'amount': 25.5})
+    budget = call(client, 'get', '/api/decision/transactions?limit=1').json['data']['monthly_budget']
+    assert budget['complete'] is True
+    assert budget['spent'] == 225.6
+    assert budget['remaining'] == 9774.4
+    assert call(client, 'get', '/api/decision/transactions', user='bob').json['data']['monthly_budget']['spent'] == 0
+
+
+def test_month_budget_does_not_restore_full_budget_when_summary_fails(client, monkeypatch):
+    from app.routes import decision_routes
+    call(client, 'put', '/api/learning/profile', {'monthly_income': 2000})
+    monkeypatch.setattr(decision_routes.user_data_service, 'get_monthly_spending', lambda *args: (None, '读取失败'))
+    budget = call(client, 'get', '/api/decision/transactions').json['data']['monthly_budget']
+    assert budget['complete'] is False
+    assert budget['remaining'] is None
+    assert budget['spent'] is None

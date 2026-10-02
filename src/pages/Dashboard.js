@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Container, Row, Col, Card, Button, Badge, Form, Spinner, Alert } from 'react-bootstrap';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -48,6 +48,7 @@ const Dashboard = () => {
 
   const [monthlyIncome, setMonthlyIncome] = useState(undefined);
   const [reload, setReload] = useState(0);
+  const budgetDay = useRef(dateKey());
   useEffect(() => {
     const refresh = () => setReload(v => v + 1);
     window.addEventListener('transaction-saved', refresh);
@@ -55,6 +56,29 @@ const Dashboard = () => {
     return () => {
       window.removeEventListener('transaction-saved', refresh);
       window.removeEventListener('learning-saved', refresh);
+    };
+  }, []);
+
+  useEffect(() => {
+    const checkDay = () => {
+      const today = dateKey();
+      if (budgetDay.current !== today) {
+        budgetDay.current = today;
+        setReload(value => value + 1);
+      }
+    };
+    const onFocus = () => {
+      budgetDay.current = dateKey();
+      setReload(value => value + 1);
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') checkDay(); };
+    const timer = window.setInterval(checkDay, 60000);
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
 
@@ -68,6 +92,7 @@ const Dashboard = () => {
     category: '餐饮',
     date: dateKey(),
     merchant: '',
+    items: '',
     note: '',
     hour: '',
     planned: '', purpose: '',
@@ -148,6 +173,7 @@ const Dashboard = () => {
         category,
         date: recordForm.date,
         merchant: recordForm.merchant.trim(),
+        items: recordForm.items.trim(),
         note: recordForm.note.trim(),
         planned: recordForm.planned || null, purpose: recordForm.purpose,
       };
@@ -155,7 +181,7 @@ const Dashboard = () => {
       if (recordForm.hour !== '') payload.hour = parseInt(recordForm.hour, 10);
       await createTransaction(payload);
       saved = true;
-      setRecordForm((f) => ({ ...f, amount: '', merchant: '', note: '', hour: '', planned: '', purpose: '' }));
+      setRecordForm((f) => ({ ...f, amount: '', merchant: '', items: '', note: '', hour: '', planned: '', purpose: '' }));
 
       // 即时反馈：这笔消费相当于多少天结余（后端确定性计算，前端不参与数值计算）
       try {
@@ -178,8 +204,6 @@ const Dashboard = () => {
       setTransactions(txnData.transactions || []);
       setMonthlyBudget(txnData.monthly_budget || null);
 
-      // 清空金额、商户、备注与时段，保留类别和日期方便连续记账
-      setRecordForm((f) => ({ ...f, amount: '', merchant: '', note: '', hour: '' }));
     } catch (err) {
       setRecordError(saved ? '账目已保存，但看板刷新失败，请点击页面上方重试，避免重复记账。' : (err?.response?.data?.message || err?.message || '保存失败，请重试'));
     } finally {
@@ -444,14 +468,28 @@ const Dashboard = () => {
                       </Button>
                     </Col>
                   </Row>
-                  <Row className="mt-2">
+                  <Row className="mt-2 g-3">
+                    <Col md={4}>
+                      <Form.Group controlId="record-items">
+                        <Form.Label>消费内容（可选）</Form.Label>
+                        <Form.Control
+                          type="text"
+                          placeholder="例如：午餐、奶茶、教材"
+                          value={recordForm.items}
+                          onChange={(e) => setRecordForm({ ...recordForm, items: e.target.value })}
+                        />
+                      </Form.Group>
+                    </Col>
                     <Col md={8}>
-                      <Form.Control
-                        type="text"
-                        placeholder="备注（可选，例如：和室友吃饭）"
-                        value={recordForm.note}
-                        onChange={(e) => setRecordForm({ ...recordForm, note: e.target.value })}
-                      />
+                      <Form.Group controlId="record-note">
+                        <Form.Label>备注（可选）</Form.Label>
+                        <Form.Control
+                          type="text"
+                          placeholder="备注（可选，例如：和室友吃饭）"
+                          value={recordForm.note}
+                          onChange={(e) => setRecordForm({ ...recordForm, note: e.target.value })}
+                        />
+                      </Form.Group>
                     </Col>
                   </Row>
                   <TransactionIntent value={recordForm} onChange={setRecordForm} />
@@ -557,6 +595,7 @@ const Dashboard = () => {
         const [updatedReport, updatedTransactions] = await Promise.all([getDecisionReport({ monthlyIncome }), listTransactions(50)]);
         setReport(updatedReport);
         setTransactions(updatedTransactions.transactions || []);
+        setMonthlyBudget(updatedTransactions.monthly_budget || null);
         setCategoryFilter('');
       }} />}
       <VoiceBillModal

@@ -8,7 +8,7 @@ export function pastDate(days = 1, today = dateKey()) {
 }
 
 export default function BackfillBillModal({ onClose, onSaved }) {
-  const [draft, setDraft] = useState({ date: pastDate(), amount: '', category: '餐饮', merchant: '', note: '' });
+  const [draft, setDraft] = useState({ date: pastDate(), amount: '', category: '餐饮', merchant: '', items: '', note: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -32,9 +32,9 @@ export default function BackfillBillModal({ onClose, onSaved }) {
     if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000) { setError('请输入大于 0 且不超过一亿元的金额。'); return; }
     saving.current = true; setBusy(true);
     try {
-      await createTransaction({ ...draft, amount, merchant: draft.merchant.trim(), note: draft.note.trim() });
+      await createTransaction({ ...draft, amount, merchant: draft.merchant.trim(), items: draft.items.trim(), note: draft.note.trim() });
       setSuccess(`已补记 ${draft.date} 的${draft.category}支出 ¥${amount.toFixed(2)}。`);
-      setDraft(previous => ({ ...previous, amount: '', merchant: '', note: '' }));
+      setDraft(previous => ({ ...previous, amount: '', merchant: '', items: '', note: '' }));
       await refresh();
     } catch (e) { setError(e?.response?.data?.message || e?.message || '补记失败，请重试。'); }
     finally { saving.current = false; setBusy(false); }
@@ -55,6 +55,7 @@ export default function BackfillBillModal({ onClose, onSaved }) {
           <Row><Col xs={6}><Form.Group controlId="backfill-amount" className="mb-3"><Form.Label>金额（元）</Form.Label><Form.Control type="number" required min="0.01" max="100000000" step="0.01" value={draft.amount} onChange={e => change('amount', e.target.value)} /></Form.Group></Col>
             <Col xs={6}><Form.Group controlId="backfill-category" className="mb-3"><Form.Label>消费类别</Form.Label><Form.Select value={draft.category} onChange={e => change('category', e.target.value)}>{['餐饮', '交通', '购物', '娱乐', '学习', '房租', '话费', '医疗', '其他'].map(category => <option key={category}>{category}</option>)}</Form.Select></Form.Group></Col></Row>
           <Form.Group controlId="backfill-merchant" className="mb-3"><Form.Label>商户（可选）</Form.Label><Form.Control maxLength={100} value={draft.merchant} onChange={e => change('merchant', e.target.value)} placeholder="例如：学校食堂" /></Form.Group>
+          <Form.Group controlId="backfill-items" className="mb-3"><Form.Label>消费内容（可选）</Form.Label><Form.Control value={draft.items} onChange={e => change('items', e.target.value)} placeholder="例如：午餐、奶茶、教材" /></Form.Group>
           <Form.Group controlId="backfill-note"><Form.Label>备注（可选）</Form.Label><Form.Control maxLength={500} as="textarea" rows={2} value={draft.note} onChange={e => change('note', e.target.value)} /></Form.Group>
         </fieldset>
         <p className="small text-muted mt-3 mb-0">较早的账单可能不在最近 50 笔列表或近七天图表中。</p>

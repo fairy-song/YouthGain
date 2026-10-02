@@ -20,9 +20,11 @@ test('saves the actual historical date, refreshes once and keeps date for anothe
   fireEvent.click(screen.getByRole('button', { name: '一周前' }));
   fireEvent.change(screen.getByLabelText('金额（元）'), { target: { value: '25.50' } });
   fireEvent.change(screen.getByLabelText('消费类别'), { target: { value: '交通' } });
+  fireEvent.change(screen.getByLabelText('消费内容（可选）'), { target: { value: ' 地铁票 ' } });
   submit();
   await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
-  expect(createTransaction).toHaveBeenCalledWith(expect.objectContaining({ date: pastDate(7), amount: 25.5, category: '交通' }));
+  expect(createTransaction).toHaveBeenCalledWith(expect.objectContaining({ date: pastDate(7), amount: 25.5, category: '交通', items: '地铁票' }));
+  expect(screen.getByLabelText('消费内容（可选）')).toHaveValue('');
   expect(screen.getByRole('status')).toHaveTextContent('已补记');
   expect(screen.getByLabelText('金额（元）')).toHaveValue(null);
   expect(screen.getByLabelText('实际消费日期')).toHaveValue(pastDate(7));
@@ -40,10 +42,12 @@ test('save failure preserves entered values for retry', async () => {
   render(<BackfillBillModal onClose={() => {}} onSaved={jest.fn()} />);
   fireEvent.change(screen.getByLabelText('金额（元）'), { target: { value: '20' } });
   fireEvent.change(screen.getByLabelText('备注（可选）'), { target: { value: '补记午餐' } });
+  fireEvent.change(screen.getByLabelText('消费内容（可选）'), { target: { value: '午餐' } });
   submit();
   expect(await screen.findByText('网络暂不可用')).toBeInTheDocument();
   expect(screen.getByLabelText('金额（元）')).toHaveValue(20);
   expect(screen.getByLabelText('备注（可选）')).toHaveValue('补记午餐');
+  expect(screen.getByLabelText('消费内容（可选）')).toHaveValue('午餐');
 });
 test('refresh failure offers a refresh-only retry without creating another bill', async () => {
   const onSaved = jest.fn().mockRejectedValueOnce(new Error('刷新失败')).mockResolvedValueOnce();

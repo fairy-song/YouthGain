@@ -58,6 +58,20 @@ os.environ["INITIALIZE_MODEL_ON_START"] = "true"
 os.environ["FLASK_SKIP_DOTENV"] = "1"
 logger.info("环境变量设置完成")
 
+# 内存开发存储由单个进程持有；重复启动会让请求读取不同版本的账单。
+from local_server_lock import acquire_server_lock
+import socket
+try:
+    local_server_lock = acquire_server_lock(current_dir / '.local-backend.lock')
+    try:
+        with socket.create_connection(('127.0.0.1', 5001), timeout=0.5):
+            raise RuntimeError('5001 端口已有服务，未启动第二份后端。')
+    except (ConnectionRefusedError, TimeoutError):
+        pass
+except RuntimeError as error:
+    logger.error(str(error))
+    sys.exit(1)
+
 def monitor_model_initialization():
     """监控模型初始化状态的线程函数"""
     global MODEL_INITIALIZED
@@ -156,4 +170,4 @@ except ImportError as e:
         print(f"✕ 启动失败: {e}")
         logger.critical(f"启动失败: {e}", exc_info=True)
         print("\n请检查项目结构是否正确。")
-        sys.exit(1) 
+        sys.exit(1)

@@ -108,3 +108,5 @@ assess_live.txt
 # 注：backend/app/services/xfyun_asr.py 保留了 sys.path 兜底逻辑，
 # 即使这个目录存在也不会与 pip 安装的版本冲突。
 vendor_pkgs/
+# 本地后端进程锁，由启动器创建并持有
+backend/.local-backend.lock

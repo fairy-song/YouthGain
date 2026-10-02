@@ -354,18 +354,13 @@ def list_transactions(user_info):
     if error:
         return jsonify({'status': 'error', 'message': error}), 500
 
-    today = datetime.now(BEIJING).date().isoformat()
-    month = today[:7]
-    all_rows, summary_error = user_data_service.get_user_data(
-        user_info['uid'], 'transactions', limit=MAX_TRANSACTIONS_PER_REPORT)
+    today = datetime.now(BEIJING).date()
+    month = today.isoformat()[:7]
+    spent, summary_error = user_data_service.get_monthly_spending(user_info['uid'], today)
     profile = learning_store.read_entry(user_info['uid'], 'profile') or {}
     budget = profile.get('monthly_income')
-    complete = not summary_error and len(all_rows or []) < MAX_TRANSACTIONS_PER_REPORT
+    complete = not summary_error
     from decimal import Decimal
-    spent = sum((Decimal(str(row['amount'])) for row in (all_rows or [])
-                 if str(row.get('date', ''))[:7] == month
-                 and str(row.get('date', ''))[:10] <= today
-                 and row.get('amount') is not None), Decimal('0')) if complete else None
     monthly_budget = {'month': month, 'budget': budget,
                       'spent': float(spent) if spent is not None else None,
                       'remaining': float(Decimal(str(budget)) - spent)
