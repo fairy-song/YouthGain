@@ -422,6 +422,9 @@ class DecisionReport:
     这些是给开发者和解释层看的，不是给用户看的。
     """
 
+    pca: dict = field(default_factory=dict)
+    """按周探索消费指标共同变化，不参与预算或目标计算。"""
+
     def to_dict(self) -> dict:
         """转为可 JSON 序列化的字典，供 API 直接返回。"""
         return _to_dict(self)
@@ -1183,6 +1186,7 @@ def build_report(
     *,
     income_day: int | None = None,
     today: date | None = None,
+    pca_limited: bool = False,
 ) -> DecisionReport:
     """一次性完成全部分析，返回给上层的唯一出口。
 
@@ -1195,6 +1199,7 @@ def build_report(
         monthly_income: 月收入（元）。
         income_day: 每月发生活费的日子，透传给 ``detect_patterns``。
         today: 基准日期，默认取当天。
+        pca_limited: 记录读取不完整时，暂停 PCA，保留原有计算。
 
     Returns:
         DecisionReport。
@@ -1228,6 +1233,8 @@ def build_report(
         assess_goal_feasibility(g, surplus, today=today) for g in goals
     ]
 
+    from .pca_service import analyze_spending
+
     return DecisionReport(
         monthly_income=round(monthly_income, 2),
         monthly_surplus=surplus,
@@ -1236,4 +1243,5 @@ def build_report(
         patterns=detect_patterns(transactions, income_day=income_day),
         regret=summarize_regret(transactions),
         warnings=warnings,
+        pca=analyze_spending(transactions, today=today, limited=pca_limited),
     )

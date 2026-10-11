@@ -8,6 +8,7 @@ const FEATURES = [
   { path: '/admin/stats', title: '平台概览', desc: '数据总览', color: '#63B995', pos: [2.2, 1.2, 0.5] },
   { path: '/admin/users', title: '用户管理', desc: '账号钻取', color: '#5488C4', pos: [-2.3, 0.6, 0.8] },
   { path: '/admin/knowledge', title: '知识库', desc: '内容维护', color: '#E88A6E', pos: [0.5, -1.6, 2.2] },
+  { path: '/admin/podcasts', title: '音频博客', desc: '单集审核', color: '#d4a54e', pos: [1.9, -0.8, -1.8] },
   { path: '/admin/coach', title: 'AI 教练', desc: '人设配置', color: '#B57EDC', pos: [-0.8, 1.8, -1.8] },
 ];
 

@@ -10,6 +10,7 @@ const sections = [
   { path: '/admin/stats', title: '平台概览', description: '了解平台使用情况与内容规模', icon: FaChartBar },
   { path: '/admin/users', title: '用户管理', description: '查询用户资料，管理账号状态', icon: FaUsers },
   { path: '/admin/knowledge', title: '知识库管理', description: '维护文章内容，为用户提供可靠的学习资源', icon: FaBook },
+  { path: '/admin/podcasts', title: '音频博客目录', description: '审核单集与同步获准来源', icon: FaBook },
   { path: '/admin/coach', title: 'AI 教练配置', description: '调整教练人设、语气与系统指令', icon: FaRobot },
 ];
 
@@ -79,7 +80,9 @@ export default function AdminLayout() {
           <Link to="/admin" className="admin-back-to-orb">
             <FaShieldAlt aria-hidden="true" /> ← 返回球体中枢
           </Link>
-          <span className="admin-breadcrumb">{section.title}</span>
+            <span className="admin-breadcrumb">{section.title}</span>
+            <Link to="/research" className="admin-preview">学校研究管理</Link>
+            <Link to="/admin/podcasts" className="admin-preview">音频博客目录</Link>
           <div className="admin-account">
             <Link to="/" target="_blank" rel="noopener noreferrer" className="admin-preview">预览用户端 <FaExternalLinkAlt aria-hidden="true" /></Link>
             <span className="admin-account-email" title={currentUser?.email}>{currentUser?.email}<small>管理员</small></span>

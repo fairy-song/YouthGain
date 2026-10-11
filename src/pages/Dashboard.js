@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Container, Row, Col, Card, Button, Badge, Form, Spinner, Alert } from 'react-bootstrap';
 import { Link, useSearchParams } from 'react-router-dom';
-import { FaPiggyBank, FaExchangeAlt, FaCoins, FaChartPie, FaMoneyBillWave, FaLightbulb, FaExclamationTriangle, FaMicrophone } from 'react-icons/fa';
+import { FaPiggyBank, FaExchangeAlt, FaLightbulb, FaExclamationTriangle, FaMicrophone } from 'react-icons/fa';
 import { getDecisionReport, listTransactions, getOpportunityCost, createTransaction, getUserGoals, createGoal, deleteGoal, updateGoal } from '../services/api';
 import FinanceVisuals, { dateKey } from '../components/FinanceVisuals';
 import BackfillBillModal from '../components/ledger/BackfillBillModal';
+import CsvImportModal from '../components/ledger/CsvImportModal';
 import VoiceBillModal from '../components/VoiceBillModal';
 import SectionNav from '../components/SectionNav';
 import UpcomingExpenses from '../components/UpcomingExpenses';
@@ -15,19 +16,7 @@ import LedgerAnalysis from '../components/ledger/LedgerAnalysis';
 import TransactionReflection from '../components/TransactionReflection';
 import TransactionIntent from '../components/TransactionIntent';
 import { getLearningProfile, getLearning } from '../services/learning';
-
-// 增强型徽章组件
-const EnhancedBadge = ({ children, bg, className = '' }) => {
-  return (
-    <Badge 
-      bg={bg} 
-      className={`custom-badge px-3 py-2 rounded-pill fw-normal position-relative overflow-hidden ${className}`}
-    >
-      <span className="badge-content position-relative">{children}</span>
-      <span className="badge-glow"></span>
-    </Badge>
-  );
-};
+import './DashboardUI.css';
 
 // 月收入默认值。
 // TODO: 月收入应作为用户档案的一部分持久化，目前由前端写死传入后端。
@@ -42,6 +31,7 @@ const Dashboard = () => {
   const [report, setReport] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [monthlyBudget, setMonthlyBudget] = useState(null);
+  const [monthlyCashflow, setMonthlyCashflow] = useState(null);
   const [reflections, setReflections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -49,6 +39,8 @@ const Dashboard = () => {
   const [monthlyIncome, setMonthlyIncome] = useState(undefined);
   const [reload, setReload] = useState(0);
   const budgetDay = useRef(dateKey());
+  const refreshVersion = useRef(0);
+  const feedbackVersion = useRef(0);
   useEffect(() => {
     const refresh = () => setReload(v => v + 1);
     window.addEventListener('transaction-saved', refresh);
@@ -85,6 +77,7 @@ const Dashboard = () => {
   // 语音记账弹窗开关
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [showBackfillModal, setShowBackfillModal] = useState(false);
+  const [importMode, setImportMode] = useState(null);
 
   // 记账表单状态
   const [recordForm, setRecordForm] = useState({
@@ -113,46 +106,60 @@ const Dashboard = () => {
   const [goalError, setGoalError] = useState('');
   const [savingGoal, setSavingGoal] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        // 报告、流水与目标并发拉取，三者互不依赖
-        const profile = await getLearningProfile();
-        if (cancelled) return;
-        setMonthlyIncome(profile.monthly_income ?? undefined);
-        const [reportData, txnData, goalData, learningData] = await Promise.all([
-          getDecisionReport({}),
-          listTransactions(50),
-          getUserGoals(),
-          getLearning(),
-        ]);
-        if (cancelled) return;
-        setReport(reportData);
-        setReflections(learningData.entries.filter(e => e.kind === 'reflection'));
-        setTransactions(txnData.transactions || []);
-      setMonthlyBudget(txnData.monthly_budget || null);
-        setGoals((goalData && goalData.data && goalData.data.goals) || []);
-      } catch (e) {
-        if (cancelled) return;
-        setError(e?.response?.data?.message || e?.message || '加载数据失败，请确认后端服务已启动');
-      } finally {
-        if (!cancelled) setLoading(false);
+  const refreshLedger = useCallback(async () => {
+    const version = ++refreshVersion.current;
+    const apply = update => { if (version === refreshVersion.current) update(); };
+    setError('');
+    // Apply each response independently: analysis failures must not freeze the ledger.
+    const requests = [
+      ['消费概览', listTransactions(50).then(data => apply(() => {
+        setTransactions(data.transactions || []);
+        setMonthlyBudget(data.monthly_budget || null);
+        setMonthlyCashflow(data.monthly_cashflow || null);
+        setLoading(false);
+      }))],
+      ['详细分析', getDecisionReport({}).then(data => apply(() => setReport(data)))],
+      ['财务资料', getLearningProfile().then(data => apply(() => setMonthlyIncome(data.monthly_income ?? undefined)))],
+      ['储蓄目标', getUserGoals().then(data => apply(() => setGoals(data?.data?.goals || [])))],
+      ['消费复盘', getLearning().then(data => apply(() => setReflections((data.entries || []).filter(e => e.kind === 'reflection'))))],
+    ];
+    const results = await Promise.allSettled(requests.map(([, request]) => request));
+    apply(() => {
+      const failures = results.flatMap((result, index) => result.status === 'rejected' ? [requests[index][0]] : []);
+      if (results[0].status === 'rejected') {
+        setTransactions([]);
+        setMonthlyBudget(null);
+        setMonthlyCashflow(null);
       }
-    };
+      if (results[1].status === 'rejected') setReport(null);
+      if (failures.length) setError(`${failures.join('、')}刷新失败，请重试。已保存的账目无需重复记账。`);
+      setLoading(false);
+    });
+  }, []);
 
-    load();
-    return () => { cancelled = true; };
-  }, [currentUser?.uid, reload]); // 月收入变化时重新拉取报告（机会成本/结余都依赖它）
+  useEffect(() => {
+    refreshLedger();
+    return () => { refreshVersion.current += 1; };
+  }, [currentUser?.uid, reload, refreshLedger]);
+
+  useEffect(() => {
+    setLoading(true);
+    setReport(null);
+    setTransactions([]);
+    setMonthlyBudget(null);
+    setMonthlyIncome(undefined);
+    setGoals([]);
+    setReflections([]);
+    setRecordResult(null);
+    return () => { feedbackVersion.current += 1; };
+  }, [currentUser?.uid]);
 
   // 记一笔消费：保存记录 → 立即给出机会成本反馈 → 刷新报告与流水
   const handleRecordTransaction = async (event) => {
     event.preventDefault();
     setRecordError('');
     setRecordResult(null);
+    const feedback = ++feedbackVersion.current;
 
     const amount = parseFloat(recordForm.amount);
     if (isNaN(amount) || amount <= 0) {
@@ -182,27 +189,17 @@ const Dashboard = () => {
       await createTransaction(payload);
       saved = true;
       setRecordForm((f) => ({ ...f, amount: '', merchant: '', items: '', note: '', hour: '', planned: '', purpose: '' }));
-
-      // 即时反馈：这笔消费相当于多少天结余（后端确定性计算，前端不参与数值计算）
-      try {
-        const cost = await getOpportunityCost(amount, monthlyIncome);
-        setRecordResult(cost);
-      } catch (costErr) {
+      // Refresh immediately after saving; optional feedback runs independently.
+      refreshLedger();
+      getOpportunityCost(amount, monthlyIncome).then(cost => {
+        if (feedback === feedbackVersion.current) setRecordResult(cost);
+      }).catch(costErr => {
         // 入不敷出时后端返回 409：记账已成功，只提示机会成本暂无法计算
-        setRecordResult({
+        if (feedback === feedbackVersion.current) setRecordResult({
           unavailable: true,
           message: '账目已保存。' + (costErr?.response?.data?.message || '机会成本暂时无法计算'),
         });
-      }
-
-      // 刷新报告与流水，让看板数字立刻更新
-      const [reportData, txnData] = await Promise.all([
-        getDecisionReport({ monthlyIncome }),
-        listTransactions(50),
-      ]);
-      setReport(reportData);
-      setTransactions(txnData.transactions || []);
-      setMonthlyBudget(txnData.monthly_budget || null);
+      });
 
     } catch (err) {
       setRecordError(saved ? '账目已保存，但看板刷新失败，请点击页面上方重试，避免重复记账。' : (err?.response?.data?.message || err?.message || '保存失败，请重试'));
@@ -283,19 +280,7 @@ const Dashboard = () => {
 
   // 语音记账保存成功后刷新看板（报告/流水/目标并发拉取）
   const reloadAll = async () => {
-    try {
-      const [reportData, txnData, goalData] = await Promise.all([
-        getDecisionReport({ monthlyIncome }),
-        listTransactions(50),
-        getUserGoals(),
-      ]);
-      setReport(reportData);
-      setTransactions(txnData.transactions || []);
-      setMonthlyBudget(txnData.monthly_budget || null);
-      setGoals((goalData && goalData.data && goalData.data.goals) || []);
-    } catch (e) {
-      setError(e?.response?.data?.message || e?.message || '刷新数据失败');
-    }
+    await refreshLedger();
   };
 
   // 派生展示值——集中算好，避免可选链散落在 JSX 里
@@ -305,6 +290,7 @@ const Dashboard = () => {
   const avgSpending = reportData ? Math.max(0, income - surplus) : 0;
   const spending = reportData?.spending ?? null;
   const patterns = reportData?.patterns ?? [];
+  const pca = reportData?.pca;
   const goal = reportData?.goal_feasibility?.[0] ?? null;
   const discretionary = spending ? income - spending.fixed_total : 0;
 
@@ -319,40 +305,12 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-page">
-      {/* 背景动态元素 */}
-      <div className="animated-background">
-        <div className="floating-shape shape1"></div>
-        <div className="floating-shape shape2"></div>
-        <div className="floating-shape shape3"></div>
-        
-        {/* 金融相关元素 */}
-        <div className="finance-icon finance-icon-1">
-          <FaCoins size={24} color="rgba(var(--yg-primary-rgb), 0.15)" />
-        </div>
-        <div className="finance-icon finance-icon-2">
-          <FaChartPie size={36} color="rgba(var(--yg-success-rgb), 0.15)" />
-        </div>
-        <div className="finance-icon finance-icon-3">
-          <FaMoneyBillWave size={32} color="rgba(var(--yg-accent-rgb), 0.15)" />
-        </div>
-      </div>
-
-      <Container className="py-5">
-        <Row className="justify-content-center mb-4">
-          <Col md={10}>
-            <div className="mb-4">
-              <EnhancedBadge bg="primary" className="mb-3">
-                <span className="fw-medium text-white">我的账本</span>
-              </EnhancedBadge>
-              <h1 className="display-5 fw-bold mb-3">
-                欢迎回来，{currentUser?.displayName || '同学'}
-              </h1>
-              <p className="lead text-muted">
-                记录消费，看清去向。分析仅基于已有记录。
-              </p>
-            </div>
-          </Col>
-        </Row>
+      <Container className="ledger-wrap">
+        <header className="ledger-intro">
+          <span className="ledger-eyebrow">青盈 · 账本</span>
+          <h1>看清钱的去向</h1>
+          <p>先记下真实的一笔，再慢慢看变化。</p>
+        </header>
 
         {error && (
           <Alert variant="danger" className="rounded-4">
@@ -370,19 +328,20 @@ const Dashboard = () => {
         )}
 
         <SectionNav label="账本功能" active={tab} items={[["overview", "收支记录", "/dashboard"], ["goals", "储蓄目标", "/dashboard?tab=goals"], ["upcoming", "未来开支", "/dashboard?tab=upcoming"], ["analysis", "详细分析", "/dashboard?tab=analysis"]]} />
-        {tab === 'overview' && <FinanceVisuals monthlyBudget={monthlyBudget} transactions={transactions} selectedCategory={categoryFilter} onCategory={setCategoryFilter} />}
-
-
-        <div className="d-flex flex-wrap gap-2 mb-4">
-          <Link to="/learning?tab=decision" className="btn btn-outline-success btn-sm">买之前，比较选择</Link>
-          <CoachHelp prompt="我正在查看账本，请帮我理解已记录的收支与未来安排。先问我想了解哪一部分。" />
-        </div>
+        {tab === 'overview' && <section className="ledger-summary" aria-label="本月收支摘要">
+          <div className="ledger-metric"><span className="ledger-summary-label">{monthlyBudget?.month || dateKey().slice(0, 7)} · 本月支出</span>
+            <strong className="ledger-summary-amount">{monthlyCashflow?.complete ? `¥${Number(monthlyCashflow.spent).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : monthlyBudget?.complete !== false && monthlyBudget?.spent != null ? `¥${Number(monthlyBudget.spent).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '暂无法汇总'}</strong>
+            <small>{monthlyCashflow?.complete ? `原支付 ¥${Number(monthlyCashflow.gross_expense).toFixed(2)} − 已关联退款 ¥${Number(monthlyCashflow.refunds).toFixed(2)}` : '已记录支出扣除已关联退款'}</small></div>
+          <div className="ledger-metric"><span className="ledger-summary-label">本月收入</span><strong className="ledger-summary-amount">{monthlyCashflow?.complete ? `¥${Number(monthlyCashflow.income).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '暂无法汇总'}</strong><small>{monthlyCashflow?.complete ? `红包 ¥${Number(monthlyCashflow.income_breakdown?.red_packet || 0).toFixed(2)} · 他人转入 ¥${Number(monthlyCashflow.income_breakdown?.external_transfer || 0).toFixed(2)}` : '退款和本人转账不计收入'}</small></div>
+          <div className="ledger-metric"><span className="ledger-summary-label">本月剩余</span><strong className="ledger-summary-amount">{monthlyCashflow?.complete ? `¥${Number(monthlyCashflow.remaining).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '暂无法汇总'}</strong><small>已记录收入减退款后支出；不是账户余额。</small></div>
+          <div className="ledger-summary-side"><span>预算剩余</span><strong>{monthlyBudget?.remaining == null ? '尚未设置' : `¥${Math.abs(Number(monthlyBudget.remaining)).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}${monthlyBudget.remaining < 0 ? '（超支）' : ''}`}</strong><small>按资料中填写的月生活费估算；{monthlyCashflow?.complete && (!monthlyCashflow.has_expense_records || !monthlyCashflow.has_income_records) ? '本月一侧暂无记录，金额可能不完整。' : '漏记会影响结果。'}</small></div>
+        </section>}
         {tab === 'analysis' && <><Alert variant="light">
           <strong>月收入或生活费：{monthlyIncome == null ? '尚未设置' : `¥${monthlyIncome}`}</strong>
           <Button as={Link} to="/profile" variant="link">修改财务资料</Button>
           {report?.basis && <p className="small mt-2">分析范围：{report.basis.start} 至 {report.basis.end}，{report.basis.record_count} 笔。{report.basis.message}</p>}
           {report?.warnings?.map((warning, index) => <p key={index} className="small mb-0">{warning}</p>)}
-        </Alert><LedgerAnalysis {...{ surplus, income, avgSpending, spending, discretionary, goal, patterns }} /></>}
+        </Alert><LedgerAnalysis {...{ surplus, income, avgSpending, spending, discretionary, goal, patterns, pca }} /></>}
         {tab === 'upcoming' && <UpcomingExpenses key={currentUser?.uid} />}
         {tab === 'overview' && <>
         {/* 记一笔消费 —— 产品核心闭环的入口：记录当下即反馈 */}
@@ -397,6 +356,8 @@ const Dashboard = () => {
                   <h5 className="card-title mb-0">记一笔消费</h5>
                   <span className="text-muted small ms-2">记录后立即告诉你这笔钱相当于几天结余</span>
                   <Button variant="outline-success" size="sm" className="rounded-pill" onClick={() => setShowBackfillModal(true)}>补记账单</Button>
+                  <Button variant="outline-success" size="sm" className="rounded-pill" onClick={() => setImportMode('expense')}>导入支出账单</Button>
+                  <Button variant="outline-success" size="sm" className="rounded-pill" onClick={() => setImportMode('receipt')}>导入收款账单</Button>
                   <Button
                     variant="outline-success"
                     size="sm"
@@ -516,6 +477,11 @@ const Dashboard = () => {
           </Col>
         </Row>
 
+        <FinanceVisuals showBudgetSummary={false} monthlyBudget={monthlyBudget} transactions={transactions} selectedCategory={categoryFilter} onCategory={setCategoryFilter} />
+        <div className="ledger-help d-flex flex-wrap gap-2 mb-4">
+          <Link to="/learning?tab=decision" className="btn btn-outline-success btn-sm">买之前，比较选择</Link>
+          <CoachHelp prompt="我正在查看账本，请帮我理解已记录的收支与未来安排。先问我想了解哪一部分。" />
+        </div>
         </>}
         {tab === 'goals' && <LedgerGoals {...{ goals, goalForm, setGoalForm, goalError, savingGoal, handleGoalCreate, handleGoalDelete, handleGoalPaid, handleGoalEdit, goalPlanResult, setGoalPlanResult, currentUser }} />}
         {tab === 'overview' && <Row className="mb-5">
@@ -527,7 +493,7 @@ const Dashboard = () => {
                     <div className="icon-container bg-secondary-light rounded-circle d-flex align-items-center justify-content-center me-3">
                       <FaExchangeAlt className="text-secondary" />
                     </div>
-                    <h5 className="card-title mb-0">最近消费</h5>{categoryFilter && <Button variant="link" onClick={() => setCategoryFilter('')}>{categoryFilter} · 清除筛选</Button>}
+                    <h5 className="card-title mb-0">最近账单</h5>{categoryFilter && <Button variant="link" onClick={() => setCategoryFilter('')}>{categoryFilter} · 清除筛选</Button>}
                   </div>
                 </div>
                 <div className="table-responsive">
@@ -572,10 +538,13 @@ const Dashboard = () => {
                     <td className="transaction-detail">{t.items || '—'}</td>
                     <td className="transaction-detail">{t.note || '—'}{t.purpose && <div className="small text-muted">当时的需要：{t.purpose}</div>}{t.planned && <div className="small text-muted">{{ planned: '提前计划', spontaneous: '临时决定', necessary: '临时必要开支' }[t.planned]}</div>}</td>
                     <td className="text-end fw-medium text-danger text-nowrap">
-                      -¥{t.amount.toLocaleString()}
+                      {t.transaction_type === 'refund' || t.transaction_type === 'income' ? '+' : '-'}¥{Number(t.amount).toLocaleString()}
+                      {t.transaction_type && t.transaction_type !== 'expense' && <div className="small text-muted">{t.transaction_type === 'income' ? ({ red_packet: '红包', external_transfer: '他人转入', other_income: '其他收入' }[t.receipt_kind] || '收入') : { refund: '退款', transfer: '本人转账' }[t.transaction_type]}</div>}
+                      {t.transaction_type === 'expense' && Number(t.refunded_amount) > 0 && <div className="small text-muted">原支付 ¥{t.original_amount} · 已退 ¥{t.refunded_amount} · 实际支出 ¥{t.net_amount}</div>}
+                      {t.transaction_type === 'refund' && t.related_source_id && <div className="small text-muted">关联原交易 {t.related_source_id}</div>}
                     </td>
                     <td>
-                      <TransactionReflection transactionId={t.id} saved={reflections.find(r => r.transaction_id === String(t.id))} />
+                      {t.source === 'manual' ? <TransactionReflection transactionId={t.id} saved={reflections.find(r => r.transaction_id === String(t.id))} /> : <Button size="sm" variant="link" onClick={() => setImportMode('expense')}>修改导入记录</Button>}
                     </td>
                   </tr>
                 ))
@@ -592,12 +561,10 @@ const Dashboard = () => {
       
       {/* 语音记账 + AI 消费评估弹窗 */}
       {showBackfillModal && <BackfillBillModal onClose={() => setShowBackfillModal(false)} onSaved={async () => {
-        const [updatedReport, updatedTransactions] = await Promise.all([getDecisionReport({ monthlyIncome }), listTransactions(50)]);
-        setReport(updatedReport);
-        setTransactions(updatedTransactions.transactions || []);
-        setMonthlyBudget(updatedTransactions.monthly_budget || null);
+        await refreshLedger();
         setCategoryFilter('');
       }} />}
+      {importMode && <CsvImportModal entryMode={importMode} onClose={() => setImportMode(null)} onSaved={async () => { await refreshLedger(); setCategoryFilter(''); }} />}
       <VoiceBillModal
         show={showVoiceModal}
         onClose={() => setShowVoiceModal(false)}
@@ -622,142 +589,9 @@ const Dashboard = () => {
           padding-bottom: 3rem;
         }
         
-        /* 动态背景元素 */
-        .animated-background {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-          z-index: -2;
-          background: linear-gradient(120deg, var(--yg-wash-from) 0%, var(--yg-wash-to) 100%);
-        }
-        
-        .floating-shape {
-          position: absolute;
-          background: rgba(var(--yg-primary-rgb), 0.05);
-          border-radius: 50%;
-          animation: float 15s infinite ease-in-out;
-        }
-        
-        .shape1 {
-          width: 300px;
-          height: 300px;
-          top: -150px;
-          left: 10%;
-          animation-delay: 0s;
-        }
-        
-        .shape2 {
-          width: 200px;
-          height: 200px;
-          top: 30%;
-          right: -100px;
-          animation-delay: 2s;
-          background: rgba(var(--yg-primary-rgb), 0.05);
-        }
-        
-        .shape3 {
-          width: 250px;
-          height: 250px;
-          bottom: -125px;
-          left: 20%;
-          animation-delay: 4s;
-          background: rgba(var(--yg-primary-rgb), 0.05);
-        }
-        
-        @keyframes float {
-          0% {
-            transform: translateY(0) rotate(0deg) scale(1);
-          }
-          50% {
-            transform: translateY(30px) rotate(10deg) scale(1.05);
-          }
-          100% {
-            transform: translateY(0) rotate(0deg) scale(1);
-          }
-        }
-        
-        /* 金融相关图标 */
-        .finance-icon {
-          position: absolute;
-          opacity: 0.8;
-          animation: float 20s infinite ease-in-out;
-          z-index: -1;
-        }
-        
-        .finance-icon-1 {
-          top: 15%;
-          left: 10%;
-          animation-delay: 0s;
-          transform: rotate(-15deg);
-        }
-        
-        .finance-icon-2 {
-          top: 60%;
-          left: 5%;
-          animation-delay: 5s;
-          transform: rotate(10deg);
-        }
-        
-        .finance-icon-3 {
-          top: 25%;
-          right: 8%;
-          animation-delay: 2s;
-          transform: rotate(5deg);
-        }
-        
-        /* 增强型徽章样式 */
-        .custom-badge {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          background-image: linear-gradient(to right, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.2) 100%);
-          backdrop-filter: blur(5px);
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-          transform: translateY(0);
-          transition: all 0.3s ease;
-        }
-        
-        .badge-content {
-          z-index: 1;
-        }
-        
-        .badge-glow {
-          position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: linear-gradient(
-            to right,
-            rgba(255, 255, 255, 0) 0%,
-            rgba(255, 255, 255, 0.2) 50%,
-            rgba(255, 255, 255, 0) 100%
-          );
-          transform: rotate(30deg);
-          animation: badgeGlow 3s ease-in-out infinite;
-        }
-        
-        @keyframes badgeGlow {
-          0% {
-            transform: translateX(-100%) rotate(30deg);
-          }
-          100% {
-            transform: translateX(100%) rotate(30deg);
-          }
-        }
-        
         /* 仪表板卡片样式 */
         .dashboard-card {
-          transition: all 0.3s ease;
           overflow: hidden;
-        }
-        
-        .dashboard-card:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
         }
         
         .icon-container {

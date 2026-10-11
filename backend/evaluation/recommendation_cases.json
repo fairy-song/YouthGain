@@ -1,0 +1,37 @@
+{
+  "kind": "synthetic_recommendation_cases_v1",
+  "cases": [
+    {
+      "id": "new-risk-learner",
+      "today": "2026-10-11",
+      "preferred": "risk",
+      "answers": [],
+      "transactions": [],
+      "expected_topics": ["risk"]
+    },
+    {
+      "id": "answer-gap-over-topic-preference",
+      "today": "2026-10-11",
+      "preferred": "budget",
+      "answers": [{"item_id": "choice-basic", "choice": 1, "days_ago": 1}],
+      "transactions": [],
+      "expected_topics": ["choice"]
+    },
+    {
+      "id": "recorded-regret-changes-context",
+      "today": "2026-10-11",
+      "preferred": "risk",
+      "completed_except": ["choice-basic", "budget-basic"],
+      "transactions": [{"date": "2026-10-11", "category": "购物", "regret": true}],
+      "expected_topics": ["choice"]
+    },
+    {
+      "id": "due-remediation",
+      "today": "2026-10-11",
+      "preferred": "budget",
+      "answers": [{"item_id": "budget-basic", "choice": 0, "days_ago": 3}],
+      "transactions": null,
+      "expected_topics": ["budget"]
+    }
+  ]
+}

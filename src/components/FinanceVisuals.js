@@ -7,15 +7,22 @@ export function dateKey(date = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 }
 export function summarizeTransactions(transactions, today = dateKey()) {
-  const rows = transactions.filter(t => /^\d{4}-\d{2}-\d{2}$/.test(t.date) && t.date <= today && Number.isFinite(Number(t.amount)) && Number(t.amount) > 0);
+  const rows = transactions.filter(t => /^\d{4}-\d{2}-\d{2}$/.test(t.date) && t.date <= today &&
+    Number.isFinite(Number(t.amount)) && Number(t.amount) > 0 && ['expense', 'refund'].includes(t.transaction_type || 'expense'));
   const categories = new Map();
-  rows.forEach(t => categories.set(t.category || '未分类', (categories.get(t.category || '未分类') || 0) + Number(t.amount)));
+  rows.forEach(t => categories.set(t.category || '未分类', (categories.get(t.category || '未分类') || 0) +
+    (t.transaction_type === 'refund' ? -1 : 1) * Math.round(Number(t.amount) * 100)));
   const end = new Date(`${today}T12:00:00+08:00`);
   const days = Array.from({ length: 7 }, (_, i) => {
     const key = dateKey(new Date(end.getTime() - (6 - i) * 86400000));
-    return { label: key.slice(5), key, value: rows.filter(t => t.date === key).reduce((sum, t) => sum + Number(t.amount), 0) };
+    return { label: key.slice(5), key, value: rows.filter(t => t.date === key).reduce((sum, t) => sum +
+      (t.transaction_type === 'refund' ? -1 : 1) * Math.round(Number(t.amount) * 100), 0) / 100 };
   });
-  return { rows, categories: [...categories].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value), days };
+  const signedCategories = [...categories].map(([label, cents]) => ({ label, value: cents / 100 }));
+  return { rows,
+    categories: signedCategories.filter(category => category.value > 0).sort((a, b) => b.value - a.value),
+    refundCredits: signedCategories.filter(category => category.value < 0).sort((a, b) => a.value - b.value),
+    days };
 }
 
 export function ComparisonBars({ items, label = '方案余量比较' }) {
@@ -27,9 +34,9 @@ export function ComparisonBars({ items, label = '方案余量比较' }) {
   </div>)}<small className="text-muted">中线为零；左侧为不足，右侧为剩余。</small></div>;
 }
 
-export default function FinanceVisuals({ transactions, monthlyBudget, onCategory, selectedCategory = '' }) {
+export default function FinanceVisuals({ transactions, monthlyBudget, onCategory, selectedCategory = '', showBudgetSummary = true }) {
   const [view, setView] = useState('category');
-  const { rows, categories, days } = summarizeTransactions(transactions);
+  const { rows, categories, refundCredits, days } = summarizeTransactions(transactions);
   const total = categories.reduce((s, c) => s + c.value, 0);
   const [activeDay, setActiveDay] = useState('');
   const selectedDay = days.find(d => d.key === activeDay);
@@ -39,19 +46,19 @@ export default function FinanceVisuals({ transactions, monthlyBudget, onCategory
   let offset = 0;
   return <section className="fv-panel mb-4" aria-labelledby="spending-visual-title">
     <div className="fv-heading"><div><span className="fv-eyebrow">看见每一笔</span><h2 id="spending-visual-title">消费概览</h2></div><div className="fv-tabs" aria-label="图表类型">{[['category', '支出构成'], ['week', '近七天']].map(([key, title]) => <button type="button" key={key} aria-pressed={view === key} onClick={() => setView(key)}>{title}</button>)}</div></div>
-    <div className="mb-3 p-3 rounded bg-light" role="status">
+    {showBudgetSummary && <div className="mb-3 p-3 rounded bg-light" role="status">
       <div className="text-muted">{monthlyBudget?.month || dateKey().slice(0, 7)} · {monthlyBudget?.remaining < 0 ? '本月超支' : '本月预算剩余'}</div>
       <strong className={monthlyBudget?.remaining < 0 ? 'h3 text-danger' : 'h3 text-success'}>{monthlyBudget?.remaining == null ? (monthlyBudget?.budget == null ? '请在“我的”填写月生活费或收入' : '消费记录不完整，暂无法计算') : money(Math.abs(monthlyBudget.remaining))}</strong>
-      {monthlyBudget?.spent != null && <div>本月已记录支出 {money(monthlyBudget.spent)}{monthlyBudget.budget != null && ` · 本月预算 ${money(monthlyBudget.budget)}`}</div>}
+      {monthlyBudget?.spent != null && <div>本月净消费 {money(monthlyBudget.spent)}{monthlyBudget.budget != null && ` · 本月预算 ${money(monthlyBudget.budget)}`}</div>}
       <div className="small text-muted">以月生活费或收入作为预算，仅扣本月已发生的记录，不含历史积蓄；尚未扣除未来开支，漏记会影响结果。</div>
-    </div>
-    <p className="fv-caption">基于已加载的最近 {transactions.length} 笔记录（最多 50 笔），可能不完整；不含未来日期及非正数金额。</p>
-    {!rows.length ? <div className="fv-empty">还没有可展示的消费。记下第一笔，看看钱花在哪里。</div> : view === 'category' ? <div className="fv-donut-layout">
-      <svg viewBox="0 0 240 240" className="fv-donut" role="img" aria-label={`支出构成，已加载记录合计 ${money(total)}；各类别金额见旁边按钮`}>
+    </div>}
+    <p className="fv-caption">基于已加载的最近 {transactions.length} 笔记录（最多 50 笔），可能不完整；已扣除关联退款，不含收入、转账和未来日期。</p>
+    {!rows.length || (view === 'category' && total <= 0 && !refundCredits.length) ? <div className="fv-empty">还没有可展示的净消费。记下第一笔，看看钱花在哪里。</div> : view === 'category' && total <= 0 ? <div className="fv-empty">这段已加载记录中，退款抵减多于支出。{refundCredits.map(c => `${c.label} ${money(c.value)}`).join(' · ')}；可切换“近七天”查看发生时间。</div> : view === 'category' ? <div className="fv-donut-layout">
+      <svg viewBox="0 0 240 240" className="fv-donut" role="img" aria-label={`支出构成，已加载记录中有支出的类别合计 ${money(total)}；各类别金额见旁边按钮`}>
         {slices.map((c, i) => { const fraction = c.value / total * 100; const start = offset; offset += fraction; return <circle key={c.label} cx="120" cy="120" r="87" fill="none" stroke={colors[i]} strokeWidth="28" pathLength="100" strokeDasharray={`${fraction} ${100 - fraction}`} strokeDashoffset={-start} transform="rotate(-90 120 120)" />; })}
-        <text x="120" y="113" textAnchor="middle" className="fv-svg-caption">已记录支出</text><text x="120" y="142" textAnchor="middle" className="fv-svg-total">{money(total)}</text>
+        <text x="120" y="113" textAnchor="middle" className="fv-svg-caption">有支出的类别</text><text x="120" y="142" textAnchor="middle" className="fv-svg-total">{money(total)}</text>
       </svg>
-      <div className="fv-legend"><p className="mb-2">{categories[0].label}占比最高 · {(categories[0].value / total * 100).toFixed(1)}%</p>{categories.map((c, i) => <button type="button" key={c.label} aria-pressed={selectedCategory === c.label} onClick={() => onCategory(selectedCategory === c.label ? '' : c.label)}><span><i style={{ background: colors[Math.min(i, 5)] }} />{c.label}</span><strong>{money(c.value)} <small>{(c.value / total * 100).toFixed(1)}%</small></strong></button>)}<small className="text-muted">点选类别，筛选下方账单。{rest.length > 0 && '环形图将第六类起合并为其他类别。'}</small></div>
-    </div> : <div><div className="fv-columns" role="group" aria-label="近七天已记录支出柱状图">{days.map(d => <button type="button" key={d.key} aria-pressed={activeDay === d.key} aria-label={`${d.key}，已记录 ${money(d.value)}`} onClick={() => setActiveDay(d.key)}><span className="fv-column-value">{money(d.value)}</span><span className="fv-column-track"><span style={{ height: `${d.value / Math.max(1, ...days.map(v => v.value)) * 100}%` }} /></span><span>{d.label}</span></button>)}</div><p className="fv-caption mt-3" role="status">{selectedDay ? `${selectedDay.key}：已记录 ${money(selectedDay.value)}。` : '点选柱形查看当日金额。'} 零表示当前记录中无支出，不代表当天没有消费。</p></div>}
+      <div className="fv-legend"><p className="mb-2">{categories[0].label}占比最高 · {(categories[0].value / total * 100).toFixed(1)}%</p>{categories.map((c, i) => <button type="button" key={c.label} aria-pressed={selectedCategory === c.label} onClick={() => onCategory(selectedCategory === c.label ? '' : c.label)}><span><i style={{ background: colors[Math.min(i, 5)] }} />{c.label}</span><strong>{money(c.value)} <small>{(c.value / total * 100).toFixed(1)}%</small></strong></button>)}{refundCredits.length > 0 && <small className="text-muted">以下类别退款超过本段支出，未放入环形图：{refundCredits.map(c => `${c.label} ${money(c.value)}`).join(' · ')}。以上数值合计须再加这些抵减额，才是这段记录的净支出。</small>}<small className="text-muted">点选类别，筛选下方账单。{rest.length > 0 && '环形图将第六类起合并为其他类别。'}</small></div>
+    </div> : <div><div className="fv-columns" role="group" aria-label="近七天已记录净消费柱状图">{days.map(d => <button type="button" key={d.key} aria-pressed={activeDay === d.key} aria-label={`${d.key}，净消费 ${money(d.value)}`} onClick={() => setActiveDay(d.key)}><span className="fv-column-value">{money(d.value)}</span><span className="fv-column-track"><span style={{ height: `${Math.abs(d.value) / Math.max(1, ...days.map(v => Math.abs(v.value))) * 100}%`, background: d.value < 0 ? '#168575' : undefined }} /></span><span>{d.label}</span></button>)}</div><p className="fv-caption mt-3" role="status">{selectedDay ? `${selectedDay.key}：净消费 ${money(selectedDay.value)}。` : '点选柱形查看当日金额。'} 绿色负值表示当日退款多于支出；零不代表当天没有消费。</p></div>}
   </section>;
 }

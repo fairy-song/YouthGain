@@ -1,6 +1,7 @@
 """Financial learning content and validation. No model-generated scores or diagnoses."""
 from datetime import date, datetime, timedelta
 from math import isfinite
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from .checkin_service import BEIJING, build_checkin_summary
 
 TOPICS = [
@@ -75,6 +76,13 @@ def validate_profile(data):
         if not day.is_integer():
             raise ValueError('到账日必须是整数')
         day = int(day)
+    timezone = data.get('timezone') or 'Asia/Shanghai'
+    if not isinstance(timezone, str) or len(timezone) > 64:
+        raise ValueError('时区无效')
+    try:
+        ZoneInfo(timezone)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise ValueError('时区无效')
     return {
         'monthly_income': None if income in (None, '') else number(income, '月收入'),
         'income_day': day or None, 'topic': topic,
@@ -84,6 +92,7 @@ def validate_profile(data):
         'essential_monthly': None if data.get('essential_monthly') in (None, '') else number(data.get('essential_monthly'), '每月必要开支'),
         'emergency_buffer': None if data.get('emergency_buffer') in (None, '') else number(data.get('emergency_buffer'), '应急预留'),
         'income_sources': data.get('income_sources', []),
+        'timezone': timezone,
     }
 
 

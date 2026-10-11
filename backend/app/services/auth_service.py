@@ -147,7 +147,8 @@ def verify_firebase_token(id_token):
         return None, f"读取用户档案失败: {e}"
 
     role = resolve_role(email)
-    return {"uid": uid, "email": email, "profile": profile, "role": role}, None
+    return {"uid": uid, "email": email, "email_verified": decoded_token.get('email_verified') is True,
+            "profile": profile, "role": role}, None
 
 
 def require_auth(f):

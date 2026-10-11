@@ -15,9 +15,11 @@
 
 import logging
 import calendar
+import json
+import re
 from math import isfinite
 from datetime import date, datetime, timedelta
-from app.services import learning_store
+from app.services import learning_store, bill_import
 from app.services.learning_service import number, text_field
 from app.services.checkin_service import BEIJING
 
@@ -47,7 +49,7 @@ def _basis(transactions, income):
     return {'monthly_income': income, 'record_count': len(transactions),
             'start': min(dates).isoformat() if dates else None,
             'end': max(dates).isoformat() if dates else None,
-            'message': '仅基于已记录消费估算；记录可能不完整，尚未发生的必要开支仍需预留。目标时间是假设当前收支模式持续的估算，不是确定预测。'}
+            'message': '仅基于已记录消费估算；记录可能不完整，尚未发生的必要开支仍需预留。分析按原支出抵减已关联退款，月度预算按退款发生日计算。目标时间是假设当前收支模式持续的估算，不是确定预测。'}
 
 
 @decision_bp.errorhandler(RuntimeError)
@@ -77,6 +79,8 @@ def _parse_date(value):
 def _to_engine_transaction(row):
     """存储记录 → 引擎的 Transaction。数据不合法时返回 None（跳过该条）。"""
     try:
+        if row.get('transaction_type', 'expense') != 'expense':
+            return None
         amount = float(row.get('amount') or 0)
         if not isfinite(amount) or amount <= 0:
             return None
@@ -130,9 +134,27 @@ def _load_engine_inputs(user_id):
         logger.warning("读取目标失败，报告将不含目标分析: %s", goal_error)
         raise RuntimeError('目标暂时读取失败，请重试')
 
-    transactions = [t for t in (_to_engine_transaction(r) for r in raw_txns) if t is not None]
+    # The decision engine accepts positive expenses. Apply verified refunds to
+    # their original purchase before passing data to analytics/recommendations.
+    from decimal import Decimal
+    refunds = {}
+    for row in raw_txns:
+        if row.get('transaction_type') == 'refund' and row.get('related_source_id'):
+            key = (row.get('source'), row['related_source_id'])
+            refunds[key] = refunds.get(key, Decimal('0')) + Decimal(str(row['amount']))
+    expense_rows = []
+    for row in raw_txns:
+        if row.get('transaction_type', 'expense') != 'expense':
+            continue
+        amount = Decimal(str(row.get('amount') or 0))
+        key = (row.get('source'), row.get('source_transaction_id'))
+        if key in refunds:
+            amount -= refunds[key]
+        if amount > 0:
+            expense_rows.append({**row, 'amount': str(amount)})
+    transactions = [t for t in (_to_engine_transaction(r) for r in expense_rows) if t is not None]
     goals = [g for g in (_to_engine_goal(r) for r in raw_goals if r.get('status', 'active') == 'active') if g is not None]
-    skipped = len(raw_txns) - len(transactions)
+    skipped = len(expense_rows) - len(transactions)
 
     return transactions, goals, skipped
 
@@ -258,6 +280,8 @@ def get_report(user_info):
             goals,
             monthly_income=monthly_income,
             income_day=income_day,
+            today=datetime.now(BEIJING).date(),
+            pca_limited=bool(skipped) or len(transactions) >= MAX_TRANSACTIONS_PER_REPORT,
         )
     except ValueError as e:
         return jsonify({'status': 'error', 'message': f'生成报告失败: {e}'}), 400
@@ -341,6 +365,125 @@ def get_opportunity_cost(user_info):
 # 消费记录 CRUD
 # ============================================================
 
+def _import_file():
+    uploaded = request.files.get('file')
+    if not uploaded or not uploaded.filename.lower().endswith(('.csv', '.xlsx')):
+        raise ValueError('请选择 CSV 或 XLSX 账单文件')
+    file_type = 'xlsx' if uploaded.filename.lower().endswith('.xlsx') else 'csv'
+    content = uploaded.stream.read(bill_import.MAX_BYTES + 1)
+    if not content or len(content) > bill_import.MAX_BYTES:
+        raise ValueError('请选择不超过 2 MB 的 CSV 或 XLSX 账单')
+    return content, file_type
+
+
+@decision_bp.route('/imports/preview', methods=['POST'])
+@require_auth
+def preview_import(user_info):
+    try:
+        content, file_type = _import_file()
+        result = bill_import.preview(user_info['uid'], content, request.form.get('source', 'auto'), file_type)
+        return jsonify(status='success', data=result), 200
+    except ValueError as error:
+        return jsonify(status='error', message=str(error)), 400
+    except Exception:
+        logger.exception('Bill preview failed')
+        return jsonify(status='error', message='账单暂时无法预览，请稍后重试'), 503
+
+
+@decision_bp.route('/imports/confirm', methods=['POST'])
+@require_auth
+def confirm_import(user_info):
+    try:
+        selected = json.loads(request.form.get('selected_ids', '[]'))
+        categories = json.loads(request.form.get('categories', '{}'))
+        edits = json.loads(request.form.get('edits', '{}'))
+        content, file_type = _import_file()
+        batch, created = bill_import.confirm(user_info['uid'], content,
+                                               request.form.get('sha256', ''), selected,
+                                               categories, request.form.get('source', 'auto'), file_type, edits)
+        return jsonify(status='success', data={'batch_id': batch['id'],
+                       'sha256': batch['file_sha256'], 'count': len(batch['rows']),
+                       'created': created}), 201 if created else 200
+    except (ValueError, json.JSONDecodeError) as error:
+        return jsonify(status='error', message=str(error)), 400
+    except Exception:
+        logger.exception('Bill import failed')
+        return jsonify(status='error', message='账单导入失败，未确认入账；请重新预览后重试'), 503
+
+
+@decision_bp.route('/imports', methods=['GET'])
+@require_auth
+def list_imports(user_info):
+    try:
+        batches = [entry for entry in learning_store.read_entries(user_info['uid'])
+                   if entry.get('kind') == 'import_batch']
+        return jsonify(status='success', data=[{'sha256': batch['file_sha256'],
+                       'source': batch['source'], 'count': len(batch.get('rows', [])),
+                       'status': batch['status'], 'created_at': batch['created_at']}
+                       for batch in batches]), 200
+    except Exception:
+        logger.exception('Bill import list failed')
+        return jsonify(status='error', message='导入记录暂时无法读取'), 503
+
+
+@decision_bp.route('/imports/<digest>', methods=['DELETE'])
+@require_auth
+def undo_import(user_info, digest):
+    if not re.fullmatch(r'[0-9a-f]{64}', digest):
+        return jsonify(status='error', message='导入批次编号无效'), 400
+    try:
+        bill_import.undo(user_info['uid'], digest)
+        return jsonify(status='success'), 200
+    except ValueError as error:
+        return jsonify(status='error', message=str(error)), 400
+    except Exception:
+        logger.exception('Bill import undo failed')
+        return jsonify(status='error', message='暂时无法撤销，请稍后重试'), 503
+
+
+@decision_bp.route('/imports/<digest>', methods=['GET'])
+@require_auth
+def import_detail(user_info, digest):
+    if not re.fullmatch(r'[0-9a-f]{64}', digest):
+        return jsonify(status='error', message='导入批次编号无效'), 400
+    try:
+        return jsonify(status='success', data=bill_import.batch_detail(user_info['uid'], digest)), 200
+    except ValueError as error:
+        return jsonify(status='error', message=str(error)), 404
+    except Exception:
+        logger.exception('Bill detail failed')
+        return jsonify(status='error', message='导入明细暂时无法读取'), 503
+
+
+@decision_bp.route('/imports/<digest>/rows/<int:row_id>', methods=['PUT'])
+@require_auth
+def edit_import_row(user_info, digest, row_id):
+    if not re.fullmatch(r'[0-9a-f]{64}', digest):
+        return jsonify(status='error', message='导入批次编号无效'), 400
+    try:
+        bill_import.update_row(user_info['uid'], digest, row_id, request.get_json(silent=True))
+        return jsonify(status='success', data=bill_import.batch_detail(user_info['uid'], digest)), 200
+    except ValueError as error:
+        return jsonify(status='error', message=str(error)), 400
+    except Exception:
+        logger.exception('Bill row edit failed')
+        return jsonify(status='error', message='修改失败，原记录未改变'), 503
+
+
+@decision_bp.route('/imports/<digest>/revert-edit', methods=['POST'])
+@require_auth
+def revert_import_edit(user_info, digest):
+    if not re.fullmatch(r'[0-9a-f]{64}', digest):
+        return jsonify(status='error', message='导入批次编号无效'), 400
+    try:
+        bill_import.revert_last_edit(user_info['uid'], digest)
+        return jsonify(status='success', data=bill_import.batch_detail(user_info['uid'], digest)), 200
+    except ValueError as error:
+        return jsonify(status='error', message=str(error)), 400
+    except Exception:
+        logger.exception('Bill edit revert failed')
+        return jsonify(status='error', message='撤销修改失败，原记录未改变'), 503
+
 @decision_bp.route('/transactions', methods=['GET'])
 @require_auth
 def list_transactions(user_info):
@@ -356,7 +499,8 @@ def list_transactions(user_info):
 
     today = datetime.now(BEIJING).date()
     month = today.isoformat()[:7]
-    spent, summary_error = user_data_service.get_monthly_spending(user_info['uid'], today)
+    cashflow, summary_error = user_data_service.get_monthly_cashflow(user_info['uid'], today)
+    spent = cashflow['spent'] if cashflow else None
     profile = learning_store.read_entry(user_info['uid'], 'profile') or {}
     budget = profile.get('monthly_income')
     complete = not summary_error
@@ -366,9 +510,19 @@ def list_transactions(user_info):
                       'remaining': float(Decimal(str(budget)) - spent)
                       if budget is not None and spent is not None else None,
                       'complete': complete}
+    monthly_cashflow = ({'month': month, 'spent': float(cashflow['spent']),
+                         'gross_expense': float(cashflow['gross_expense']),
+                         'refunds': float(cashflow['refunds']),
+                         'income': float(cashflow['income']),
+                         'remaining': float(cashflow['remaining']),
+                         'income_breakdown': {key: float(value) for key, value in cashflow['income_breakdown'].items()},
+                         'has_expense_records': cashflow['has_expense_records'],
+                         'has_income_records': cashflow['has_income_records'],
+                         'complete': True} if cashflow else {'month': month, 'complete': False})
     return jsonify({
         'status': 'success',
-        'data': {'transactions': rows, 'count': len(rows), 'monthly_budget': monthly_budget}
+        'data': {'transactions': rows, 'count': len(rows), 'monthly_budget': monthly_budget,
+                 'monthly_cashflow': monthly_cashflow}
     }), 200
 
 

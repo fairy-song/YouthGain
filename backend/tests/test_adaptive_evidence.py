@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import Mock
 import pytest
 from app.services.adaptive_learning import grade, recommend, ITEMS
@@ -8,16 +8,19 @@ from test_learning_flow import client, call
 
 
 def test_recommendation_changes_and_repeat_is_not_new_evidence():
-    assert recommend([], 'risk')['next_item']['id'] == 'risk-basic'
+    today = date(2026, 1, 2)
+    assert recommend([], 'risk', today=today)['next_item']['id'] == 'credit-total'
     wrong = dict(grade('risk-basic', 0), updated_at='2026-01-01', id='a')
-    assert recommend([wrong], 'risk')['states'][3]['status'] == '建议复习'
+    assert recommend([wrong], 'risk', today=today)['states'][3]['status'] == '建议复习'
     right = dict(grade('risk-basic', 1), updated_at='2026-01-02', id='b')
-    result = recommend([wrong, right, right], 'risk')
-    assert result['next_item']['id'] == 'risk-transfer'
+    result = recommend([wrong, right, right], 'risk', today=today)
+    assert result['next_item']['id'] == 'credit-total'
     assert result['states'][3]['observed'] == 1
     assert result['states'][3]['correct'] == 1
     assert 'answer' not in result['next_item']
     assert 'answer' not in result['items'][0]
+    assert result['attempts']['risk-basic']['evidence'] == '核实损失、费用和退出限制，信息不足时暂不决定'
+    assert 'answer' not in result['attempts']['risk-basic']
 
 
 def test_all_complete_and_old_version_ignored():
@@ -27,10 +30,121 @@ def test_all_complete_and_old_version_ignored():
     assert recommend(rows)['next_item']['id'] == 'budget-basic'
 
 
+def test_recommendation_uses_gap_goal_context_and_spaced_review():
+    today = date(2026, 10, 9)
+    wrong = dict(grade('choice-basic', 1), updated_at=today.isoformat(), id='wrong')
+    result = recommend([wrong], 'budget', today=today)
+    assert result['next_item']['id'] == 'refund-net'
+    assert result['recommendation_mode'] == 'new'
+    assert '答题证据' in result['reason']
+    assert recommend([], 'risk', today=today)['next_item']['id'] == 'credit-total'
+
+    answered = [dict(grade(i['id'], i['answer']), updated_at=today.isoformat(), id=i['id']) for i in ITEMS]
+    assert recommend(answered, today=today)['next_item'] is None
+    answered[0]['updated_at'] = (today - timedelta(days=8)).isoformat()
+    review = recommend(answered, today=today)
+    assert review['next_item']['id'] == 'budget-basic'
+    assert review['recommendation_mode'] == 'review'
+    assert review['states'][0]['observed'] == sum(i['topic'] == 'budget' for i in ITEMS)
+
+    answered[0]['updated_at'] = today.isoformat()
+    answered[0]['correct'] = False
+    lesson = recommend(answered, today=today)
+    assert lesson['next_item'] is None
+    assert lesson['lesson_id'] == 'needs'
+    assert '回看需要巩固的主题' in lesson['reason']
+
+
+def test_context_changes_priority_without_using_amount_or_raw_text():
+    today = date(2026, 10, 9)
+    rows = [dict(date=today.isoformat(), amount=999999, regret=True, note='private note')]
+    completed = [dict(grade(i['id'], i['answer']), updated_at=today.isoformat(), id=i['id'])
+                 for i in ITEMS if i['id'] != 'choice-basic' and i['id'] != 'budget-basic']
+    plain = recommend(completed, 'risk', today=today)
+    contextual = recommend(completed, 'risk', rows, today=today)
+    assert plain['next_item']['id'] == 'budget-basic'
+    assert contextual['next_item']['id'] == 'choice-basic'
+    assert '标记为值得回看' in contextual['reason']
+    assert '999999' not in str(contextual)
+    assert 'private note' not in str(contextual)
+
+
+def test_adaptive_uses_recorded_transactions_without_opt_in_and_stays_account_scoped(client, monkeypatch):
+    from app.routes import learning_routes
+
+    loader = Mock(side_effect=lambda uid, kind, limit: (
+        ([{'date': date.today().isoformat(), 'regret': True, 'amount': 20}], None)
+        if uid == 'alice' else ([], None)
+    ))
+    monkeypatch.setattr(learning_routes.user_data_service, 'get_user_data', loader)
+    result = call(client, 'get', '/api/learning/adaptive').json
+    loader.assert_called_once_with('alice', 'transactions', limit=2000)
+    assert result['next_item'] is not None
+    assert call(client, 'get', '/api/learning/adaptive', user='bob').status_code == 200
+    assert loader.call_args_list[1].args == ('bob', 'transactions')
+    assert loader.call_args_list[1].kwargs == {'limit': 2000}
+
+    # Old profiles with the former switch off still use their own recorded spending.
+    assert call(client, 'put', '/api/learning/profile', {'use_spending_for_learning': False}).status_code == 200
+    assert call(client, 'get', '/api/learning/adaptive').status_code == 200
+    assert loader.call_args_list[-1].args == ('alice', 'transactions')
+
+    loader.side_effect = None
+    loader.return_value = ([], 'offline')
+    offline = call(client, 'get', '/api/learning/adaptive').json
+    loader.return_value = ([{'date': date.today().isoformat(), 'regret': True}] * 2000, None)
+    truncated = call(client, 'get', '/api/learning/adaptive').json
+    loader.return_value = ([], None)
+    empty = call(client, 'get', '/api/learning/adaptive').json
+    assert offline['next_item'] == truncated['next_item'] == empty['next_item']
+
+
 @pytest.mark.parametrize('choice', [True, -1, 3, '1', None, {}, []])
 def test_invalid_answer(choice):
     with pytest.raises(ValueError):
         grade('budget-basic', choice)
+
+
+def test_original_multistep_scenario_unlocks_in_order_and_grades_by_type():
+    assert len(ITEMS) == 32
+    assert len({item['id'] for item in ITEMS}) == len(ITEMS)
+    assert all(item.get('review_status') == 'pilot' for item in ITEMS[8:])
+    first = recommend([], 'budget')
+    assert 'phone-gap' not in {item['id'] for item in first['items']}
+    assert 'answer' not in next(item for item in first['items'] if item['id'] == 'phone-total')
+    assert grade('phone-total', 140)['correct'] is True
+    assert grade('phone-total', 139)['correct'] is False
+    assert grade('credit-total', 3960)['score'] == 0.5
+    assert grade('statement-balance', 1390)['score'] == 0.5
+    for item_id, expected in [('refund-net', 30), ('repair-gap', 300), ('saving-original', 250),
+                              ('saving-revise', 325), ('subscription-year', 720),
+                              ('subscription-save', 348), ('statement-balance', 1388)]:
+        assert grade(item_id, expected)['correct'] is True
+    with pytest.raises(ValueError):
+        grade('phone-total', True)
+    with pytest.raises(ValueError):
+        grade('phone-reflect', '短')
+
+    start = dict(grade('phone-total', 140), id='one', updated_at='2026-10-09')
+    second = recommend([start], 'budget', today=date(2026, 10, 9))
+    assert second['next_item']['id'] == 'phone-gap'
+    assert 'phone-reflect' not in {item['id'] for item in second['items']}
+    assert second['attempts']['phone-total']['evidence'] == '140 元'
+    assert 'answer' not in second['attempts']['phone-total']
+    gap = dict(grade('phone-gap', 800), id='two', updated_at='2026-10-09')
+    third = recommend([start, gap], 'budget', today=date(2026, 10, 9))
+    assert third['next_item']['id'] == 'phone-reflect'
+    switched = dict(grade('refund-net', 30), id='three', updated_at='2026-10-10')
+    assert recommend([start, gap, switched], 'budget', today=date(2026, 10, 10))['next_item']['id'] == 'refund-record'
+    reflection = grade('phone-reflect', '我会核对未来每月必要开支。')
+    assert reflection['correct'] is None
+    assert reflection['answer'] is None
+
+
+def test_scenario_api_rejects_skipping_steps(client):
+    assert call(client, 'post', '/api/learning/adaptive/answer', {'item_id': 'phone-gap', 'choice': 800}).status_code == 400
+    assert call(client, 'post', '/api/learning/adaptive/answer', {'item_id': 'phone-total', 'choice': 140}).status_code == 201
+    assert call(client, 'post', '/api/learning/adaptive/answer', {'item_id': 'phone-gap', 'choice': 800}).status_code == 201
 
 
 def test_diagnostic_http_isolation_and_server_grading(client):
@@ -39,8 +153,13 @@ def test_diagnostic_http_isolation_and_server_grading(client):
     assert response.status_code == 201
     assert response.json['entry']['correct'] is False
     assert call(client, 'get', '/api/decision/checkin').json['data']['checked_today']
-    assert call(client, 'get', '/api/learning/adaptive').json['states'][0]['observed'] == 1
-    assert call(client, 'get', '/api/learning/adaptive', user='bob').json['states'][0]['observed'] == 0
+    alice = call(client, 'get', '/api/learning/adaptive').json
+    bob = call(client, 'get', '/api/learning/adaptive', user='bob').json
+    assert alice['states'][0]['observed'] == 1
+    assert alice['attempts']['budget-basic']['evidence'] == '800 元'
+    assert 'answer' not in alice['attempts']['budget-basic']
+    assert bob['states'][0]['observed'] == 0
+    assert bob['attempts'] == {}
     assert call(client, 'post', '/api/learning/adaptive/answer', {'item_id': 'no', 'choice': 0}).status_code == 400
 
 

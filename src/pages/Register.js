@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { readDraft } from '../data/firstVisit';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -12,6 +13,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { register } = useAuth();
 
   const handleChange = (e) => {
@@ -34,7 +36,7 @@ const Register = () => {
       setError('');
       setLoading(true);
       await register(formData.email, formData.password, formData.username);
-      navigate('/dashboard');
+      navigate(new URLSearchParams(location.search).get('from') === 'questionnaire' && readDraft()?.complete ? '/onboarding/complete' : '/dashboard', { replace: true });
     } catch (err) {
       setError(err.message || '注册失败，请稍后重试');
     } finally {
@@ -137,7 +139,7 @@ const Register = () => {
         <div className="mt-6 text-center">
           <p className="text-neutral-600">
             已有账号？{' '}
-            <Link to="/login" className="text-primary-700 hover:underline">
+            <Link to={location.search.includes('from=questionnaire') ? '/login?from=questionnaire' : '/login'} className="text-primary-700 hover:underline">
               立即登录
             </Link>
           </p>
@@ -147,4 +149,4 @@ const Register = () => {
   );
 };
 
-export default Register; 
+export default Register;

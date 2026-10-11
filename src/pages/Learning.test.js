@@ -4,13 +4,14 @@ import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import Learning from './Learning';
 import Profile from './Profile';
-import { getLearning, getWeeklyFacts, saveLearningEntry, saveLearningProfile } from '../services/learning';
+import { getAdaptiveLearning, getLearning, getQuestionnaires, getWeeklyFacts, saveLearningEntry, saveLearningProfile } from '../services/learning';
 import { assessPurchase } from '../services/api';
 
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'alice' } }) }));
 jest.mock('../services/api', () => ({ assessPurchase: jest.fn() }));
 jest.mock('../services/learning', () => ({
-  getLearning: jest.fn(), getWeeklyFacts: jest.fn(), saveLearningEntry: jest.fn(),
+  getAdaptiveLearning: jest.fn(), submitAdaptiveAnswer: jest.fn(),
+  getLearning: jest.fn(), getQuestionnaires: jest.fn(), getWeeklyFacts: jest.fn(), saveLearningEntry: jest.fn(),
   saveLearningProfile: jest.fn(), saveDecisionOutcome: jest.fn(),
   learningError: e => e.message,
 }));
@@ -25,8 +26,17 @@ const renderPage = (tab = 'practice') => render(<MemoryRouter initialEntries={[`
 beforeEach(() => {
   jest.clearAllMocks();
   getLearning.mockResolvedValue(state);
+  getQuestionnaires.mockResolvedValue({ latest: null, history: [] });
+  getAdaptiveLearning.mockResolvedValue({ items: [], next_item: null, reason: '', limitation: '' });
   getWeeklyFacts.mockResolvedValue({ start: '2026-09-21', end: '2026-09-27', count: 0, total: 0, message: '没有消费也可以复盘' });
   saveLearningEntry.mockResolvedValue({});
+});
+
+test('learning entry opens the single-task practice before secondary tools', async () => {
+  render(<MemoryRouter initialEntries={['/learning']}><Learning /></MemoryRouter>);
+  expect(await screen.findByRole('heading', { name: '今天想一想' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '今天的练习' })).toBeInTheDocument();
+  expect(screen.queryByLabelText('计划金额（元）')).not.toBeInTheDocument();
 });
 
 test('missing income invites setup without inventing a default and profile saves to account', async () => {
@@ -43,6 +53,9 @@ test('missing income invites setup without inventing a default and profile saves
 test('exercise failure preserves draft and does not award completion', async () => {
   saveLearningEntry.mockRejectedValue(new Error('保存失败，请重试'));
   renderPage();
+  expect(await screen.findByRole('button', { name: '自己选一节课' })).toBeInTheDocument();
+  expect(screen.queryByLabelText('写下你的安排')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '自己选一节课' }));
   const input = await screen.findByLabelText('写下你的安排');
   fireEvent.change(input, { target: { value: '先留出考试费，再安排聚餐' } });
   fireEvent.click(screen.getByRole('button', { name: '保存这次思考' }));
@@ -57,6 +70,7 @@ test('load failure is distinguishable from empty data and can retry', async () =
   renderPage();
   expect(await screen.findByText('服务暂不可用')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '重试' }));
+  fireEvent.click(await screen.findByRole('button', { name: '自己选一节课' }));
   expect(await screen.findByLabelText('写下你的安排')).toBeInTheDocument();
 });
 

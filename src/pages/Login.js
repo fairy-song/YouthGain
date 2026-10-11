@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { app } from '../services/firebase';
 import { useAuth, translateFirebaseError } from '../contexts/AuthContext';
+import { readDraft } from '../data/firstVisit';
 
 const Login = ({ adminMode = false }) => {
   const [email, setEmail] = useState('');
@@ -31,6 +32,8 @@ const Login = ({ adminMode = false }) => {
       const coachEntry = location.state?.coachEntry;
       if (!adminMode && coachEntry && typeof coachEntry.prompt === 'string') {
         navigate('/coach', { replace: true, state: { prompt: coachEntry.prompt.slice(0, 2000), returnTo: '/' } });
+      } else if (!adminMode && result?.role !== 'admin' && new URLSearchParams(location.search).get('from') === 'questionnaire' && readDraft()?.complete) {
+        navigate('/onboarding/complete', { replace: true });
       } else {
         navigate(result?.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
       }
@@ -106,7 +109,7 @@ const Login = ({ adminMode = false }) => {
         {!adminMode && <div className="mt-6 text-center">
           <p className="text-neutral-600">
             还没有账号？{' '}
-            <Link to="/register" className="text-primary-700 hover:underline">
+            <Link to={location.search.includes('from=questionnaire') ? '/register?from=questionnaire' : '/register'} className="text-primary-700 hover:underline">
               立即注册
             </Link>
           </p>

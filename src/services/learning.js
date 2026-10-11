@@ -5,6 +5,8 @@ export const submitAdaptiveAnswer = async answer => (await api.post('/learning/a
 
 export const getLearning = async () => (await api.get('/learning')).data;
 export const getLearningProfile = async () => (await api.get('/learning/profile')).data.profile;
+export const getQuestionnaires = async () => (await api.get('/learning/questionnaires')).data;
+export const saveQuestionnaire = async questionnaire => (await api.post('/learning/questionnaires', questionnaire)).data.questionnaire;
 export const saveLearningProfile = async profile => (await api.put('/learning/profile', profile)).data.profile;
 export const saveLearningEntry = async (kind, data) => (await api.post(`/learning/entries/${kind}`, data)).data.entry;
 export const saveDecisionOutcome = async (id, data) => (await api.put(`/learning/decisions/${encodeURIComponent(id)}/outcome`, data)).data.entry;

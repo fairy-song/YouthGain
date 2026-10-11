@@ -1,0 +1,42 @@
+.today-page { min-height: 100%; background: var(--yg-surface); color: var(--yg-ink); }
+.today-wrap { max-width: 1040px; margin: 0 auto; padding: clamp(1.5rem, 5vw, 4rem) 1.25rem 5rem; }
+.today-intro { margin-bottom: 1.8rem; }
+.today-eyebrow { color: var(--yg-primary-text); font-size: .82rem; font-weight: 750; letter-spacing: .08em; }
+.today-intro h1 { font-size: clamp(1.75rem, 4vw, 2.6rem); font-weight: 750; letter-spacing: -.025em; margin: .55rem 0 .55rem; }
+.today-intro p { color: var(--yg-muted); font-size: 1rem; margin: 0; }
+.today-task { background: #fff; border: 1px solid var(--yg-primary-border); border-radius: 28px; box-shadow: var(--yg-shadow); overflow: hidden; }
+.today-task-top { align-items: center; display: flex; justify-content: space-between; gap: 1rem; padding: 1.25rem clamp(1.25rem, 4vw, 2.5rem) 0; }
+.today-tag { background: var(--yg-primary-subtle); border-radius: 999px; color: var(--yg-primary-text); font-size: .82rem; font-weight: 700; padding: .4rem .75rem; }
+.today-task-meta { color: var(--yg-muted); font-size: .85rem; }
+.today-task-body { padding: clamp(1.4rem, 4vw, 2.6rem); padding-top: 1.4rem; }
+.today-task-step { color: var(--yg-primary-text); display: block; font-size: .9rem; font-weight: 650; margin-bottom: .65rem; }
+.today-task h2 { font-size: clamp(1.45rem, 3vw, 2rem); font-weight: 730; line-height: 1.45; max-width: 680px; margin: 0 0 .85rem; }
+.today-task-question { color: var(--yg-ink); font-size: 1.1rem; font-weight: 600; line-height: 1.6; max-width: 680px; margin-bottom: 1.55rem; }
+.today-task p:not(.today-task-question) { line-height: 1.6; }
+.today-primary { align-items: center; background: var(--yg-primary-text); border-radius: 14px; color: #fff; display: inline-flex; font-size: 1rem; font-weight: 700; gap: 2rem; justify-content: space-between; min-height: 50px; padding: .7rem 1.3rem; text-decoration: none; }
+.today-primary:hover, .today-primary:focus-visible { background: var(--yg-primary-deep); color: #fff; }
+.today-reason { color: var(--yg-muted); font-size: .9rem; margin-top: 1.45rem; max-width: 640px; }
+.today-reason summary { color: var(--yg-primary-text); cursor: pointer; width: fit-content; }
+.today-reason p { margin: .65rem 0 0; }
+.today-reason-note { font-size: .83rem; }
+.today-retry, .today-inline-button { background: none; border: 0; color: var(--yg-primary-text); cursor: pointer; font-weight: 700; padding: 0; text-decoration: underline; }
+.today-support { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 1.35rem; }
+.today-panel { background: #fff; border: 1px solid var(--yg-line); border-radius: 22px; box-shadow: var(--yg-shadow-sm); min-height: 230px; padding: 1.5rem; }
+.today-panel-soft { background: #f0f6f2; border-color: var(--yg-primary-border); }
+.today-panel-top { align-items: center; color: var(--yg-primary-text); display: flex; font-size: .88rem; font-weight: 650; gap: .55rem; margin-bottom: 1.15rem; }
+.today-panel-icon { align-items: center; background: var(--yg-primary-subtle); border-radius: 10px; display: inline-flex; font-size: 1.05rem; height: 32px; justify-content: center; width: 32px; }
+.today-panel h2 { font-size: 1.1rem; font-weight: 700; margin: 0 0 .7rem; }
+.today-panel p { color: var(--yg-muted); font-size: .9rem; line-height: 1.55; margin: .3rem 0 .8rem; }
+.today-amount { display: block; font-size: clamp(1.7rem, 4vw, 2.2rem); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.today-cashflow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; }
+.today-cashflow > div { min-width: 0; }
+.today-cashflow span { display: block; color: var(--yg-muted); font-size: .82rem; }
+.today-cashflow strong { display: block; font-size: .95rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.today-cashflow .today-amount { font-size: 1.25rem; }
+.today-panel-links { display: flex; gap: 1rem; margin-top: 1.1rem; }
+.today-panel-links a, .today-text-link { color: var(--yg-primary-text); font-weight: 700; text-decoration: none; }
+.today-panel-links a:hover, .today-text-link:hover { text-decoration: underline; }
+.today-upcoming { color: var(--yg-ink) !important; font-weight: 650; }
+.today-page a:focus-visible, .today-page button:focus-visible, .today-page summary:focus-visible { outline: 3px solid var(--yg-secondary-text); outline-offset: 3px; }
+@media (max-width: 700px) { .today-wrap { padding: 1.4rem 1rem 6rem; } .today-support { grid-template-columns: 1fr; } .today-task { border-radius: 21px; } .today-task-top { padding: 1rem 1.25rem 0; } .today-task-body { padding: 1.35rem 1.25rem 1.6rem; } .today-primary { width: 100%; } .today-panel { min-height: 0; } }
+@media (prefers-reduced-motion: reduce) { .today-page *, .today-page *::before, .today-page *::after { scroll-behavior: auto; transition-duration: 0s !important; animation-duration: 0s !important; } }

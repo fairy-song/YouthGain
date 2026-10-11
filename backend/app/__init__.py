@@ -62,6 +62,8 @@ def create_app():
     from .routes.asr_routes import asr_bp
     from .routes.learning_routes import learning_bp
     from .routes.admin_routes import admin_bp
+    from .routes.research_routes import research_bp
+    from .routes.podcast_routes import podcast_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(coach_bp, url_prefix='/api/coach')
@@ -71,6 +73,16 @@ def create_app():
     app.register_blueprint(asr_bp, url_prefix='/api/asr')
     app.register_blueprint(learning_bp, url_prefix='/api/learning')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
+    app.register_blueprint(research_bp, url_prefix='/api/research')
+    app.register_blueprint(podcast_bp, url_prefix='/api/podcasts')
+
+    @app.cli.command('podcasts-sync')
+    def podcasts_sync():
+        """Synchronize due, approved RSS metadata; schedule externally once a day."""
+        from .services.podcast_service import sync_due_sources
+        result = sync_due_sources()
+        app.logger.info('Podcast metadata sync: %s synced, %s failed',
+                        len(result['synced']), len(result['failed']))
 
     from .routes.knowledge_routes import knowledge_bp
     app.register_blueprint(knowledge_bp, url_prefix='/api/knowledge')

@@ -29,6 +29,13 @@ class Config:
     # 数据库类型: memory (内存开发模式), mysql (MySQL 数据库模式), firestore (Firebase Firestore 模式)
     # 本地调试默认若配置了 DB_TYPE 为 mysql，则启用 MySQL
     DB_TYPE = os.environ.get('DB_TYPE', 'memory')
+    # Research registry is a separate, durable, single-host transactional ledger.
+    RESEARCH_DB_PATH = os.environ.get('RESEARCH_DB_PATH')
+    RESEARCH_LIVE_ENABLED = os.environ.get('RESEARCH_LIVE_ENABLED', 'false').lower() == 'true'
+    RESEARCH_GLOBAL_EPSILON_MILLI = int(os.environ.get('RESEARCH_GLOBAL_EPSILON_MILLI', '6000'))
+    PODCAST_DB_PATH = os.environ.get('PODCAST_DB_PATH')
+    PODCAST_RSS_ALLOWED_HOSTS = os.environ.get('PODCAST_RSS_ALLOWED_HOSTS', '')
+    PODCAST_STARTER_CATALOG_ENABLED = os.environ.get('PODCAST_STARTER_CATALOG_ENABLED', 'true').lower() == 'true'
     
     # MySQL 数据库配置
     MYSQL_HOST = os.environ.get('MYSQL_HOST', '127.0.0.1')

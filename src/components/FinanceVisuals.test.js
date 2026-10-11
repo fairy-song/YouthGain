@@ -27,15 +27,39 @@ test('category controls filter and can clear a selected category', () => {
   fireEvent.click(screen.getByRole('button', { name: /餐饮/ }));
   expect(onCategory).toHaveBeenLastCalledWith('');
   fireEvent.click(screen.getByRole('button', { name: '近七天' }));
-  expect(screen.getByRole('group', { name: '近七天已记录支出柱状图' })).toBeInTheDocument();
+  expect(screen.getByRole('group', { name: '近七天已记录净消费柱状图' })).toBeInTheDocument();
 });
 
 test('empty data does not invent a chart; negative budget is explicitly marked', () => {
   const { unmount } = render(<FinanceVisuals transactions={[]} onCategory={() => {}} />);
-  expect(screen.getByText(/还没有可展示的消费/)).toBeInTheDocument();
+  expect(screen.getByText(/还没有可展示的净消费/)).toBeInTheDocument();
   expect(screen.queryByRole('img')).not.toBeInTheDocument();
   unmount();
   render(<ComparisonBars items={[{ label: '现在购买', value: -200 }, { label: '暂不购买', value: 0 }]} />);
   expect(screen.getByText('¥-200（不足）')).toBeInTheDocument();
   expect(screen.getByText('¥0')).toBeInTheDocument();
+});
+
+test('linked refunds reduce chart amounts while income and transfers are ignored', () => {
+  const result = summarizeTransactions([
+    { date: '2026-10-01', category: '餐饮', amount: '25.00', transaction_type: 'expense' },
+    { date: '2026-10-01', category: '餐饮', amount: '5.00', transaction_type: 'refund' },
+    { date: '2026-10-01', category: '餐饮', amount: '100.00', transaction_type: 'income' },
+    { date: '2026-10-01', category: '餐饮', amount: '30.00', transaction_type: 'transfer' },
+  ], '2026-10-01');
+  expect(result.categories).toEqual([{ label: '餐饮', value: 20 }]);
+  expect(result.days[6].value).toBe(20);
+});
+
+test('cross-month refunds remain visible when a category has negative net spending', () => {
+  const transactions = [
+    { date: '2026-10-01', category: '餐饮', amount: 25, transaction_type: 'expense' },
+    { date: '2026-10-01', category: '购物', amount: 40, transaction_type: 'refund' },
+  ];
+  const result = summarizeTransactions(transactions, '2026-10-01');
+  expect(result.categories).toEqual([{ label: '餐饮', value: 25 }]);
+  expect(result.refundCredits).toEqual([{ label: '购物', value: -40 }]);
+  expect(result.days[6].value).toBe(-15);
+  render(<FinanceVisuals transactions={transactions} onCategory={() => {}} />);
+  expect(screen.getByText(/购物 ¥-40/)).toBeInTheDocument();
 });

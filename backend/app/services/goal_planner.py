@@ -16,7 +16,11 @@ def recorded_spending(rows, today):
         day = str(row.get('date') or row.get('spent_at') or '')[:10]
         parsed = date.fromisoformat(day)
         if parsed <= today:
-            total += cents(row.get('amount'), '消费金额')
+            kind = row.get('transaction_type') or 'expense'
+            if kind == 'expense':
+                total += cents(row.get('amount'), '消费金额')
+            elif kind == 'refund':
+                total -= cents(row.get('amount'), '退款金额')
     return total
 
 

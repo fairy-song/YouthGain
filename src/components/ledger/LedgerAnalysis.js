@@ -1,7 +1,7 @@
 import React from 'react';
 import { Row, Col, Card, ProgressBar } from 'react-bootstrap';
 import { FaWallet, FaChartLine, FaPiggyBank, FaLightbulb, FaExclamationTriangle } from 'react-icons/fa';
-export default function LedgerAnalysis({ surplus, income, avgSpending, spending, discretionary, goal, patterns }) { return <>
+export default function LedgerAnalysis({ surplus, income, avgSpending, spending, discretionary, goal, patterns, pca }) { return <>
         <Row className="g-4 mb-5">
           <Col md={4}>
             <Card className="h-100 border-0 rounded-4 shadow-sm dashboard-card">
@@ -155,6 +155,32 @@ export default function LedgerAnalysis({ surplus, income, avgSpending, spending,
             </Card>
           </Col>
         </Row>
-
-
+        {pca && <Card className="border-0 rounded-4 shadow-sm mb-5">
+          <Card.Body className="p-4">
+            <h5>消费模式探索</h5>
+            <p className="text-muted small">{pca.message}</p>
+            {pca.status === 'ready' && <>
+              <p className="small">{pca.start} 至 {pca.end} · 保留约 {(pca.retained_variance_ratio * 100).toFixed(1)}% 的指标变化信息</p>
+              {pca.components.map(component => <div key={component.id} className="mb-3">
+                <strong>{component.title}</strong>
+                <p className="small text-muted mb-1">{component.detail}</p>
+                <ProgressBar now={component.explained_variance_ratio * 100}
+                  aria-label={`${component.title}解释的变化比例`}
+                  label={`${(component.explained_variance_ratio * 100).toFixed(1)}%`} />
+              </div>)}
+              <details className="small mb-3">
+                <summary>查看计算依据</summary>
+                <p className="mt-2">各指标先标准化，再通过主成分分析（PCA）提取共同变化方向。最多展示 3 个方向，目标保留 80% 的变化信息；达不到时仍显示实际比例。解释比例不是准确率。</p>
+                {pca.components.map(component => <div key={component.id}>
+                  <strong>{component.title}</strong>
+                  <ul>{component.contributions.map(f => <li key={f.feature}>
+                    {f.label}：贡献 {(f.contribution * 100).toFixed(1)}%，{f.loading >= 0 ? '同向' : '反向'}
+                  </li>)}</ul>
+                </div>)}
+                {pca.excluded_features?.length > 0 && <p>未参与计算的无变化指标：{pca.excluded_features.join('、')}</p>}
+              </details>
+            </>}
+            <p className="text-muted small mb-0">{pca.limitation}</p>
+          </Card.Body>
+        </Card>}
 </>; }

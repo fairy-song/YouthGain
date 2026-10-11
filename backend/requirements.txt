@@ -1,6 +1,11 @@
 # Flask 框架及扩展
 flask>=3.0.0
 flask-cors>=4.0.0
+openpyxl>=3.1,<4
+numpy>=1.24,<3
+diffprivlib==0.6.6
+# diffprivlib 0.6.6 imports tree constants removed in scikit-learn 1.9.
+scikit-learn>=1.7,<1.9
 
 # 环境变量管理
 python-dotenv>=1.0.0
@@ -13,6 +18,7 @@ google-generativeai>=0.3.1
 
 # HTTP 请求库
 requests>=2.31.0
+tzdata>=2025.2
 
 # WSGI 服务器
 gunicorn>=21.2.0
@@ -27,4 +33,4 @@ websocket-client>=1.9.0
 
 # MySQL 数据库驱动及加密支持
 PyMySQL>=1.1.0
-cryptography>=41.0.0
+cryptography>=41.0.0

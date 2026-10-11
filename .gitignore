@@ -68,6 +68,9 @@ $RECYCLE.BIN/
 *.log
 *.sqlite
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 # 开发模式数据持久化文件（含用户财务数据，不应提交）
 backend/dev_data.json
 
@@ -82,6 +85,13 @@ backend/dev_data.json
 tmp/
 temp/
 .temp/
+.jest_tmp/
+backend/.pytest_tmp_*/
+.pytest-*/
+# 本地回退快照和含标准答案的审核工作表不发布到代码仓库
+b01-before-*.zip
+ui-before-redesign-*.zip
+docs/B_CONTENT_AUDIT_WORKSHEET.csv
 
 # 部署相关
 .vercel

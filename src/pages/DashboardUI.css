@@ -1,0 +1,17 @@
+.ledger-wrap { max-width: 1120px; padding: clamp(1.4rem, 4vw, 3rem) 1.25rem 4rem; }
+.ledger-intro { margin-bottom: 1.6rem; }
+.ledger-eyebrow { color: var(--yg-primary-text); font-size: .82rem; font-weight: 750; letter-spacing: .08em; }
+.ledger-intro h1 { font-size: clamp(1.75rem, 4vw, 2.45rem); font-weight: 750; margin: .5rem 0 .4rem; }
+.ledger-intro p { color: var(--yg-muted); margin: 0; }
+.ledger-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; padding: clamp(1.25rem, 3vw, 2rem); margin: 1.25rem 0 1.5rem; background: #fff; border: 1px solid var(--yg-primary-border); border-radius: 22px; box-shadow: var(--yg-shadow-sm); }
+.ledger-summary > div { display: flex; flex-direction: column; gap: .3rem; }
+.ledger-summary .ledger-metric { min-width: 0; }
+.ledger-summary .ledger-summary-side { grid-column: 1 / -1; border-top: 1px solid var(--yg-line); padding-top: .8rem; }
+.ledger-summary-label, .ledger-summary-side span { color: var(--yg-muted); font-size: .9rem; }
+.ledger-summary-amount { color: var(--yg-ink); font-size: clamp(1.8rem, 4vw, 2.4rem); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.ledger-summary-side strong { color: var(--yg-primary-text); font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.ledger-summary small { color: var(--yg-muted); line-height: 1.5; }
+.dashboard-page { background: var(--yg-surface); }
+.dashboard-page .dashboard-card, .dashboard-page .fv-panel { border: 1px solid var(--yg-line) !important; box-shadow: var(--yg-shadow-sm) !important; }
+.dashboard-page .dashboard-card .card-title { font-weight: 700; }
+@media (max-width: 700px) { .ledger-wrap { padding: 1.4rem 1rem 2rem; } .ledger-summary { grid-template-columns: 1fr; gap: 1rem; } .ledger-summary .ledger-summary-side { grid-column: auto; } .dashboard-page .dashboard-card .card-body { padding: 1.25rem !important; } }

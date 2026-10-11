@@ -32,7 +32,7 @@ function LearningContent() {
   const { currentUser } = useAuth();
   const location = useLocation();
   const requestedTab = new URLSearchParams(location.search).get('tab');
-  const tab = ['practice', 'decision', 'review', 'growth'].includes(requestedTab) ? requestedTab : 'decision';
+  const tab = ['practice', 'decision', 'review', 'growth'].includes(requestedTab) ? requestedTab : 'practice';
   const [data, setData] = useState(null);
   const [profile, setProfile] = useState(blankProfile);
   const [facts, setFacts] = useState(null);
@@ -42,6 +42,7 @@ function LearningContent() {
   const [busy, setBusy] = useState(false);
   const [retry, setRetry] = useState(0);
   const [selected, setSelected] = useState('');
+  const [showLessons, setShowLessons] = useState(false);
   const [reflection, setReflection] = useState('');
   const [decision, setDecision] = useState(blankDecision);
   const [comparison, setComparison] = useState(null);
@@ -91,19 +92,19 @@ function LearningContent() {
   const pendingExpenses = upcomingEntries.filter(e => !e.handled).sort((a, b) => a.due_date.localeCompare(b.due_date));
   const setDecisionField = (field, value) => { setDecision({ ...decision, [field]: value }); setComparison(null); };
 
-  return <Container className="py-4 pb-5" style={{ maxWidth: 1050 }}>
+  return <Container className={`py-4 pb-5 ${tab === 'practice' ? 'learning-practice-page' : ''}`} style={{ maxWidth: tab === 'practice' ? 780 : 1050 }}>
     <div className="mb-4">
-      <Badge bg="success" className="mb-3">看清影响 · 自主选择 · 回看消费</Badge>
-      <h1 className="fw-bold">消费决策与复盘</h1>
-      <p className="text-muted">买之前比较影响，买之后回看体验。</p>
+      {tab !== 'practice' && <Badge bg="success" className="mb-3">看清影响 · 自主选择 · 回看消费</Badge>}
+      <h1 className="fw-bold">{tab === 'practice' ? '今天想一想' : '消费决策与复盘'}</h1>
+      {tab !== 'practice' && <p className="text-muted">买之前比较影响，买之后回看体验。</p>}
     </div>
     {error && <Alert variant="warning" role="alert">{error} <Button variant="link" disabled={busy} onClick={() => setRetry(v => v + 1)}>刷新重试</Button></Alert>}
     {notice && <Alert variant="success" role="status" dismissible onClose={() => setNotice('')}>{notice}</Alert>}
-    {data.profile.monthly_income == null && <Alert variant="info">先设置生活费或月收入，让消费试算有依据；情境练习不需要先填写资料。 <Button as={Link} to="/profile" variant="link">设置我的资料</Button></Alert>}
-    <SectionNav label="消费决策功能" active={tab} items={[
+    {tab !== 'practice' && data.profile.monthly_income == null && <Alert variant="info">先设置生活费或月收入，让消费试算有依据；情境练习不需要先填写资料。 <Button as={Link} to="/profile" variant="link">设置我的资料</Button></Alert>}
+    {tab !== 'practice' && <SectionNav label="消费决策功能" active={tab} items={[
       ['decision', '消费选择', '/learning?tab=decision'],
       ['review', '每周复盘', '/learning?tab=review'], ['growth', '历史记录', '/learning?tab=growth'],
-    ]} />
+    ]} />}
     {['decision', 'review'].includes(tab) && pendingExpenses.length > 0 && <Alert variant="info">
       <strong>别忘了你安排的开支</strong>
       {pendingExpenses.slice(0, 5).map(e => <div key={e.id}>{e.due_date} · {e.title} · 预计 ¥{e.amount}</div>)}
@@ -112,7 +113,9 @@ function LearningContent() {
 
 
     {tab === 'practice' && <>
-<details className="mb-4"><summary>选择题：试着判断一个情境</summary><AdaptivePractice key={currentUser?.uid || 'guest'} /></details>
+      <AdaptivePractice key={currentUser?.uid || 'guest'} lessons={data.lessons} onSelectLesson={id => { setSelected(id); setReflection(entries.find(e => e.lesson_id === id)?.reflection || ''); setShowLessons(true); }} />
+      <Button variant="link" className="px-0 mb-3" onClick={() => setShowLessons(value => !value)}>{showLessons ? '收起更多学习内容' : '自己选一节课'}</Button>
+      {showLessons && <>
       <div className="d-flex justify-content-between mb-2"><span>任选一个情境，随时开始、跳过或重做</span><strong>{completed.length} / 7</strong></div>
       <ProgressBar now={completed.length / 7 * 100} aria-label="练习完成进度" className="mb-4" />
       <Row className="g-4"><Col md={4}><div className="d-grid gap-2">{orderedLessons.map(l => <Button key={l.id} variant={lesson.id === l.id ? 'primary' : 'outline-secondary'} className="text-start" onClick={() => { setSelected(l.id); setReflection(entries.find(e => e.lesson_id === l.id)?.reflection || ''); }}>{completed.includes(l.id) ? '✓ ' : ''}练习 {l.day} · {l.title}</Button>)}</div><p className="small text-muted mt-3">按你选择的主题优先展示。完成次数记录参与情况，不代表能力评分。</p><Button as={Link} to="/assessment" variant="link">先做一次自我探索</Button></Col>
@@ -125,6 +128,7 @@ function LearningContent() {
             <Button as={Link} className="ms-2" variant="outline-secondary" to="/coach" state={{ returnTo: '/learning?tab=practice', prompt: `我在练习“${lesson.title}”。情境：${lesson.scenario}。我的想法：${reflection || '还没有想清楚'}。请先问我一个问题，帮我自己做判断。` }}>和教练聊聊</Button>
           </Form>
         </Card.Body></Card></Col></Row>
+      </>}
     </>}
 
     {['decision', 'review'].includes(tab) && <div className="mb-3"><CoachHelp prompt={tab === 'decision' ? '我正在比较一笔消费，请先问我一个问题，帮助我考虑需要和取舍。' : '我正在做每周复盘，请帮助我回看一次选择，并确定下周的小行动。'} /></div>}
@@ -185,6 +189,7 @@ function LearningContent() {
       <h2 className="h4 mt-4">我逐渐形成的原则</h2>{!reviews.length && <p>完成第一次每周复盘后，你的原则会出现在这里。</p>}
       {reviews.filter(r => r.principle).map(r => <Card key={r.id} className="mb-3"><Card.Body><small className="text-muted">{r.week} 这一周</small><p className="fw-bold mt-2">{r.principle}</p><p>我的观察：{r.observation}</p><p className="mb-0">下一步：{r.next_action}</p>{r.previous_action_result && <p className="mt-2 mb-0">上次行动反馈：{r.previous_action_result}</p>}</Card.Body></Card>)}
     </>}
-    <div className="d-flex gap-3 mt-4"><Link to="/learning?tab=practice">情境练习（可选）</Link><Link to="/info/knowledge">知识库</Link>{tab === 'practice' && <Link to="/assessment">自我探索（可选）</Link>}</div>
+    {tab === 'practice' ? <details className="mt-4"><summary>其他功能</summary><div className="d-flex flex-wrap gap-3 mt-2"><Link to="/learning?tab=decision">消费选择</Link><Link to="/learning?tab=review">每周复盘</Link><Link to="/info/knowledge">知识库</Link><Link to="/assessment">自我探索</Link></div></details>
+      : <div className="d-flex gap-3 mt-4"><Link to="/learning?tab=practice">情境练习（可选）</Link><Link to="/info/knowledge">知识库</Link></div>}
   </Container>;
 }

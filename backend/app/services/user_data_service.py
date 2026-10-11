@@ -55,6 +55,7 @@ class UserDataService:
 
     def get_monthly_spending(self, user_id, today):
         """按实际消费日期汇总本月支出，不受账单列表和报告条数上限影响。"""
+        from .bill_import import imported_spending
         start = today.replace(day=1)
         tomorrow = today + datetime.timedelta(days=1)
         try:
@@ -63,7 +64,7 @@ class UserDataService:
                     'SELECT COALESCE(SUM(amount), 0) AS spent FROM transactions '
                     'WHERE user_id = %s AND spent_at >= %s AND spent_at < %s AND amount > 0',
                     (user_id, start, tomorrow))
-                return Decimal(str(row['spent'])), None
+                return Decimal(str(row['spent'])) + imported_spending(user_id, start.isoformat(), today.isoformat()), None
             if is_dev_mode():
                 rows = _dev_db['users'].get(user_id, {}).get('transactions', [])
                 if isinstance(rows, dict):
@@ -90,9 +91,28 @@ class UserDataService:
                         raise ValueError('消费金额无效')
                     if amount > 0:
                         total += amount
-            return total, None
+            return total + imported_spending(user_id, start.isoformat(), today.isoformat()), None
         except Exception as error:
             return None, f'本月支出统计失败: {error}'
+
+    def get_monthly_cashflow(self, user_id, today):
+        """Current-month recorded cash flow; never substitute a profile estimate for income."""
+        from .bill_import import imported_cashflow
+
+        spent, error = self.get_monthly_spending(user_id, today)
+        if error:
+            return None, error
+        try:
+            imports = imported_cashflow(user_id, today.replace(day=1).isoformat(), today.isoformat())
+            manual_gross = spent - imports['spent']
+            gross = manual_gross + imports['gross_expense']
+            return {'spent': spent, 'gross_expense': gross, 'refunds': imports['refunds'],
+                    'income': imports['income'], 'remaining': imports['income'] - spent,
+                    'income_breakdown': imports['income_breakdown'],
+                    'has_expense_records': manual_gross > 0 or imports['counts']['expense'] > 0,
+                    'has_income_records': imports['counts']['income'] > 0}, None
+        except Exception as error:
+            return None, f'本月收支统计失败: {error}'
 
     def get_checkin_summary(self, user_id):
         """读取所有记账时间，不受最近消费列表的条数限制。"""
@@ -307,7 +327,8 @@ class UserDataService:
                             'completed': bool(row['completed']),
                             'timestamp': row['timestamp'].isoformat() if row['timestamp'] else None
                         })
-                    return result, None
+                    from .bill_import import combined_transactions
+                    return combined_transactions(user_id, result, limit), None
 
                 elif data_type == 'goals':
                     sql = "SELECT * FROM goals WHERE user_id = %s ORDER BY timestamp DESC LIMIT %s"
@@ -377,7 +398,9 @@ class UserDataService:
                 data_list = _dev_db["users"][user_id].get(data_type, [])
                 if isinstance(data_list, dict):
                     data_list = list(data_list.values())
-                    
+                if data_type == 'transactions':
+                    from .bill_import import combined_transactions
+                    return combined_transactions(user_id, data_list, limit), None
                 return data_list[-limit:] if data_list else [], None
             
             # 3. 生产 Firestore 模式
@@ -391,6 +414,9 @@ class UserDataService:
                          .stream()
             
             data_list = [doc.to_dict() for doc in docs]
+            if data_type == 'transactions':
+                from .bill_import import combined_transactions
+                return combined_transactions(user_id, data_list, limit), None
             return data_list, None
             
         except Exception as e:

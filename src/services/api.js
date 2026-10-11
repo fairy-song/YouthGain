@@ -311,6 +311,45 @@ export const listTransactions = async (limit = 200) => {
   }
 };
 
+const billForm = (file, source, fields = {}) => {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('source', source);
+  Object.entries(fields).forEach(([key, value]) => form.append(key, typeof value === 'string' ? value : JSON.stringify(value)));
+  return form;
+};
+
+export const previewBillImport = async (file, source = 'auto') => {
+  const response = await api.post('/decision/imports/preview', billForm(file, source), { headers: { 'Content-Type': 'multipart/form-data' } });
+  return response.data.data;
+};
+
+export const confirmBillImport = async (file, source, sha256, selectedIds, categories, edits = {}) => {
+  const response = await api.post('/decision/imports/confirm', billForm(file, source, {
+    sha256, selected_ids: selectedIds, categories, edits,
+  }), { headers: { 'Content-Type': 'multipart/form-data' } });
+  window.dispatchEvent(new Event('transaction-saved'));
+  return response.data.data;
+};
+
+export const listBillImports = async () => (await api.get('/decision/imports')).data.data;
+export const getBillImport = async sha256 => (await api.get(`/decision/imports/${sha256}`)).data.data;
+export const editBillImportRow = async (sha256, rowId, changes) => {
+  const result = (await api.put(`/decision/imports/${sha256}/rows/${rowId}`, changes)).data.data;
+  window.dispatchEvent(new Event('transaction-saved'));
+  return result;
+};
+export const revertBillImportEdit = async sha256 => {
+  const result = (await api.post(`/decision/imports/${sha256}/revert-edit`)).data.data;
+  window.dispatchEvent(new Event('transaction-saved'));
+  return result;
+};
+
+export const undoBillImport = async sha256 => {
+  await api.delete(`/decision/imports/${sha256}`);
+  window.dispatchEvent(new Event('transaction-saved'));
+};
+
 /**
  * 新增一笔消费记录。
  * @param {Object} data 必填 amount / category / date(YYYY-MM-DD)，可选 merchant / items / note / hour

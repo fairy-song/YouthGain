@@ -1,0 +1,20 @@
+.daily-podcast { max-width: 1040px; margin: 0 auto 3rem; padding: 1.4rem 1.5rem; background: #fff; border: 1px solid var(--yg-line); border-radius: 22px; box-shadow: var(--yg-shadow-sm); color: var(--yg-ink); }
+.daily-podcast-loading { color: var(--yg-muted); }
+.daily-podcast-kicker { color: var(--yg-primary-text); font-size: .82rem; font-weight: 700; }
+.daily-podcast h2 { font-size: 1.18rem; font-weight: 700; margin: .4rem 0 1rem; }
+.daily-podcast h3 { font-size: 1.12rem; font-weight: 700; margin: 0 0 .3rem; }
+.daily-podcast p { line-height: 1.6; }
+.daily-podcast-publisher, .daily-podcast-note { color: var(--yg-muted); font-size: .88rem; }
+.daily-podcast-description { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.daily-podcast-reason { background: var(--yg-primary-subtle); border-radius: 12px; padding: .75rem .9rem; font-size: .91rem; }
+.daily-podcast-actions { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; margin: 1rem 0; }
+.daily-podcast-actions a, .daily-podcast-actions button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: .45rem .9rem; border: 1px solid var(--yg-primary-border); border-radius: 10px; color: var(--yg-primary-text); background: #fff; font-weight: 650; text-decoration: none; }
+.daily-podcast-actions a:hover, .daily-podcast-actions button:hover { background: var(--yg-primary-subtle); }
+.daily-podcast-actions button:disabled { opacity: .6; cursor: default; }
+.daily-podcast-links { color: var(--yg-primary-text); font-size: .88rem; }
+.daily-podcast-links summary { cursor: pointer; }
+.daily-podcast-links a { display: inline-block; color: var(--yg-primary-text); margin: .7rem 1rem 0 0; }
+.daily-podcast-note { margin: 1rem 0 0; }
+.daily-podcast-empty { color: var(--yg-muted); margin-bottom: .8rem; }
+.daily-podcast button:focus-visible, .daily-podcast a:focus-visible, .daily-podcast summary:focus-visible { outline: 3px solid var(--yg-secondary-text); outline-offset: 3px; }
+@media (max-width: 700px) { .daily-podcast { margin: 0 1rem 5rem; padding: 1.25rem; } }

@@ -1,0 +1,55 @@
+.learning-practice-card {
+  max-width: 720px;
+  margin-inline: auto;
+  background: #fff;
+  border: 1px solid var(--yg-line);
+  border-radius: 24px;
+  box-shadow: var(--yg-shadow);
+}
+
+.learning-practice-card .card-body { padding: clamp(1.25rem, 4vw, 2.5rem); }
+.learning-practice-kicker { color: var(--yg-primary-text); font-size: .85rem; font-weight: 700; letter-spacing: .03em; }
+.learning-practice-heading { color: var(--yg-ink); font-size: clamp(1.45rem, 3vw, 1.85rem); font-weight: 750; margin: .45rem 0 1.2rem; }
+.learning-practice-progress { color: var(--yg-muted); font-size: .9rem; margin-bottom: .75rem; }
+.learning-practice-context { background: var(--yg-primary-subtle); border-radius: 14px; color: var(--yg-ink); line-height: 1.65; padding: .9rem 1rem; margin-bottom: 1.25rem; }
+.learning-practice-question { color: var(--yg-ink); font-size: clamp(1.15rem, 2.5vw, 1.4rem); font-weight: 700; line-height: 1.45; margin-bottom: 1rem; }
+.learning-practice-options { display: grid; gap: .7rem; margin-bottom: 1.2rem; }
+.learning-practice-option { align-items: center; border: 2px solid var(--yg-line); border-radius: 14px; color: var(--yg-ink); cursor: pointer; display: flex; font-size: 1rem; gap: .8rem; line-height: 1.5; min-height: 56px; padding: .8rem 1rem; transition: background-color .18s ease, border-color .18s ease; }
+.learning-practice-option:hover { border-color: var(--yg-primary); background: var(--yg-primary-subtle); }
+.learning-practice-option.is-selected { border-color: var(--yg-primary-text); background: var(--yg-primary-subtle); }
+.learning-practice-option input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.learning-practice-option:focus-within { outline: 3px solid var(--yg-secondary-text); outline-offset: 2px; }
+.learning-practice-option-mark { border: 2px solid var(--yg-muted); border-radius: 50%; flex: 0 0 20px; height: 20px; }
+.learning-practice-option.is-selected .learning-practice-option-mark { border: 6px solid var(--yg-primary-text); }
+.learning-practice-answer { margin-bottom: 1.25rem; }
+.learning-practice-answer label { color: var(--yg-ink); font-weight: 600; }
+.learning-practice-answer .form-control { border-radius: 12px; font-size: 1rem; max-width: 100%; }
+.learning-practice-answer input.form-control { max-width: 230px; }
+.learning-practice-primary { min-height: 48px; padding: .6rem 1.5rem; font-weight: 700; border-radius: 12px; }
+.learning-practice-actions { align-items: center; display: flex; flex-wrap: wrap; gap: .75rem; }
+.learning-practice-actions .btn-outline-secondary { min-height: 48px; border-radius: 12px; font-weight: 600; }
+.learning-practice-review-note { color: var(--yg-muted); font-size: .9rem; margin-bottom: .75rem; }
+.learning-practice-feedback { background: var(--yg-primary-subtle); border-left: 4px solid var(--yg-primary-text); border-radius: 12px; color: var(--yg-ink); line-height: 1.6; padding: 1rem 1.15rem; margin-bottom: 1.2rem; }
+.learning-practice-feedback strong { display: block; margin-bottom: .55rem; }
+.learning-practice-feedback p { overflow-wrap: anywhere; }
+.learning-practice-secondary { margin-top: 1rem; }
+.learning-practice-secondary .btn { color: var(--yg-primary-text); text-align: left; }
+.learning-practice-more { color: var(--yg-muted); font-size: .9rem; margin-top: 1.15rem; }
+.learning-practice-more summary { cursor: pointer; width: fit-content; }
+.learning-practice-more a { display: block; margin-top: .65rem; }
+.learning-practice-empty { color: var(--yg-muted); line-height: 1.6; }
+
+@media (max-width: 575.98px) {
+  .learning-practice-card { border-radius: 18px; }
+  .learning-practice-card .card-body { padding: 1.25rem; }
+  .learning-practice-primary { width: 100%; }
+  .learning-practice-actions .btn-outline-secondary { width: 100%; }
+  .learning-practice-option { min-height: 54px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .learning-practice-page { animation: none; }
+  .learning-practice-option { transition: none; }
+  .learning-practice-card .btn { transition: none; }
+  .learning-practice-card .btn:hover { transform: none; }
+}

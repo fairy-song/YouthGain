@@ -14,6 +14,7 @@ import { CSSTransition, SwitchTransition } from 'react-transition-group';
 import 'animate.css';
 import { mainNavigation } from '../services/navigation';
 import MobileNavBar from './MobileNavBar';
+import MemberLayout from './MemberLayout';
 
 // 自定义CSS样式
 const styles = {
@@ -97,6 +98,9 @@ const Layout = () => {
       console.error('登出失败:', error);
     }
   };
+
+  if (location.pathname === '/start' || (location.pathname === '/' && !currentUser)) return <Outlet />;
+  if (currentUser) return <MemberLayout />;
 
   return (
     <div className="layout-wrapper d-flex flex-column min-vh-100">

@@ -84,6 +84,11 @@ def compute_facts(transactions, income, amount=None, today=None, skipped=0, limi
              'end': max(dates).isoformat() if dates else None, 'monthly_income': income,
              'spent_this_month': round(sum(t.amount for t in current), 2),
              'skipped': skipped, 'limited': limited, 'coverage': 'unknown', 'limitation': LIMITATION}
+    from .pca_service import analyze_spending
+    pca = analyze_spending(transactions, today=today, limited=limited or bool(skipped))
+    # Only summarized evidence enters the already-authorized coach facts flow.
+    facts['pca'] = {**pca, 'components': [{k: v for k, v in c.items() if k != 'scores'}
+                                       for c in pca['components']]}
     if income is None or not transactions:
         facts['message'] = '资料或消费记录不足，暂不估算结余和目标影响。'
         return facts
@@ -121,6 +126,12 @@ def render_evidence(evidence):
             parts.append(f"按历史结余估算的目标延迟：约 {facts['delay_days']} 天。{facts['delay_assumption']}")
         if facts.get('message'):
             parts.append(facts['message'])
+        pca = facts.get('pca') or {}
+        if pca.get('status') == 'ready':
+            parts.append('**消费模式探索（PCA）**\n\n' + pca['message'])
+            for component in pca['components']:
+                parts.append(f"{component['title']}：解释约 {component['explained_variance_ratio'] * 100:.1f}% 的指标变化。{plain(component['detail'])}")
+            parts.append(pca['limitation'])
         if facts['skipped'] or facts['limited']:
             parts.append('部分记录无效或读取已达上限，本次数据不完整。')
         parts.append(LIMITATION)

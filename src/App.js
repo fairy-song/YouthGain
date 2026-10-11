@@ -7,7 +7,7 @@ import { checkHealth } from './services/api';
 import './mobile-styles.css'; // 添加移动端样式
 
 // 页面组件
-import Home from './pages/Home';
+import TodayHome from './pages/TodayHome';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -17,9 +17,14 @@ import Assessment from './pages/Assessment';
 import CoachChat from './pages/CoachChat';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminOrb from './pages/AdminOrb';
+import PodcastAdmin from './pages/PodcastAdmin';
 import NotFound from './pages/NotFound';
 import Onboarding from './pages/Onboarding';
-import { getLearningProfile } from './services/learning';
+import FirstVisit, { Welcome } from './pages/FirstVisit';
+import OnboardingComplete from './pages/OnboardingComplete';
+import SchoolResearch from './pages/SchoolResearch';
+import ResearchParticipation from './pages/ResearchParticipation';
+import { getLearningProfile, getQuestionnaires } from './services/learning';
 
 // 信息页面组件
 import { 
@@ -66,20 +71,34 @@ const ProtectedRoute = ({ children }) => {
   return <React.Fragment key={currentUser.uid}>{children}</React.Fragment>;
 };
 
+const HomeEntry = () => {
+  const { currentUser, loading, initializing } = useAuth();
+  if (loading || initializing) return <div className="flex justify-center items-center h-screen">加载中...</div>;
+  return currentUser ? <TodayHome /> : <Welcome />;
+};
+
 const OnboardingRoute = ({ children }) => {
   const { currentUser, loading, initializing } = useAuth();
   const userId = currentUser?.uid;
+  const userEmail = currentUser?.email;
   const [checking, setChecking] = useState(true);
   const [complete, setComplete] = useState(false);
+  const [checkError, setCheckError] = useState('');
   useEffect(() => {
-    if (!userId) return;
-    const localDone = currentUser?.email && localStorage.getItem(`onboarding_complete:${currentUser.email.toLowerCase()}`) === 'true';
+    if (!userId) { setChecking(false); return; }
+    let active = true;
+    setChecking(true); setCheckError('');
+    const localDone = userEmail && localStorage.getItem(`onboarding_complete:${userEmail.toLowerCase()}`) === 'true';
     if (localDone) { setComplete(true); setChecking(false); return; }
-    getLearningProfile().then(profile => setComplete(profile?.onboarding_complete === true)).catch(() => setComplete(false)).finally(() => setChecking(false));
-  }, [userId]);
+    Promise.all([getLearningProfile(), getQuestionnaires()]).then(([profile, questionnaires]) => {
+      if (active) setComplete(profile?.onboarding_complete === true || !!questionnaires.latest);
+    }).catch(() => { if (active) setCheckError('暂时无法读取你的入门资料，请刷新重试。'); }).finally(() => { if (active) setChecking(false); });
+    return () => { active = false; };
+  }, [userId, userEmail]);
   if (loading || initializing || checking) return <div className="flex justify-center items-center h-screen">准备你的理财空间…</div>;
   if (!currentUser) return <Navigate to="/login" replace />;
-  return complete ? children : <Navigate to="/onboarding" replace />;
+  if (checkError) return <div role="alert" className="alert alert-warning m-4">{checkError}</div>;
+  return complete ? children : <Navigate to="/start" replace />;
 };
 
 // 管理员专属路由，等待角色恢复后再判断权限。
@@ -131,12 +150,14 @@ function App() {
           <Route path="users" element={<AdminDashboard section="users" />} />
           <Route path="knowledge" element={<AdminDashboard section="kb" />} />
           <Route path="coach" element={<AdminDashboard section="coach" />} />
+          <Route path="podcasts" element={<PodcastAdmin />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>
 
         {/* 公共路由 */}
         <Route path="/" element={<Layout />}>
-          <Route index element={<Home />} />
+          <Route index element={<HomeEntry />} />
+          <Route path="start" element={<FirstVisit />} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
           
@@ -147,8 +168,11 @@ function App() {
             </OnboardingRoute>
           } />
           <Route path="onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+          <Route path="onboarding/complete" element={<ProtectedRoute><OnboardingComplete /></ProtectedRoute>} />
           <Route path="learning" element={<ProtectedRoute><Learning /></ProtectedRoute>} />
           <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="research" element={<ProtectedRoute><SchoolResearch /></ProtectedRoute>} />
+          <Route path="research/participation" element={<ProtectedRoute><ResearchParticipation /></ProtectedRoute>} />
           <Route path="assessment" element={
             <ProtectedRoute>
               <Assessment />
