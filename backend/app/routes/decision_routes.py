@@ -140,7 +140,7 @@ def _load_engine_inputs(user_id):
     refunds = {}
     for row in raw_txns:
         if row.get('transaction_type') == 'refund' and row.get('related_source_id'):
-            key = (row.get('source'), row['related_source_id'])
+            key = (row.get('related_source') or row.get('source'), row['related_source_id'])
             refunds[key] = refunds.get(key, Decimal('0')) + Decimal(str(row['amount']))
     expense_rows = []
     for row in raw_txns:
@@ -411,6 +411,39 @@ def confirm_import(user_info):
         return jsonify(status='error', message='账单导入失败，未确认入账；请重新预览后重试'), 503
 
 
+@decision_bp.route('/bill-categories', methods=['GET', 'POST'])
+@decision_bp.route('/bill-categories/<option_id>', methods=['PUT', 'DELETE'])
+@require_auth
+def bill_category_options(user_info, option_id=None):
+    from app.services import bill_categories
+    try:
+        if request.method == 'DELETE':
+            result = bill_categories.remove(user_info['uid'], option_id)
+        elif request.method == 'GET':
+            result = bill_categories.list_options(user_info['uid'])
+        else:
+            result = bill_categories.save(user_info['uid'], request.get_json(silent=True), option_id)
+        return jsonify(status='success', data=result), 201 if request.method == 'POST' else 200
+    except ValueError as error:
+        return jsonify(status='error', message=str(error)), 400
+    except Exception:
+        logger.exception('Bill category operation failed')
+        return jsonify(status='error', message='自定义分类暂时无法保存或读取'), 503
+
+
+@decision_bp.route('/imports/original-expenses', methods=['POST'])
+@require_auth
+def supplement_original_expense(user_info):
+    try:
+        return jsonify(status='success', data=bill_import.supplement_purchase(
+            user_info['uid'], request.get_json(silent=True))), 200
+    except ValueError as error:
+        return jsonify(status='error', message=str(error)), 400
+    except Exception:
+        logger.exception('Original expense backfill failed')
+        return jsonify(status='error', message='原支出未能保存，请重试'), 503
+
+
 @decision_bp.route('/imports', methods=['GET'])
 @require_auth
 def list_imports(user_info):
@@ -419,7 +452,8 @@ def list_imports(user_info):
                    if entry.get('kind') == 'import_batch']
         return jsonify(status='success', data=[{'sha256': batch['file_sha256'],
                        'source': batch['source'], 'count': len(batch.get('rows', [])),
-                       'status': batch['status'], 'created_at': batch['created_at']}
+                       'status': batch['status'], 'created_at': batch['created_at'],
+                       'pending_count': sum(row.get('decision') == 'review' for row in batch.get('rows', []))}
                        for batch in batches]), 200
     except Exception:
         logger.exception('Bill import list failed')
@@ -516,6 +550,11 @@ def list_transactions(user_info):
                          'income': float(cashflow['income']),
                          'remaining': float(cashflow['remaining']),
                          'income_breakdown': {key: float(value) for key, value in cashflow['income_breakdown'].items()},
+                         'category_breakdown': [{**part, 'gross_expense': float(part['gross_expense']),
+                                                 'refunds': float(part['refunds']), 'net': float(part['net'])}
+                                                for part in cashflow['category_breakdown']],
+                         'daily_spending': [{'date': part['date'], 'spent': float(part['spent'])}
+                                            for part in cashflow['daily_spending']],
                          'has_expense_records': cashflow['has_expense_records'],
                          'has_income_records': cashflow['has_income_records'],
                          'complete': True} if cashflow else {'month': month, 'complete': False})
@@ -609,6 +648,11 @@ def create_transaction(user_info):
 @require_auth
 def delete_transaction(user_info, transaction_id):
     """删除一笔消费记录。"""
+    try:
+        if bill_import.manual_has_refunds(user_info['uid'], transaction_id):
+            return jsonify(status='error', message='退款仍关联这笔支出，请先修改退款关联或撤销退款批次'), 400
+    except Exception:
+        return jsonify(status='error', message='暂时无法核对退款关联，未删除支出'), 503
     success, message = user_data_service.delete_user_data(
         user_info['uid'], 'transactions', transaction_id)
     if not success:

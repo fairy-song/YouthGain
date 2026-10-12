@@ -6,6 +6,13 @@ import Dashboard from './Dashboard';
 import { getDecisionReport, listTransactions, getUserGoals, createTransaction, getOpportunityCost } from '../services/api';
 import { getLearning, getLearningProfile } from '../services/learning';
 import { dateKey } from '../components/FinanceVisuals';
+const cashflow = (spent, category = '餐饮') => ({
+  month: dateKey().slice(0, 7), spent, gross_expense: spent, refunds: 0,
+  income: 0, remaining: spent ? -spent : 0, income_breakdown: { red_packet: 0, external_transfer: 0, other_income: 0 },
+  category_breakdown: spent ? [{ category, gross_expense: spent, refunds: 0, net: spent }] : [],
+  daily_spending: [{ date: dateKey(), spent }], complete: true,
+  has_expense_records: spent > 0, has_income_records: false,
+});
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'u1' } }) }));
 jest.mock('../services/api', () => ({ getDecisionReport: jest.fn(), listTransactions: jest.fn(), getUserGoals: jest.fn(), createTransaction: jest.fn(), getOpportunityCost: jest.fn() }));
 jest.mock('../services/learning', () => ({ getLearning: jest.fn(), getLearningProfile: jest.fn() }));
@@ -18,7 +25,7 @@ beforeEach(() => {
   getLearningProfile.mockResolvedValue({ monthly_income: 2000 });
   getLearning.mockResolvedValue({ entries: [] });
   getDecisionReport.mockResolvedValue({ has_data: false });
-  listTransactions.mockResolvedValue({ transactions: [] });
+  listTransactions.mockResolvedValue({ transactions: [], monthly_cashflow: cashflow(0) });
   getUserGoals.mockResolvedValue({ data: { goals: [] } });
 });
 
@@ -46,6 +53,8 @@ test('shows separate monthly spending income and remaining with the refund trail
     monthly_budget: { month: dateKey().slice(0, 7), budget: 2000, spent: 80, remaining: 1920, complete: true },
     monthly_cashflow: { spent: 80, gross_expense: 100, refunds: 20, income: 30, remaining: -50,
       income_breakdown: { red_packet: 30, external_transfer: 0, other_income: 0 }, complete: true,
+      month: dateKey().slice(0, 7), category_breakdown: [{ category: '购物', gross_expense: 100, refunds: 20, net: 80 }],
+      daily_spending: [{ date: dateKey(), spent: 80 }],
       has_expense_records: true, has_income_records: true },
   });
   render(<MemoryRouter><Dashboard /></MemoryRouter>);
@@ -56,6 +65,21 @@ test('shows separate monthly spending income and remaining with the refund trail
   expect(screen.getByText(/原支付 ¥100.00 · 已退 ¥20.00 · 实际支出 ¥80.00/)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '导入支出账单' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '导入收款账单' })).toBeInTheDocument();
+});
+
+test('monthly chart matches the server summary even when only 50 recent rows are listed', async () => {
+  listTransactions.mockResolvedValue({
+    transactions: Array.from({ length: 50 }, (_, index) => ({
+      id: `row-${index}`, date: dateKey(), amount: 1, category: '餐饮', source: 'manual',
+    })),
+    monthly_budget: { month: dateKey().slice(0, 7), spent: 60, complete: true },
+    monthly_cashflow: cashflow(60),
+  });
+  render(<MemoryRouter><Dashboard /></MemoryRouter>);
+  const summary = await screen.findByRole('region', { name: '本月收支摘要' });
+  expect(within(summary).getByText('¥60.00')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /餐饮.*¥60.00/ })).toBeInTheDocument();
+  expect(screen.getByText(/最多显示 50 笔/)).toBeInTheDocument();
 });
 
 test('manual entry retains consumption content when saving fails', async () => {
@@ -71,33 +95,33 @@ test('manual entry retains consumption content when saving fails', async () => {
 });
 
 test('saved spending updates budget and charts even when the analysis report fails', async () => {
-  listTransactions.mockResolvedValue({ transactions: [], monthly_budget: { budget: 2000, spent: 0, remaining: 2000 } });
+  listTransactions.mockResolvedValue({ transactions: [], monthly_budget: { budget: 2000, spent: 0, remaining: 2000 }, monthly_cashflow: cashflow(0) });
   render(<MemoryRouter><Dashboard /></MemoryRouter>);
   expect(await screen.findByText('¥2,000')).toBeInTheDocument();
   getDecisionReport.mockRejectedValue(new Error('分析暂时不可用'));
   listTransactions.mockResolvedValue({ transactions: [{ id: 'new', date: dateKey(), amount: 20, category: '餐饮' }],
-    monthly_budget: { budget: 2000, spent: 20, remaining: 1980 } });
+    monthly_budget: { budget: 2000, spent: 20, remaining: 1980 }, monthly_cashflow: cashflow(20) });
   fireEvent.change(screen.getByPlaceholderText('金额（元）'), { target: { value: '20' } });
   fireEvent.click(screen.getByRole('button', { name: '记一笔' }));
   expect(await screen.findByText('¥1,980')).toBeInTheDocument();
-  expect(screen.getByRole('img', { name: /有支出的类别合计 ¥20/ })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /餐饮.*¥20.00/ })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '近七天' }));
-  expect(screen.getByRole('button', { name: `${dateKey()}，净消费 ¥20` })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: `${dateKey()}，净消费 ¥20.00` })).toBeInTheDocument();
 });
 
 test('saved spending refreshes without waiting for opportunity-cost feedback', async () => {
-  listTransactions.mockResolvedValue({ transactions: [], monthly_budget: { budget: 2000, spent: 0, remaining: 2000 } });
+  listTransactions.mockResolvedValue({ transactions: [], monthly_budget: { budget: 2000, spent: 0, remaining: 2000 }, monthly_cashflow: cashflow(0) });
   render(<MemoryRouter><Dashboard /></MemoryRouter>);
   await screen.findByText('¥2,000');
-  expect(screen.getByText('¥0.00')).toBeInTheDocument();
+  expect(screen.getAllByText('¥0.00').length).toBeGreaterThan(0);
   getOpportunityCost.mockReturnValue(new Promise(() => {}));
   listTransactions.mockResolvedValue({ transactions: [{ id: 'new', date: dateKey(), amount: 20, category: '餐饮' }],
-    monthly_budget: { budget: 2000, spent: 20, remaining: 1980 } });
+    monthly_budget: { budget: 2000, spent: 20, remaining: 1980 }, monthly_cashflow: cashflow(20) });
   fireEvent.change(screen.getByPlaceholderText('金额（元）'), { target: { value: '20' } });
   fireEvent.click(screen.getByRole('button', { name: '记一笔' }));
   expect(await screen.findByText('¥1,980')).toBeInTheDocument();
-  expect(screen.getByText('¥20.00')).toBeInTheDocument();
-  expect(screen.getByRole('img', { name: /有支出的类别合计 ¥20/ })).toBeInTheDocument();
+  expect(screen.getAllByText('¥20.00').length).toBeGreaterThan(0);
+  expect(screen.getByRole('button', { name: /餐饮.*¥20.00/ })).toBeInTheDocument();
 });
 
 test('a late response from an older refresh cannot overwrite updated spending', async () => {
@@ -106,12 +130,12 @@ test('a late response from an older refresh cannot overwrite updated spending', 
   render(<MemoryRouter><Dashboard /></MemoryRouter>);
   await waitFor(() => expect(listTransactions).toHaveBeenCalledTimes(1));
   listTransactions.mockResolvedValue({ transactions: [{ id: 'new', date: dateKey(), amount: 20, category: '餐饮' }],
-    monthly_budget: { budget: 2000, spent: 20, remaining: 1980 } });
+    monthly_budget: { budget: 2000, spent: 20, remaining: 1980 }, monthly_cashflow: cashflow(20) });
   fireEvent(window, new Event('transaction-saved'));
   expect(await screen.findByText('¥1,980')).toBeInTheDocument();
   await act(async () => resolveOld({ transactions: [], monthly_budget: { budget: 2000, spent: 0, remaining: 2000 } }));
   expect(screen.getByText('¥1,980')).toBeInTheDocument();
-  expect(screen.getByRole('img', { name: /有支出的类别合计 ¥20/ })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /餐饮.*¥20.00/ })).toBeInTheDocument();
 });
 
 test('backfilled spending refreshes monthly budget as well as the transaction list', async () => {

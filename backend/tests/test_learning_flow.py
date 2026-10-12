@@ -319,9 +319,13 @@ def test_month_budget_includes_legacy_dates_and_more_than_report_limit(client, m
 
 def test_month_budget_does_not_restore_full_budget_when_summary_fails(client, monkeypatch):
     from app.routes import decision_routes
+    from app.services.checkin_service import BEIJING
     call(client, 'put', '/api/learning/profile', {'monthly_income': 2000})
-    monkeypatch.setattr(decision_routes.user_data_service, 'get_monthly_spending', lambda *args: (None, '读取失败'))
-    budget = call(client, 'get', '/api/decision/transactions').json['data']['monthly_budget']
+    monkeypatch.setattr(decision_routes.user_data_service, '_manual_cashflow_rows',
+                        lambda *args: (_ for _ in ()).throw(OSError('读取失败')))
+    data = call(client, 'get', '/api/decision/transactions').json['data']
+    budget = data['monthly_budget']
     assert budget['complete'] is False
     assert budget['remaining'] is None
     assert budget['spent'] is None
+    assert data['monthly_cashflow'] == {'month': datetime.now(BEIJING).date().isoformat()[:7], 'complete': False}

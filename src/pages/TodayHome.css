@@ -5,6 +5,12 @@
 .today-intro h1 { font-size: clamp(1.75rem, 4vw, 2.6rem); font-weight: 750; letter-spacing: -.025em; margin: .55rem 0 .55rem; }
 .today-intro p { color: var(--yg-muted); font-size: 1rem; margin: 0; }
 .today-task { background: #fff; border: 1px solid var(--yg-primary-border); border-radius: 28px; box-shadow: var(--yg-shadow); overflow: hidden; }
+/* 仅新增装饰层的定位；卡片原有间距、圆角、边框和阴影保持不变。 */
+.today-task { position: relative; isolation: isolate; }
+.today-practice-mascot { pointer-events: none; user-select: none; object-fit: contain; }
+.today-task-top, .today-task-body { position: relative; z-index: 2; }
+/* 窄屏的绿色按钮占满整行。空间不足时隐藏装饰，避免移动或遮挡内容。 */
+@media (max-width: 940px) { .today-practice-mascot { display: none; } }
 .today-task-top { align-items: center; display: flex; justify-content: space-between; gap: 1rem; padding: 1.25rem clamp(1.25rem, 4vw, 2.5rem) 0; }
 .today-tag { background: var(--yg-primary-subtle); border-radius: 999px; color: var(--yg-primary-text); font-size: .82rem; font-weight: 700; padding: .4rem .75rem; }
 .today-task-meta { color: var(--yg-muted); font-size: .85rem; }

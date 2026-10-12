@@ -54,30 +54,65 @@ class UserDataService:
         return get_db()
 
     def get_monthly_spending(self, user_id, today):
-        """按实际消费日期汇总本月支出，不受账单列表和报告条数上限影响。"""
-        from .bill_import import imported_spending
-        start = today.replace(day=1)
-        tomorrow = today + datetime.timedelta(days=1)
+        """Return the same full-month net amount used by the ledger summary."""
+        cashflow, error = self.get_monthly_cashflow(user_id, today)
+        return (cashflow['spent'] if cashflow else None), error
+
+    def _manual_cashflow_rows(self, user_id, first_day, today):
+        """Read all manual entries needed for the month and seven-day chart."""
+        if is_mysql_mode():
+            return MySQLHelper.execute_query(
+                'SELECT spent_at AS date, amount, category FROM transactions '
+                'WHERE user_id = %s AND spent_at >= %s AND spent_at < %s AND amount > 0',
+                (user_id, first_day, today + datetime.timedelta(days=1)))
+        if is_dev_mode():
+            rows = _dev_db['users'].get(user_id, {}).get('transactions', [])
+            return list(rows.values()) if isinstance(rows, dict) else list(rows)
+        if not self.db:
+            raise RuntimeError('数据库未初始化')
+        # Some legacy documents only have spent_at, so a date-only query would
+        # silently lose them. Scan selected fields until migration is complete.
+        docs = self.db.collection(get_user_collection_path(user_id, 'transactions')).select(
+            ['date', 'spent_at', 'amount', 'category']).stream()
+        return [doc.to_dict() for doc in docs]
+
+    def manual_purchase_rows(self, user_id):
+        """All original manual expenses for explicit refund selection."""
+        if is_mysql_mode():
+            rows = MySQLHelper.execute_query(
+                'SELECT id, spent_at AS date, amount, category, merchant FROM transactions WHERE user_id = %s',
+                (user_id,))
+        elif is_dev_mode():
+            values = _dev_db['users'].get(user_id, {}).get('transactions', [])
+            rows = list(values.values()) if isinstance(values, dict) else list(values)
+        else:
+            if not self.db:
+                raise RuntimeError('数据库未初始化')
+            docs = self.db.collection(get_user_collection_path(user_id, 'transactions')).stream()
+            rows = [{**doc.to_dict(), 'id': doc.id} for doc in docs]
+        return [{**row, 'source': 'manual', 'source_transaction_id': str(row['id']),
+                 'date': str(row.get('date') or row.get('spent_at'))[:10], 'transaction_type': 'expense'}
+                for row in rows if row.get('id') is not None and Decimal(str(row.get('amount') or 0)) > 0]
+
+    def get_monthly_cashflow(self, user_id, today):
+        """One snapshot for monthly totals, categories and the last seven days."""
+        from .bill_import import active_rows
+
+        month_start = today.replace(day=1)
+        week_start = today - datetime.timedelta(days=6)
+        first_day = min(month_start, week_start)
         try:
-            if is_mysql_mode():
-                row = MySQLHelper.execute_one(
-                    'SELECT COALESCE(SUM(amount), 0) AS spent FROM transactions '
-                    'WHERE user_id = %s AND spent_at >= %s AND spent_at < %s AND amount > 0',
-                    (user_id, start, tomorrow))
-                return Decimal(str(row['spent'])) + imported_spending(user_id, start.isoformat(), today.isoformat()), None
-            if is_dev_mode():
-                rows = _dev_db['users'].get(user_id, {}).get('transactions', [])
-                if isinstance(rows, dict):
-                    rows = rows.values()
-            else:
-                if not self.db:
-                    return None, '数据库未初始化'
-                # 旧记录可能使用 spent_at；仅查询 date 会遗漏这部分历史消费。
-                docs = self.db.collection(get_user_collection_path(user_id, 'transactions')).select(
-                    ['date', 'spent_at', 'amount']).stream()
-                rows = (doc.to_dict() for doc in docs)
-            total = Decimal('0')
-            for row in rows:
+            manual = self._manual_cashflow_rows(user_id, first_day, today)
+            imported = active_rows(user_id)
+            purchases = {(row.get('source'), row.get('source_transaction_id')): row.get('category')
+                         for row in imported if row.get('transaction_type') == 'expense'
+                         and row.get('source_transaction_id')}
+            categories = {}
+            daily = {week_start + datetime.timedelta(days=offset): Decimal('0') for offset in range(7)}
+            gross = refunds = income = Decimal('0')
+            income_breakdown = {key: Decimal('0') for key in ('red_packet', 'external_transfer', 'other_income')}
+            has_expense = has_income = False
+            for row in [*manual, *imported]:
                 value = row.get('date') or row.get('spent_at')
                 if isinstance(value, datetime.datetime):
                     spent_date = value.date()
@@ -85,32 +120,52 @@ class UserDataService:
                     spent_date = value
                 else:
                     spent_date = datetime.date.fromisoformat(str(value)[:10])
-                if start <= spent_date <= today:
-                    amount = Decimal(str(row['amount']))
-                    if not amount.is_finite():
-                        raise ValueError('消费金额无效')
-                    if amount > 0:
-                        total += amount
-            return total + imported_spending(user_id, start.isoformat(), today.isoformat()), None
-        except Exception as error:
-            return None, f'本月支出统计失败: {error}'
-
-    def get_monthly_cashflow(self, user_id, today):
-        """Current-month recorded cash flow; never substitute a profile estimate for income."""
-        from .bill_import import imported_cashflow
-
-        spent, error = self.get_monthly_spending(user_id, today)
-        if error:
-            return None, error
-        try:
-            imports = imported_cashflow(user_id, today.replace(day=1).isoformat(), today.isoformat())
-            manual_gross = spent - imports['spent']
-            gross = manual_gross + imports['gross_expense']
-            return {'spent': spent, 'gross_expense': gross, 'refunds': imports['refunds'],
-                    'income': imports['income'], 'remaining': imports['income'] - spent,
-                    'income_breakdown': imports['income_breakdown'],
-                    'has_expense_records': manual_gross > 0 or imports['counts']['expense'] > 0,
-                    'has_income_records': imports['counts']['income'] > 0}, None
+                if not first_day <= spent_date <= today:
+                    continue
+                amount = Decimal(str(row['amount']))
+                if not amount.is_finite():
+                    raise ValueError('收支金额无效')
+                if amount <= 0:
+                    continue
+                kind = row.get('transaction_type') or 'expense'
+                if kind in ('expense', 'refund'):
+                    signed = amount if kind == 'expense' else -amount
+                    if spent_date in daily:
+                        daily[spent_date] += signed
+                    if spent_date >= month_start:
+                        if kind == 'expense':
+                            gross += amount
+                            has_expense = True
+                        else:
+                            refunds += amount
+                        category = ((purchases.get((row.get('related_source') or row.get('source'),
+                                                    row.get('related_source_id'))) or row.get('category'))
+                                    if kind == 'refund' else row.get('category')) or '未分类'
+                        part = categories.setdefault(category, {'gross_expense': Decimal('0'),
+                                                                'refunds': Decimal('0')})
+                        part['gross_expense' if kind == 'expense' else 'refunds'] += amount
+                elif kind == 'income' and spent_date >= month_start:
+                    receipt = row.get('receipt_kind') or 'other_income'
+                    if receipt not in income_breakdown:
+                        raise ValueError('收款分类无效')
+                    income += amount
+                    income_breakdown[receipt] += amount
+                    has_income = True
+            spent = gross - refunds
+            breakdown = [{'category': name, **totals,
+                          'net': totals['gross_expense'] - totals['refunds']}
+                         for name, totals in categories.items()]
+            breakdown.sort(key=lambda part: (-abs(part['net']), part['category']))
+            if sum((part['net'] for part in breakdown), Decimal('0')) != spent:
+                raise ValueError('分类汇总与本月支出不一致')
+            return {'spent': spent, 'gross_expense': gross, 'refunds': refunds,
+                    'income': income, 'remaining': income - spent,
+                    'income_breakdown': income_breakdown,
+                    'category_breakdown': breakdown,
+                    'daily_spending': [{'date': day.isoformat(), 'spent': value}
+                                       for day, value in daily.items()],
+                    'has_expense_records': has_expense,
+                    'has_income_records': has_income}, None
         except Exception as error:
             return None, f'本月收支统计失败: {error}'
 
@@ -327,8 +382,7 @@ class UserDataService:
                             'completed': bool(row['completed']),
                             'timestamp': row['timestamp'].isoformat() if row['timestamp'] else None
                         })
-                    from .bill_import import combined_transactions
-                    return combined_transactions(user_id, result, limit), None
+                    return result, None
 
                 elif data_type == 'goals':
                     sql = "SELECT * FROM goals WHERE user_id = %s ORDER BY timestamp DESC LIMIT %s"
@@ -385,7 +439,8 @@ class UserDataService:
                             'planned': row.get('planned'), 'purpose': row.get('purpose') or '',
                             'timestamp': row['timestamp'].isoformat() if row['timestamp'] else None,
                         })
-                    return result, None
+                    from .bill_import import combined_transactions
+                    return combined_transactions(user_id, result, limit), None
 
                 else:
                     return [], None
@@ -393,6 +448,9 @@ class UserDataService:
             # 2. 开发内存模式
             if is_dev_mode():
                 if user_id not in _dev_db["users"]:
+                    if data_type == 'transactions':
+                        from .bill_import import combined_transactions
+                        return combined_transactions(user_id, [], limit), None
                     return [], None
                 
                 data_list = _dev_db["users"][user_id].get(data_type, [])
@@ -408,15 +466,18 @@ class UserDataService:
                 return [], "数据库未初始化"
             
             collection_path = get_user_collection_path(user_id, data_type)
+            if data_type == 'transactions':
+                from .bill_import import combined_transactions
+                # Sort the union by transaction date before applying the list
+                # limit. A timestamp-limited query can miss late backfills.
+                docs = self.db.collection(collection_path).stream()
+                data_list = [doc.to_dict() for doc in docs]
+                return combined_transactions(user_id, data_list, limit), None
             docs = self.db.collection(collection_path)\
                          .order_by('timestamp', direction='DESCENDING')\
                          .limit(limit)\
                          .stream()
-            
             data_list = [doc.to_dict() for doc in docs]
-            if data_type == 'transactions':
-                from .bill_import import combined_transactions
-                return combined_transactions(user_id, data_list, limit), None
             return data_list, None
             
         except Exception as e:

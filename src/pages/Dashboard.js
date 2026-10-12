@@ -329,8 +329,8 @@ const Dashboard = () => {
 
         <SectionNav label="账本功能" active={tab} items={[["overview", "收支记录", "/dashboard"], ["goals", "储蓄目标", "/dashboard?tab=goals"], ["upcoming", "未来开支", "/dashboard?tab=upcoming"], ["analysis", "详细分析", "/dashboard?tab=analysis"]]} />
         {tab === 'overview' && <section className="ledger-summary" aria-label="本月收支摘要">
-          <div className="ledger-metric"><span className="ledger-summary-label">{monthlyBudget?.month || dateKey().slice(0, 7)} · 本月支出</span>
-            <strong className="ledger-summary-amount">{monthlyCashflow?.complete ? `¥${Number(monthlyCashflow.spent).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : monthlyBudget?.complete !== false && monthlyBudget?.spent != null ? `¥${Number(monthlyBudget.spent).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '暂无法汇总'}</strong>
+          <div className="ledger-metric"><span className="ledger-summary-label">{monthlyCashflow?.month || monthlyBudget?.month || dateKey().slice(0, 7)} · 本月支出</span>
+            <strong className="ledger-summary-amount">{monthlyCashflow?.complete ? `¥${Number(monthlyCashflow.spent).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '暂无法汇总'}</strong>
             <small>{monthlyCashflow?.complete ? `原支付 ¥${Number(monthlyCashflow.gross_expense).toFixed(2)} − 已关联退款 ¥${Number(monthlyCashflow.refunds).toFixed(2)}` : '已记录支出扣除已关联退款'}</small></div>
           <div className="ledger-metric"><span className="ledger-summary-label">本月收入</span><strong className="ledger-summary-amount">{monthlyCashflow?.complete ? `¥${Number(monthlyCashflow.income).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '暂无法汇总'}</strong><small>{monthlyCashflow?.complete ? `红包 ¥${Number(monthlyCashflow.income_breakdown?.red_packet || 0).toFixed(2)} · 他人转入 ¥${Number(monthlyCashflow.income_breakdown?.external_transfer || 0).toFixed(2)}` : '退款和本人转账不计收入'}</small></div>
           <div className="ledger-metric"><span className="ledger-summary-label">本月剩余</span><strong className="ledger-summary-amount">{monthlyCashflow?.complete ? `¥${Number(monthlyCashflow.remaining).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '暂无法汇总'}</strong><small>已记录收入减退款后支出；不是账户余额。</small></div>
@@ -477,7 +477,7 @@ const Dashboard = () => {
           </Col>
         </Row>
 
-        <FinanceVisuals showBudgetSummary={false} monthlyBudget={monthlyBudget} transactions={transactions} selectedCategory={categoryFilter} onCategory={setCategoryFilter} />
+        <FinanceVisuals showBudgetSummary={false} monthlyBudget={monthlyBudget} monthlyCashflow={monthlyCashflow} selectedCategory={categoryFilter} onCategory={setCategoryFilter} />
         <div className="ledger-help d-flex flex-wrap gap-2 mb-4">
           <Link to="/learning?tab=decision" className="btn btn-outline-success btn-sm">买之前，比较选择</Link>
           <CoachHelp prompt="我正在查看账本，请帮我理解已记录的收支与未来安排。先问我想了解哪一部分。" />
@@ -493,7 +493,7 @@ const Dashboard = () => {
                     <div className="icon-container bg-secondary-light rounded-circle d-flex align-items-center justify-content-center me-3">
                       <FaExchangeAlt className="text-secondary" />
                     </div>
-                    <h5 className="card-title mb-0">最近账单</h5>{categoryFilter && <Button variant="link" onClick={() => setCategoryFilter('')}>{categoryFilter} · 清除筛选</Button>}
+                    <h5 className="card-title mb-0">最近账单</h5><span className="small text-muted ms-2">最多显示 50 笔；上方统计包含本月全部已记录交易</span>{categoryFilter && <Button variant="link" onClick={() => setCategoryFilter('')}>{categoryFilter} · 清除筛选</Button>}
                   </div>
                 </div>
                 <div className="table-responsive">
@@ -540,6 +540,7 @@ const Dashboard = () => {
                     <td className="text-end fw-medium text-danger text-nowrap">
                       {t.transaction_type === 'refund' || t.transaction_type === 'income' ? '+' : '-'}¥{Number(t.amount).toLocaleString()}
                       {t.transaction_type && t.transaction_type !== 'expense' && <div className="small text-muted">{t.transaction_type === 'income' ? ({ red_packet: '红包', external_transfer: '他人转入', other_income: '其他收入' }[t.receipt_kind] || '收入') : { refund: '退款', transfer: '本人转账' }[t.transaction_type]}</div>}
+                      {t.custom_category_name && <div className="small text-muted">{t.custom_category_name}</div>}
                       {t.transaction_type === 'expense' && Number(t.refunded_amount) > 0 && <div className="small text-muted">原支付 ¥{t.original_amount} · 已退 ¥{t.refunded_amount} · 实际支出 ¥{t.net_amount}</div>}
                       {t.transaction_type === 'refund' && t.related_source_id && <div className="small text-muted">关联原交易 {t.related_source_id}</div>}
                     </td>

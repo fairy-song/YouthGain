@@ -22,7 +22,7 @@ MAX_ROWS = 1500
 MAX_XLSX_UNCOMPRESSED = 12 * 1024 * 1024
 MAX_BATCH_BYTES = 850 * 1024
 MAX_AMOUNT = Decimal('10000000.00')
-PARSER_VERSION = 3
+PARSER_VERSION = 4
 STANDARD_COLUMNS = {'date', 'type', 'amount'}
 WECHAT_COLUMNS = {'交易时间', '交易类型', '交易对方', '收/支', '当前状态', '交易单号'}
 VALID_TYPES = {'expense', 'refund', 'income', 'transfer'}
@@ -252,6 +252,8 @@ def active_rows(uid):
             continue
         source = batch['source']
         for row in batch.get('rows', []):
+            if row.get('decision', 'import') != 'import':
+                continue
             source_id = row.get('source_transaction_id')
             key = (source, source_id) if source_id else None
             if key and key in seen:
@@ -264,27 +266,119 @@ def active_rows(uid):
     return rows
 
 
-def _purchase_options(source, prior, rows=()):
+def _manual_purchases(uid):
+    from .user_data_service import UserDataService
+    return UserDataService().manual_purchase_rows(uid)
+
+
+def supplement_purchase(uid, payload):
+    """An explicit original transaction number makes repeated backfill idempotent."""
+    if not isinstance(payload, dict) or set(payload) - {'source', 'transaction_id', 'date', 'amount', 'category', 'merchant'}:
+        raise ValueError('原支出内容无效')
+    source = payload.get('source')
+    identifier = payload.get('transaction_id')
+    if source not in ('wechat', 'standard') or not isinstance(identifier, str) or not 0 < len(identifier.strip()) <= 100:
+        raise ValueError('请选择来源并填写原交易号；没有交易号可先手动记账再选择关联')
+    identifier = identifier.strip()
+    amount, spent = _amount(payload.get('amount')), _date(payload.get('date'))
+    category, merchant = payload.get('category'), payload.get('merchant', '')
+    if not isinstance(category, str) or not category.strip() or len(category.strip()) > 50:
+        raise ValueError('原支出类别无效')
+    if not isinstance(merchant, str) or len(merchant.strip()) > 100:
+        raise ValueError('商户名称过长')
+    previous = next((row for row in active_rows(uid) if row.get('source') == source
+                     and row.get('source_transaction_id') == identifier), None)
+    if previous:
+        if previous['transaction_type'] != 'expense' or Decimal(previous['amount']) != Decimal(amount) or previous['date'] != spent:
+            raise ValueError('该原交易号已有不同记录，请选择已有交易或核对后修改')
+        return {'source': source, 'source_transaction_id': identifier, 'date': spent,
+                'amount': amount, 'category': previous['category'], 'merchant': previous.get('merchant', '')}
+    digest = hashlib.sha256(f'original:{source}:{identifier}'.encode()).hexdigest()
+    row = _common(1, 'expense', amount, spent, category, merchant, '用户补录原支出', identifier, '', 'completed')
+    row['supplemental'] = True
+    learning_store.write_entry(uid, f'import:{digest}', {'kind': 'import_batch', 'status': 'committed',
+                               'source': source, 'file_sha256': digest, 'parser_version': PARSER_VERSION,
+                               'supplemental': True, 'rows': [row]})
+    return {'source': source, 'source_transaction_id': identifier, 'date': spent,
+            'amount': amount, 'category': category.strip(), 'merchant': merchant.strip()}
+
+
+def manual_has_refunds(uid, identifier):
+    return any(row.get('transaction_type') == 'refund' and _related_key(row) == ('manual', str(identifier))
+               for row in active_rows(uid))
+
+
+def _related_key(row):
+    return (row.get('related_source') or row.get('source'), row.get('related_source_id'))
+
+
+def _purchase_options(source, prior, rows=(), manual=()):
     return [{'source_transaction_id': row['source_transaction_id'], 'date': row['date'],
              'amount': row['amount'], 'merchant': row.get('merchant', ''),
-             'category': row.get('category', '未分类')}
-            for row in chain(prior, rows) if row.get('transaction_type') == 'expense'
-            and row.get('source_transaction_id') and row.get('source', source) == source
+             'category': row.get('category', '未分类'), 'source': row.get('source', source)}
+            for row in chain(prior, rows, manual) if row.get('transaction_type') == 'expense'
+            and row.get('source_transaction_id')
             and row.get('decision', 'import') == 'import']
 
 
-def _validate_refunds(rows):
+def _validate_refunds(rows, manual=()):
+    rows = [row for row in rows if row.get('decision', 'import') == 'import']
     remaining = {(row.get('source'), row['source_transaction_id']): Decimal(str(row['amount']))
-                 for row in rows if row.get('transaction_type') == 'expense' and row.get('source_transaction_id')}
+                 for row in chain(rows, manual) if row.get('transaction_type') == 'expense' and row.get('source_transaction_id')}
     for row in rows:
         if row.get('transaction_type') != 'refund':
             continue
-        key = (row.get('source'), row.get('related_source_id'))
+        key = _related_key(row)
         if key not in remaining:
             raise ValueError('退款缺少可关联的原支出')
         remaining[key] -= Decimal(str(row['amount']))
         if remaining[key] < 0:
             raise ValueError('退款总额不能超过关联支出')
+
+
+def _apply_custom(uid, row, option_id):
+    from .bill_categories import resolve
+    option = resolve(uid, option_id)
+    original = row.get('original_transaction_type') or row['transaction_type']
+    incoming = row.get('direction') in ('income', '收入', 'neutral')
+    allowed = ({'expense', 'review'} if original == 'expense' else
+               {'refund', 'review'} if original == 'refund' else
+               {'income', 'refund', 'transfer', 'review'} if original == 'income' or incoming else
+               {'expense', 'transfer', 'review'})
+    kind = option['accounting_type']
+    if kind not in allowed:
+        raise ValueError('此分类的账务类型不适用于该行')
+    if not row.get('original_transaction_type'):
+        row['original_category'] = row.get('category')
+        row['original_receipt_kind'] = row.get('receipt_kind')
+    row.update(category_id=option['id'], category=option['name'], custom_category_name=option['name'],
+               original_transaction_type=original, transaction_type=kind,
+               receipt_kind='other_income' if kind == 'income' else 'internal_transfer' if kind == 'transfer' else None)
+
+
+def _finish_rows(uid, source, rows, prior):
+    manual = _manual_purchases(uid)
+    purchases = {(row.get('source', source), row['source_transaction_id']): row
+                 for row in chain(prior, rows, manual) if row.get('transaction_type') == 'expense'
+                 and row.get('decision', 'import') == 'import' and row.get('source_transaction_id')}
+    for row in rows:
+        if row['transaction_type'] == 'review':
+            row.update(decision='review', reason='自定义待核对，不参与统计')
+        elif row['transaction_type'] == 'refund':
+            if not row.get('related_source_id'):
+                row.update(decision='review', reason='待关联退款，不参与统计')
+            else:
+                key = _related_key({**row, 'source': source})
+                if key not in purchases:
+                    raise ValueError('所选退款缺少原支出，请重新核对')
+                row.update(decision='import', reason='')
+                row['category'] = purchases[key].get('category') or '未分类'
+        elif row['transaction_type'] == 'income' and not row.get('receipt_kind'):
+            row.update(decision='review', reason='自定义待核对，不参与统计')
+        elif row.get('decision') == 'review' and row.get('reason') in (
+                '自定义待核对，不参与统计', '待关联退款，不参与统计'):
+            row.update(decision='import', reason='')
+    _validate_refunds(prior + [{**row, 'source': source} for row in rows], manual)
 
 
 def preview(uid, content, hint='auto', file_type='csv'):
@@ -338,7 +432,7 @@ def preview(uid, content, hint='auto', file_type='csv'):
                       and row['transaction_type'] in ('expense', 'refund')), Decimal('0'))
     return {'source': source, 'sha256': digest, 'parser_version': PARSER_VERSION,
             'rows': rows, 'counts': counts, 'by_type': by_type, 'net_change': str(net_change),
-            'purchase_options': _purchase_options(source, prior, rows),
+            'purchase_options': _purchase_options(source, prior, rows, _manual_purchases(uid)),
             'already_imported': bool(existing_batch and existing_batch.get('status') == 'committed')}
 
 
@@ -354,7 +448,8 @@ def confirm(uid, content, expected_digest, selected_ids, categories, hint='auto'
     if not isinstance(edits, dict):
         raise ValueError('交易修改无效')
     existing_batch = learning_store.read_entry(uid, f"import:{result['sha256']}") if result['already_imported'] else None
-    existing_row_ids = {row['row_id'] for row in existing_batch['rows']} if existing_batch else set()
+    existing_row_ids = {row['row_id'] for row in existing_batch['rows']
+                        if row.get('decision', 'import') == 'import'} if existing_batch else set()
     selected_ids = [row_id for row_id in selected_ids if row_id not in existing_row_ids]
     if existing_batch and not selected_ids:
         return existing_batch, False
@@ -363,24 +458,32 @@ def confirm(uid, content, expected_digest, selected_ids, categories, hint='auto'
     for row_id in selected_ids:
         row = by_id.get(row_id)
         change = edits.get(str(row_id), {})
-        if not isinstance(change, dict) or set(change) - {'related_source_id', 'receipt_kind'}:
+        if not isinstance(change, dict) or set(change) - {'related_source_id', 'related_source', 'receipt_kind', 'category_id'}:
             raise ValueError('交易修改无效')
         can_link = (row and row.get('transaction_type') == 'refund' and row.get('decision') == 'review'
                     and row.get('reason') in ('未找到唯一的原交易，请手动关联', '找不到可关联的原支出')
                     and change.get('related_source_id'))
         can_classify = (row and row.get('transaction_type') == 'income' and row.get('decision') == 'review'
                         and row.get('reason') == '收款用途不明，请核对后入账'
-                        and change.get('receipt_kind') in RECEIPT_KINDS)
-        if not row or (row['decision'] != 'import' and not can_link and not can_classify):
+                        and (change.get('receipt_kind') in RECEIPT_KINDS or change.get('category_id')))
+        can_defer = (row and row.get('decision') == 'review' and row.get('reason') in (
+                    '未找到唯一的原交易，请手动关联', '找不到可关联的原支出') and change.get('category_id'))
+        if not row or (row['decision'] != 'import' and not can_link and not can_classify and not can_defer):
             raise ValueError('存在不可导入的行，请重新预览')
         category = categories.get(str(row_id), row['category'])
         if not isinstance(category, str) or not category.strip() or len(category.strip()) > 50:
             raise ValueError('消费类别无效')
         selected = {**row, 'category': category.strip(), 'source': result['source'], 'decision': 'import', 'reason': ''}
+        if change.get('category_id'):
+            _apply_custom(uid, selected, change['category_id'])
         if 'related_source_id' in change:
             if selected['transaction_type'] != 'refund' or not isinstance(change['related_source_id'], str):
                 raise ValueError('退款关联无效')
             selected['related_source_id'] = _clean(change['related_source_id'])[:100]
+        if 'related_source' in change:
+            if change['related_source'] not in ('manual', 'wechat', 'standard'):
+                raise ValueError('原支出来源无效')
+            selected['related_source'] = change['related_source']
         if 'receipt_kind' in change:
             kind = change['receipt_kind']
             if (selected['transaction_type'] not in ('income', 'transfer') or kind not in RECEIPT_KINDS
@@ -388,22 +491,10 @@ def confirm(uid, content, expected_digest, selected_ids, categories, hint='auto'
                 raise ValueError('收款类型无效')
             selected['receipt_kind'] = kind
             selected['transaction_type'] = 'transfer' if kind == 'internal_transfer' else 'income'
+            selected.pop('category_id', None)
+            selected.pop('custom_category_name', None)
         chosen.append(selected)
-    purchases = {(result['source'], r['source_transaction_id']) for r in active_rows(uid)
-                 if r['transaction_type'] == 'expense' and r.get('source_transaction_id')}
-    purchases.update((result['source'], r['source_transaction_id']) for r in chosen
-                     if r['transaction_type'] == 'expense' and r.get('source_transaction_id'))
-    if any(row['transaction_type'] == 'refund' and (result['source'], row['related_source_id']) not in purchases
-           for row in chosen):
-        raise ValueError('所选退款缺少原支出，请重新核对')
-    purchase_categories = {r['source_transaction_id']: r['category'] for r in active_rows(uid)
-                           if r['source'] == result['source'] and r['transaction_type'] == 'expense'}
-    purchase_categories.update({r['source_transaction_id']: r['category'] for r in chosen
-                                if r['transaction_type'] == 'expense'})
-    for row in chosen:
-        if row['transaction_type'] == 'refund':
-            row['category'] = purchase_categories[row['related_source_id']]
-    _validate_refunds(active_rows(uid) + chosen)
+    _finish_rows(uid, result['source'], chosen, active_rows(uid))
     if not chosen:
         raise ValueError('请选择至少一行可导入的记录')
     if len(json.dumps(chosen, ensure_ascii=False).encode('utf-8')) > MAX_BATCH_BYTES:
@@ -412,7 +503,9 @@ def confirm(uid, content, expected_digest, selected_ids, categories, hint='auto'
                if existing_batch else {'kind': 'import_batch', 'status': 'committed',
                                        'source': result['source'], 'file_sha256': result['sha256'],
                                        'parser_version': PARSER_VERSION})
-    payload['rows'] = (existing_batch['rows'] if existing_batch else []) + chosen
+    replacing = {row['row_id'] for row in chosen}
+    payload['rows'] = ([row for row in existing_batch['rows'] if row['row_id'] not in replacing]
+                       if existing_batch else []) + chosen
     if len(json.dumps(payload, ensure_ascii=False).encode('utf-8')) > MAX_BATCH_BYTES:
         raise ValueError('累计导入记录过多，请按日期拆分账单')
     record = learning_store.write_entry(uid, f"import:{result['sha256']}", payload)
@@ -428,7 +521,9 @@ def undo(uid, digest):
     own_ids = {row.get('source_transaction_id') for row in batch['rows']
                if row['transaction_type'] == 'expense' and row.get('source_transaction_id')}
     for other in active_rows(uid):
-        if other['batch_id'] != batch['id'] and other.get('transaction_type') == 'refund' and other.get('related_source_id') in own_ids and other['source'] == batch['source']:
+        if (other['batch_id'] != batch['id'] and other.get('transaction_type') == 'refund'
+                and other.get('related_source_id') in own_ids
+                and _related_key(other)[0] == batch['source']):
             raise ValueError('其他批次的退款仍关联这份账单，暂不能撤销')
     return learning_store.write_entry(uid, batch['id'], {k: v for k, v in batch.items()
                                                         if k not in ('id', 'created_at', 'updated_at')} | {'status': 'cancelled'})
@@ -438,7 +533,7 @@ def batch_detail(uid, digest):
     batch = learning_store.read_entry(uid, f'import:{digest}')
     if not batch or batch.get('kind') != 'import_batch':
         raise ValueError('导入批次不存在')
-    purchases = _purchase_options(batch['source'], active_rows(uid))
+    purchases = _purchase_options(batch['source'], active_rows(uid), manual=_manual_purchases(uid))
     return {'sha256': digest, 'source': batch['source'], 'status': batch['status'],
             'rows': batch.get('rows', []), 'purchase_options': purchases,
             'can_revert_edit': bool(batch.get('edit_history'))}
@@ -446,7 +541,7 @@ def batch_detail(uid, digest):
 
 def _write_revised(uid, batch, rows, history):
     others = [row for row in active_rows(uid) if row['batch_id'] != batch['id']]
-    _validate_refunds(others + [{**row, 'source': batch['source']} for row in rows])
+    _finish_rows(uid, batch['source'], rows, others)
     record = {k: v for k, v in batch.items() if k not in ('id', 'created_at', 'updated_at')}
     record.update(rows=rows, edit_history=history)
     if len(json.dumps(record, ensure_ascii=False).encode('utf-8')) > MAX_BATCH_BYTES:
@@ -458,30 +553,49 @@ def update_row(uid, digest, row_id, changes):
     batch = learning_store.read_entry(uid, f'import:{digest}')
     if not batch or batch.get('kind') != 'import_batch' or batch.get('status') != 'committed':
         raise ValueError('导入批次不存在或已撤销')
-    if not isinstance(changes, dict) or not changes or set(changes) - {'category', 'receipt_kind', 'related_source_id'}:
+    if not isinstance(changes, dict) or not changes or set(changes) - {'category', 'receipt_kind', 'related_source_id', 'related_source', 'category_id'}:
         raise ValueError('修改内容无效')
     rows = [dict(row) for row in batch['rows']]
     target = next((row for row in rows if row['row_id'] == row_id), None)
     if target is None:
         raise ValueError('交易不存在')
-    previous = {key: target.get(key) for key in ('category', 'receipt_kind', 'related_source_id', 'transaction_type')}
+    previous = {key: target.get(key) for key in ('category', 'category_id', 'receipt_kind',
+                'related_source_id', 'related_source', 'transaction_type', 'original_transaction_type',
+                'custom_category_name', 'original_category', 'original_receipt_kind', 'decision', 'reason')}
+    if changes.get('category_id'):
+        _apply_custom(uid, target, changes['category_id'])
+    elif 'category_id' in changes:
+        target.pop('category_id', None)
+        target.pop('custom_category_name', None)
+        if target.get('original_transaction_type'):
+            target['transaction_type'] = target['original_transaction_type']
+            target['receipt_kind'] = target.get('original_receipt_kind')
+            target['category'] = target.get('original_category') or '未分类'
     if 'category' in changes:
         value = changes['category']
         if target['transaction_type'] != 'expense' or not isinstance(value, str) or not value.strip() or len(value.strip()) > 50:
             raise ValueError('消费类别无效')
         target['category'] = value.strip()
+        target.pop('category_id', None)
+        target.pop('custom_category_name', None)
     if 'receipt_kind' in changes:
         value = changes['receipt_kind']
-        if (target['transaction_type'] not in ('income', 'transfer') or value not in RECEIPT_KINDS
+        if ((target.get('original_transaction_type') or target['transaction_type']) not in ('income', 'transfer') or value not in RECEIPT_KINDS
                 or (target['transaction_type'] == 'transfer' and target.get('direction') not in ('income', '收入', 'neutral'))):
             raise ValueError('收款类型无效')
         target['receipt_kind'] = value
         target['transaction_type'] = 'transfer' if value == 'internal_transfer' else 'income'
+        target.pop('category_id', None)
+        target.pop('custom_category_name', None)
     if 'related_source_id' in changes:
         value = changes['related_source_id']
-        if target['transaction_type'] != 'refund' or not isinstance(value, str) or not 0 < len(value.strip()) <= 100:
+        if target['transaction_type'] != 'refund' or not isinstance(value, str) or len(value.strip()) > 100:
             raise ValueError('退款关联无效')
         target['related_source_id'] = value.strip()
+    if 'related_source' in changes:
+        if changes['related_source'] not in ('manual', 'wechat', 'standard'):
+            raise ValueError('原支出来源无效')
+        target['related_source'] = changes['related_source']
     if previous == {key: target.get(key) for key in previous}:
         return batch
     history = (batch.get('edit_history') or [])[-19:] + [{'row_id': row_id, 'previous': previous}]
@@ -504,14 +618,15 @@ def revert_last_edit(uid, digest):
 
 def combined_transactions(uid, manual_rows, limit):
     manual = [{**row, 'transaction_type': row.get('transaction_type') or 'expense',
-               'source': row.get('source') or 'manual'} for row in manual_rows]
+               'source': row.get('source') or 'manual',
+               'source_transaction_id': row.get('source_transaction_id') or str(row.get('id'))} for row in manual_rows]
     rows = manual + active_rows(uid)
     purchases = {(row.get('source'), row.get('source_transaction_id')): row
                  for row in rows if row.get('transaction_type') == 'expense' and row.get('source_transaction_id')}
     refunds = {}
     for row in rows:
         if row.get('transaction_type') == 'refund':
-            key = (row.get('source'), row.get('related_source_id'))
+            key = _related_key(row)
             refunds[key] = refunds.get(key, Decimal('0')) + Decimal(str(row['amount']))
             if key in purchases:
                 row['category'] = purchases[key].get('category', '未分类')

@@ -1,0 +1,37 @@
+.bill-preview-scroll { max-height: 45vh; }
+.bill-preview-table { table-layout: fixed; min-width: 1040px; }
+.bill-preview-table th:nth-child(1) { width: 52px; }
+.bill-preview-table th:nth-child(2) { width: 112px; }
+.bill-preview-table th:nth-child(3) { width: 78px; }
+.bill-preview-table th:nth-child(4) { width: 108px; }
+.bill-preview-table th:nth-child(5) { width: 142px; }
+.bill-preview-table th:nth-child(6) { width: 300px; }
+/* 收起的退款行与普通行共用行高；展开后由内容自然撑高。 */
+.bill-preview-table tbody tr { height: 88px; }
+.bill-preview-table tbody tr.bill-preview-row-expanded { height: auto; }
+.bill-preview-table > :not(caption) > * > * { padding: 8px; vertical-align: middle; }
+.bill-preview-table tbody td:not(.bill-preview-category-cell) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bill-preview-category-cell .form-select { width: 100%; }
+.bill-category-trigger { text-align: left; padding-right: 32px; }
+.bill-category-trigger span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bill-category-menu { z-index: 1060; max-width: calc(100vw - 32px); max-height: 280px; overflow-y: auto; padding: 6px; border: 1px solid #dce5df; border-radius: 10px; background: #fff; box-shadow: 0 8px 24px #173e301a; font-size: .875rem; }
+.bill-category-group-title { padding: 8px 10px 5px; color: #7b887f; font-size: .75rem; font-weight: 600; }
+.bill-category-menu-row { display: flex; align-items: center; gap: 4px; border-radius: 6px; }
+.bill-category-menu-row:hover { background: #f3f7f4; }
+.bill-category-option { flex: 1; min-width: 0; border: 0; border-radius: 6px; background: transparent; color: #263f35; padding: 8px 10px; text-align: left; overflow-wrap: anywhere; }
+.bill-category-option[aria-selected=true] { background: #e8f5ee; color: #126b5f; }
+.bill-category-option:disabled { color: #89958e; }
+.bill-category-delete { flex: 0 0 24px; width: 24px; height: 24px; margin-right: 4px; border: 0; border-radius: 5px; background: transparent; color: #a2aaa5; font-size: 18px; line-height: 20px; padding: 0; }
+.bill-category-delete:hover { color: #c34747; background: #fff0ef; }
+.bill-category-option:focus-visible, .bill-category-delete:focus-visible { outline: 2px solid #168575; outline-offset: -2px; }
+.bill-category-empty { padding: 8px 10px; color: #89958e; font-size: .8rem; }
+.bill-category-delete-modal { z-index: 1090; }
+.bill-category-delete-backdrop { z-index: 1080; }
+.bill-refund-toggle { display: block; border: 0; background: transparent; color: var(--bs-secondary-color, #64756e); padding: 0; margin-top: 4px; font-size: .75rem; line-height: 20px; text-align: left; }
+.bill-refund-toggle span { display: inline-block; transition: transform .2s ease; font-size: .65rem; }
+.bill-refund-toggle span.is-expanded { transform: rotate(90deg); }
+.bill-refund-toggle:disabled { opacity: .55; }
+.bill-refund-toggle:focus-visible { outline: 2px solid #168575; outline-offset: 2px; border-radius: 3px; }
+.bill-refund-details-inner { margin-top: 8px; padding: 10px; background: #f6f9f7; border: 1px solid #e1ebe7; border-radius: 8px; }
+.bill-refund-details.collapsing { transition: height .2s ease; }
+@media (prefers-reduced-motion: reduce) { .bill-refund-details.collapsing, .bill-refund-toggle span { transition: none; } }

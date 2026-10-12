@@ -333,6 +333,15 @@ export const confirmBillImport = async (file, source, sha256, selectedIds, categ
 };
 
 export const listBillImports = async () => (await api.get('/decision/imports')).data.data;
+export const listBillCategories = async () => (await api.get('/decision/bill-categories')).data.data;
+export const createBillCategory = async values => (await api.post('/decision/bill-categories', values)).data.data;
+export const updateBillCategory = async (id, values) => (await api.put(`/decision/bill-categories/${encodeURIComponent(id)}`, values)).data.data;
+export const deleteBillCategory = async id => (await api.delete(`/decision/bill-categories/${encodeURIComponent(id)}`)).data.data;
+export const supplementBillPurchase = async values => {
+  const result = (await api.post('/decision/imports/original-expenses', values)).data.data;
+  window.dispatchEvent(new Event('transaction-saved'));
+  return result;
+};
 export const getBillImport = async sha256 => (await api.get(`/decision/imports/${sha256}`)).data.data;
 export const editBillImportRow = async (sha256, rowId, changes) => {
   const result = (await api.put(`/decision/imports/${sha256}/rows/${rowId}`, changes)).data.data;

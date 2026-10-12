@@ -88,6 +88,10 @@ temp/
 .jest_tmp/
 backend/.pytest_tmp_*/
 .pytest-*/
+.pytest_cache/
+.local-archive/
+# 文档整理生成的原稿提取，不提交
+docs/原稿提取.txt
 # 本地回退快照和含标准答案的审核工作表不发布到代码仓库
 b01-before-*.zip
 ui-before-redesign-*.zip

@@ -169,12 +169,16 @@ def test_receipt_bill_refund_breakdown_edit_revert_and_batch_undo(client):
     preview = prepare(client, receipt)
     assert commit(client, receipt, preview).status_code == 201
     ledger = call(client, 'get', '/api/decision/transactions').json['data']
-    assert ledger['monthly_cashflow'] == {
+    assert {key: value for key, value in ledger['monthly_cashflow'].items()
+            if key not in ('category_breakdown', 'daily_spending')} == {
         'month': today[:7], 'spent': 80.0, 'gross_expense': 100.0, 'refunds': 20.0,
         'income': 80.0, 'remaining': 0.0,
         'income_breakdown': {'red_packet': 30.0, 'external_transfer': 50.0, 'other_income': 0.0},
         'has_expense_records': True, 'has_income_records': True, 'complete': True,
     }
+    assert ledger['monthly_cashflow']['category_breakdown'] == [
+        {'category': '购物', 'gross_expense': 100.0, 'refunds': 20.0, 'net': 80.0}]
+    assert sum(day['spent'] for day in ledger['monthly_cashflow']['daily_spending']) == 80
     purchase = next(row for row in ledger['transactions'] if row.get('source_transaction_id') == 'P-100')
     assert (purchase['original_amount'], purchase['refunded_amount'], purchase['net_amount']) == ('100.00', '20.00', '80.00')
     assert prepare(client, receipt)['counts']['duplicate'] == 4
@@ -256,6 +260,8 @@ def test_cross_month_refund_is_linked_but_counted_on_arrival_month(client):
     data = call(client, 'get', '/api/decision/transactions').json['data']
     assert (data['monthly_cashflow']['spent'], data['monthly_cashflow']['income'],
             data['monthly_cashflow']['remaining']) == (-20, 0, 20)
+    assert data['monthly_cashflow']['category_breakdown'] == [
+        {'category': '购物', 'gross_expense': 0.0, 'refunds': 20.0, 'net': -20.0}]
     purchase_row = next(row for row in data['transactions'] if row.get('source_transaction_id') == 'OLD-P')
     assert purchase_row['net_amount'] == '80.00'
 

@@ -5,6 +5,7 @@ import { listTransactions } from '../services/api';
 import { getAdaptiveLearning, getLearning } from '../services/learning';
 import { dateKey } from '../components/FinanceVisuals';
 import DailyPodcast from '../components/DailyPodcast';
+import TodayPracticeMascot from '../components/TodayPracticeMascot';
 import './TodayHome.css';
 
 const yuan = value => `¥${Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -77,6 +78,8 @@ export default function TodayHome() {
               <Link className="today-primary" to="/learning?tab=practice">开始这一步 <span aria-hidden="true">→</span></Link>
               {practice.reason && <details className="today-reason"><summary>为什么推荐这个问题？</summary><p>{practice.reason}</p><p className="today-reason-note">{practice.limitation}</p></details>}
             </div> : <div className="today-task-body"><h2 id="today-task-title">今天先到这里</h2><p>当前的新情境已经完成。想继续时，可以回看之前的选择。</p><Link className="today-primary" to="/learning?tab=growth">回看我的学习 <span aria-hidden="true">→</span></Link></div>}
+        {/* 青苗鼹仅属于今日练习卡片，定位由卡片容器提供，不改变原内容布局。 */}
+        <TodayPracticeMascot />
       </section>
 
       <div className="today-support">
