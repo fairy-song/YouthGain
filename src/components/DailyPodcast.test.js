@@ -66,9 +66,21 @@ test('shows one episode, its direct link, and saves follow and dislike feedback'
   fireEvent.click(screen.getByRole('button', { name: '收藏本期' }));
   await waitFor(() => expect(screen.getByRole('button', { name: '已收藏本期' })).toBeDisabled());
   fireEvent.click(screen.getByRole('button', { name: '不感兴趣' }));
-  expect(await screen.findByText('今天的节目已收起。')).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: '这一期谈预算' })).not.toBeInTheDocument();
-  expect(sendPodcastFeedback.mock.calls).toEqual([['show-1', 'follow'], ['show-1', 'dislike']]);
+  expect(await screen.findByText('今天的节目已收起。点下方按钮可恢复。')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '这一期谈预算' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '恢复本期推荐' }));
+  await waitFor(() => expect(screen.queryByRole('button', { name: '恢复本期推荐' })).not.toBeInTheDocument());
+  expect(sendPodcastFeedback.mock.calls).toEqual([['show-1', 'follow'], ['show-1', 'dislike'], ['show-1', 'undislike']]);
+});
+
+test('restores a recommendation dismissed before loading the page', async () => {
+  getTodayPodcast.mockResolvedValueOnce({ ...recommendation, program: null, status: 'dismissed',
+    program_id: 'show-1', recommendation_id: 'rec-1', message: '今天的节目已收起。' })
+    .mockResolvedValueOnce(recommendation);
+  render(<DailyPodcast userId="alice" />);
+  fireEvent.click(await screen.findByRole('button', { name: '恢复本期推荐' }));
+  expect(await screen.findByRole('heading', { name: '这一期谈预算' })).toBeInTheDocument();
+  expect(sendPodcastFeedback).toHaveBeenCalledWith('show-1', 'undislike', expect.objectContaining({ recommendation_id: 'rec-1', event_id: expect.any(String) }));
 });
 
 test('shows an honest empty state when no programme qualifies', async () => {

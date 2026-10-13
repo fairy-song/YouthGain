@@ -62,17 +62,21 @@ export default function DailyPodcast({ userId }) {
     return () => { observer.disconnect(); document.removeEventListener('visibilitychange', report); };
   }, [result, userId]);
   const feedback = async kind => {
-    if (!result?.program || result.ownerId !== userId || busy) return;
+    const programId = result?.program?.id || result?.program_id;
+    if (!programId || result.ownerId !== userId || busy) return;
     const current = version.current;
     setBusy(kind); setError('');
     try {
       if (result.recommendation_id) {
         const eventId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        await sendPodcastFeedback(result.program.id, kind, { recommendation_id: result.recommendation_id, event_id: eventId });
-      } else { await sendPodcastFeedback(result.program.id, kind); }
+        await sendPodcastFeedback(programId, kind, { recommendation_id: result.recommendation_id, event_id: eventId });
+      } else { await sendPodcastFeedback(programId, kind); }
       if (current !== version.current) return;
       if (kind === 'dislike') setResult({ ...result, dismissed: true, message: '今天的节目已收起。点下方按钮可恢复。' });
-      if (kind === 'undislike') setResult({ ...result, dismissed: false });
+      if (kind === 'undislike') {
+        if (result.program) setResult({ ...result, dismissed: false });
+        else await load();
+      }
       if (kind === 'follow') setResult({ ...result, followed: true });
       if (kind === 'helpful') setResult({ ...result, helpful: true });
     } catch { if (current === version.current) setError('反馈暂时没保存，请重试。'); }
@@ -108,14 +112,7 @@ export default function DailyPodcast({ userId }) {
     </> : result?.status === 'dismissed' && result.program_id ? (
       <div className="daily-podcast-dismissed-banner">
         <p>{result.message}</p>
-        <button type="button" disabled={!!busy} onClick={async () => {
-          setBusy('undislike');
-          try {
-            await sendPodcastFeedback(result.program_id, 'undislike', { recommendation_id: result.recommendation_id });
-            load();
-          } catch { setError('恢复失败，请重试。'); }
-          finally { setBusy(''); }
-        }}>恢复本期推荐</button>
+        <button type="button" disabled={!!busy} onClick={() => feedback('undislike')}>恢复本期推荐</button>
       </div>
     ) : result && <p className="daily-podcast-empty">{result.message || '今天没有合适的新单集。'}</p>}
     <p className="daily-podcast-note">收藏只影响青盈后续推荐，不会在外部平台收藏；收听不代表已经掌握知识。</p>

@@ -38,9 +38,11 @@ def transaction(write=True):
             kind TEXT NOT NULL, created_at TEXT NOT NULL,
             PRIMARY KEY(user_id, local_date, program_id, kind))''')
         schema = Path(__file__).resolve().parent.parent / 'sql' / 'podcast_recommendations.sql'
-        connection.executescript(schema.read_text(encoding='utf-8'))
+        schema_sql = schema.read_text(encoding='utf-8')
+        connection.executescript(schema_sql)
         connection.executescript(schema.with_name('finance_funds.sql').read_text(encoding='utf-8'))
         connection.execute('BEGIN IMMEDIATE')
+        _migrate_event_types(connection, schema_sql)
         columns = {row['name'] for row in connection.execute('PRAGMA table_info(daily_picks)')}
         if 'recommendation_id' not in columns:
             connection.execute('ALTER TABLE daily_picks ADD COLUMN recommendation_id TEXT')
@@ -55,6 +57,29 @@ def transaction(write=True):
         raise
     finally:
         connection.close()
+
+
+def _migrate_event_types(connection, schema_sql):
+    """Widen the legacy CHECK atomically, retaining all append-only history."""
+    definition = connection.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='recommendation_events'").fetchone()['sql']
+    if "'undislike'" in definition:
+        return
+    # SQLite cannot alter a CHECK. Copy unchanged rows, including their rowid
+    # ordering, then recreate the original indexes and immutable triggers.
+    objects = connection.execute(
+        "SELECT sql FROM sqlite_master WHERE tbl_name='recommendation_events' "
+        "AND type IN ('index','trigger') AND sql IS NOT NULL").fetchall()
+    table = schema_sql.split('CREATE TABLE IF NOT EXISTS recommendation_events (', 1)[1].split('\n);', 1)[0]
+    connection.execute('CREATE TABLE recommendation_events_next (' + table + '\n)')
+    connection.execute('INSERT INTO recommendation_events_next(rowid,user_id,event_id,recommendation_id,'
+                       'local_date,program_id,event_type,occurred_at,snapshot_id,model_version,payload) '
+                       'SELECT rowid,user_id,event_id,recommendation_id,local_date,program_id,event_type,'
+                       'occurred_at,snapshot_id,model_version,payload FROM recommendation_events')
+    connection.execute('DROP TABLE recommendation_events')
+    connection.execute('ALTER TABLE recommendation_events_next RENAME TO recommendation_events')
+    for obj in objects:
+        connection.execute(obj['sql'])
 
 
 def program_rows(connection):

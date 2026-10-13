@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS recommendation_events (
     local_date TEXT NOT NULL,
     program_id TEXT NOT NULL,
     event_type TEXT NOT NULL CHECK(event_type IN
-        ('served','impression','click','follow','dislike','helpful_yes','helpful_no')),
+        ('served','impression','click','follow','dislike','undislike','helpful_yes','helpful_no')),
     occurred_at TEXT NOT NULL,
     snapshot_id TEXT,
     model_version TEXT NOT NULL,

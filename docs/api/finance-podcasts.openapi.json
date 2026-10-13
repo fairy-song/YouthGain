@@ -41,6 +41,7 @@
       "Today": {"type": "object", "required": ["date", "status", "program", "recommendation_id", "as_of", "evidence", "fallback", "fallback_reason", "ranker_used"], "properties": {
         "date": {"type": "string", "format": "date"}, "status": {"enum": ["ready", "none", "dismissed", "unavailable"]},
         "program": {"type": ["object", "null"], "description": "保留原节目全部公开字段"}, "reason": {"type": ["string", "null"]}, "message": {"type": ["string", "null"]},
+        "program_id": {"$ref": "#/components/schemas/Id", "description": "已收起推荐的节目ID，用于恢复本期"},
         "recommendation_id": {"$ref": "#/components/schemas/Id"}, "as_of": {"type": ["string", "null"], "format": "date-time"},
         "timezone": {"type": "string"}, "evidence": {"type": "array", "maxItems": 2, "items": {"$ref": "#/components/schemas/Evidence"}},
         "helpful": {"type": "boolean"}, "followed": {"type": "boolean"}, "fallback": {"type": "boolean"},
@@ -48,7 +49,7 @@
       }},
       "Feedback": {"type": "object", "required": ["program_id", "kind"], "properties": {
         "program_id": {"$ref": "#/components/schemas/Id"}, "recommendation_id": {"$ref": "#/components/schemas/Id"}, "event_id": {"$ref": "#/components/schemas/Id"},
-        "kind": {"enum": ["view", "follow", "dislike", "helpful", "impression"]}, "value": {"type": "boolean", "default": true}
+        "kind": {"enum": ["view", "follow", "dislike", "undislike", "helpful", "impression"]}, "value": {"type": "boolean", "default": true}
       }, "allOf": [{"if": {"properties": {"kind": {"const": "helpful"}}}, "then": {"required": ["recommendation_id"]}}]},
       "Impression": {"type": "object", "required": ["program_id", "recommendation_id", "kind"], "properties": {
         "program_id": {"$ref": "#/components/schemas/Id"}, "recommendation_id": {"$ref": "#/components/schemas/Id"},
@@ -73,7 +74,7 @@
         "features": {"type": "object", "additionalProperties": {"type": "number"}, "description": "signed log1p 数值；包含独立 savings_locked_total，未知缩放为 0"},
         "missing_mask": {"type": "object", "additionalProperties": {"enum": [0, 1]}, "description": "1=未知，0=已观测；与 features 同字段"},
         "history": {"type": "array", "maxItems": 100, "items": {"type": "object", "required": ["program_id", "action", "occurred_at"], "properties": {
-          "program_id": {"$ref": "#/components/schemas/Id"}, "action": {"enum": ["click", "follow", "dislike", "helpful_yes", "helpful_no"]}, "occurred_at": {"type": "string", "format": "date-time"}
+          "program_id": {"$ref": "#/components/schemas/Id"}, "action": {"enum": ["click", "follow", "dislike", "undislike", "helpful_yes", "helpful_no"]}, "occurred_at": {"type": "string", "format": "date-time"}
         }}},
         "candidates": {"type": "array", "maxItems": 100, "items": {"type": "object", "required": ["program_id", "topics", "title", "summary", "baseline_score"], "properties": {
           "program_id": {"$ref": "#/components/schemas/Id"}, "topics": {"type": "array", "items": {"type": "string"}}, "title": {"type": "string"}, "summary": {"type": "string"}, "baseline_score": {"type": "number"}

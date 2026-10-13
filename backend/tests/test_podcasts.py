@@ -92,6 +92,53 @@ def test_review_quality_duplicate_platforms_and_no_forced_candidate(client):
     assert call(client, 'get', '/api/podcasts/today', user='carol').json['status'] == 'unavailable'
 
 
+def test_restoring_keeps_the_same_daily_pick_and_appends_history(client):
+    import sqlite3
+    from app.services import podcast_store as store
+    pid = add(client)
+    first = call(client, 'get', '/api/podcasts/today').json
+    data = {'program_id': pid, 'recommendation_id': first['recommendation_id']}
+    assert call(client, 'post', '/api/podcasts/feedback', {**data, 'kind': 'dislike', 'event_id': 'dismiss-1'}).status_code == 200
+    dismissed = call(client, 'get', '/api/podcasts/today').json
+    assert dismissed['program_id'] == pid and dismissed['program'] is None
+    restore = {**data, 'kind': 'undislike', 'event_id': 'restore-1'}
+    assert call(client, 'post', '/api/podcasts/feedback', restore, user='bob').status_code == 404
+    for _ in range(2):
+        assert call(client, 'post', '/api/podcasts/feedback', restore).status_code == 200
+    restored = call(client, 'get', '/api/podcasts/today').json
+    assert restored['status'] == 'ready' and restored['recommendation_id'] == first['recommendation_id']
+    assert restored['program']['id'] == pid
+    with client.application.app_context(), store.transaction() as conn:
+        rows = conn.execute("SELECT event_type FROM recommendation_events WHERE user_id='alice' ORDER BY rowid").fetchall()
+        assert [row['event_type'] for row in rows] == ['served', 'dislike', 'undislike']
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute("DELETE FROM recommendation_events WHERE event_type='dislike'")
+
+
+def test_legacy_event_schema_migrates_without_losing_rows_or_guards(client):
+    import sqlite3
+    from pathlib import Path
+    from app.services import podcast_store as store
+    schema = Path(store.__file__).resolve().parent.parent / 'sql' / 'podcast_recommendations.sql'
+    legacy = schema.read_text(encoding='utf-8').replace("'dislike','undislike'", "'dislike'")
+    with sqlite3.connect(client.application.config['PODCAST_DB_PATH']) as conn:
+        conn.executescript(legacy)
+        conn.execute("INSERT INTO recommendation_events VALUES(?,?,?,?,?,?,?,?,?,?)", (
+            'alice', 'original', 'rec-1', '2026-10-11', 'show-1', 'dislike',
+            '2026-10-11T10:00:00+08:00', None, 'legacy', '{"kept":true}'))
+        original = conn.execute('SELECT rowid,* FROM recommendation_events').fetchall()
+    with client.application.app_context():
+        for _ in range(2):
+            with store.transaction() as conn:
+                assert [tuple(row) for row in conn.execute('SELECT rowid,* FROM recommendation_events')] == original
+                assert "'undislike'" in conn.execute("SELECT sql FROM sqlite_master WHERE name='recommendation_events'").fetchone()['sql']
+                assert conn.execute("SELECT name FROM sqlite_master WHERE name='recommendation_events_single_served'").fetchone()
+                with pytest.raises(sqlite3.IntegrityError):
+                    conn.execute("UPDATE recommendation_events SET payload='{}'")
+        with store.transaction() as conn:
+            record = {'recommendation_id': 'rec-1', 'date': '2026-10-11', 'program_id': 'show-1'}
+            store.append_event(conn, 'alice', record, 'restored', 'undislike', '2026-10-11T11:00:00+08:00')
+            assert conn.execute('SELECT COUNT(*) FROM recommendation_events').fetchone()[0] == 2
 def test_interest_and_timezone_change_recommendation_day(client, monkeypatch):
     add(client, name='预算节目', topic='budget')
     choice = add(client, name='选择节目', topic='choice')
