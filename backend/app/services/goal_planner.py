@@ -24,15 +24,29 @@ def recorded_spending(rows, today):
     return total
 
 
+def recorded_income(rows, today):
+    """Actual receipts only; expected income and internal transfers are excluded."""
+    return sum(cents(row.get('amount'), '收入金额') for row in rows
+               if row.get('transaction_type') == 'income'
+               and row.get('receipt_kind') != 'internal_transfer'
+               and date.fromisoformat(str(row.get('date') or row.get('spent_at') or '')[:10]) <= today)
+
+
 def estimate_balance(profile, rows, today):
-    """Reconcile recorded expenses without changing the confirmed snapshot."""
+    """Reconcile receipts and spending since the last balance confirmation."""
     if profile.get('current_balance') is None:
         return None
     baseline = profile.get('balance_recorded_total')
     if baseline is None:
         return None
+    income = recorded_income(rows, today)
+    income_baseline = profile.get('balance_recorded_income_total')
+    # Legacy confirmations contain no receipt anchor. Reconfirm once instead
+    # of adding receipts that may already be included in the confirmed balance.
+    if income_baseline is None and income:
+        return None
     return (cents(profile['current_balance'], '余额') -
-            (recorded_spending(rows, today) - baseline)) / 100
+            (recorded_spending(rows, today) - baseline) + income - (income_baseline or 0)) / 100
 
 
 def draft_plan(today, goals, profile, entries):
@@ -125,7 +139,9 @@ def build_plan(plan, goals):
         target = cents(g.get('target_amount'), '目标金额')
         saved = cents(g.get('current_amount', 0), '已预留金额')
         parsed.append((deadline, str(g.get('id', '')), g.get('title', '目标'), target, saved))
-    reserved = sum(g[4] for g in parsed)
+    # Completed targets can still hold money until explicitly released.
+    reserved = sum(cents(g.get('current_amount', 0), '已锁定金额') for g in goals
+                   if g.get('status', 'active') != 'cancelled' and not g.get('deleted'))
     cash = cents(plan['balance'], '余额') - cents(plan['buffer'], '安全缓冲') - reserved
     events = sorted(plan['events'], key=lambda e: (e['date'], e['kind'] != 'expense'))
     # Expenses precede income on the same date: conservative intraday ordering.

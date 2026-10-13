@@ -62,7 +62,7 @@ class UserDataService:
         """Read all manual entries needed for the month and seven-day chart."""
         if is_mysql_mode():
             return MySQLHelper.execute_query(
-                'SELECT spent_at AS date, amount, category FROM transactions '
+                'SELECT spent_at AS date, amount, category, transaction_type, receipt_kind FROM transactions '
                 'WHERE user_id = %s AND spent_at >= %s AND spent_at < %s AND amount > 0',
                 (user_id, first_day, today + datetime.timedelta(days=1)))
         if is_dev_mode():
@@ -73,14 +73,14 @@ class UserDataService:
         # Some legacy documents only have spent_at, so a date-only query would
         # silently lose them. Scan selected fields until migration is complete.
         docs = self.db.collection(get_user_collection_path(user_id, 'transactions')).select(
-            ['date', 'spent_at', 'amount', 'category']).stream()
+            ['date', 'spent_at', 'amount', 'category', 'transaction_type', 'receipt_kind']).stream()
         return [doc.to_dict() for doc in docs]
 
     def manual_purchase_rows(self, user_id):
         """All original manual expenses for explicit refund selection."""
         if is_mysql_mode():
             rows = MySQLHelper.execute_query(
-                'SELECT id, spent_at AS date, amount, category, merchant FROM transactions WHERE user_id = %s',
+                'SELECT id, spent_at AS date, amount, category, merchant, transaction_type FROM transactions WHERE user_id = %s',
                 (user_id,))
         elif is_dev_mode():
             values = _dev_db['users'].get(user_id, {}).get('transactions', [])
@@ -92,7 +92,9 @@ class UserDataService:
             rows = [{**doc.to_dict(), 'id': doc.id} for doc in docs]
         return [{**row, 'source': 'manual', 'source_transaction_id': str(row['id']),
                  'date': str(row.get('date') or row.get('spent_at'))[:10], 'transaction_type': 'expense'}
-                for row in rows if row.get('id') is not None and Decimal(str(row.get('amount') or 0)) > 0]
+                for row in rows if row.get('id') is not None
+                and (row.get('transaction_type') or 'expense') == 'expense'
+                and Decimal(str(row.get('amount') or 0)) > 0]
 
     def get_monthly_cashflow(self, user_id, today):
         """One snapshot for monthly totals, categories and the last seven days."""
@@ -209,6 +211,11 @@ class UserDataService:
             (success: bool, message: str)
         """
         try:
+            if data_type == 'goals':
+                from .finance_funds_service import mutate_goal
+                record = mutate_goal(user_id, self, data, data.get('id'), create=True)
+                data.update(record)
+                return True, '目标数据保存成功'
             # 1. MySQL 模式
             if is_mysql_mode():
                 ensure_mysql_user_exists(user_id)
@@ -280,17 +287,18 @@ class UserDataService:
                     # 数据库列名为 spent_at，避免与 MySQL 的 DATE 类型关键字混淆。
                     spent_at = data.get('date') or data.get('spent_at')
                     if not spent_at:
-                        return False, "消费日期 (date) 不能为空"
+                        return False, "收支日期 (date) 不能为空"
                     regret = data.get('regret')
                     sql = """
                         INSERT INTO transactions
-                        (id, user_id, amount, category, merchant, items, note, hour, spent_at, regret, timestamp, planned, purpose)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        (id, user_id, amount, category, merchant, items, note, hour, spent_at, regret, timestamp, planned, purpose, transaction_type, receipt_kind)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON DUPLICATE KEY UPDATE
                         amount = VALUES(amount), category = VALUES(category),
                         merchant = VALUES(merchant), items = VALUES(items), note = VALUES(note),
                         hour = VALUES(hour), spent_at = VALUES(spent_at),
-                        regret = VALUES(regret), planned = VALUES(planned), purpose = VALUES(purpose)
+                        regret = VALUES(regret), planned = VALUES(planned), purpose = VALUES(purpose),
+                        transaction_type = VALUES(transaction_type), receipt_kind = VALUES(receipt_kind)
                     """
                     params = (
                         txn_id,
@@ -305,10 +313,11 @@ class UserDataService:
                         None if regret is None else (1 if regret else 0),
                         datetime.datetime.now(BEIJING).replace(tzinfo=None),
                         data.get('planned'), data.get('purpose', ''),
+                        data.get('transaction_type') or 'expense', data.get('receipt_kind'),
                     )
                     MySQLHelper.execute_update(sql, params)
                     data['id'] = txn_id
-                    return True, "消费记录保存成功"
+                    return True, "收支记录保存成功"
 
                 else:
                     return False, f"未知的 MySQL 数据存储类型: {data_type}"
@@ -348,7 +357,7 @@ class UserDataService:
         except Exception as e:
             return False, f"保存数据失败: {str(e)}"
     
-    def get_user_data(self, user_id: str, data_type: str, limit: int = 10) -> tuple:
+    def get_user_data(self, user_id: str, data_type: str, limit: int = 10, *, _legacy=False) -> tuple:
         """
         获取用户数据
         
@@ -361,6 +370,9 @@ class UserDataService:
             (data: List[Dict], error: Optional[str])
         """
         try:
+            if data_type == 'goals' and not _legacy:
+                from .finance_funds_service import list_goals
+                return list_goals(user_id, self, limit), None
             # 1. MySQL 模式
             if is_mysql_mode():
                 ensure_mysql_user_exists(user_id)
@@ -429,6 +441,8 @@ class UserDataService:
                         result.append({
                             'id': row['id'],
                             'amount': row['amount'],
+                            'transaction_type': row.get('transaction_type') or 'expense',
+                            'receipt_kind': row.get('receipt_kind'),
                             'category': row['category'],
                             'merchant': row['merchant'] or '',
                             'items': row.get('items') or '',
@@ -498,6 +512,10 @@ class UserDataService:
     def update_user_data(self, user_id: str, data_type: str, data_id: str, updates: Dict[str, Any]) -> tuple:
         """更新用户数据"""
         try:
+            if data_type == 'goals':
+                from .finance_funds_service import mutate_goal
+                mutate_goal(user_id, self, updates, str(data_id))
+                return True, '目标更新成功'
             # 1. MySQL 模式
             if is_mysql_mode():
                 if data_type == 'goals':
@@ -586,6 +604,10 @@ class UserDataService:
     def delete_user_data(self, user_id: str, data_type: str, data_id: str) -> tuple:
         """删除用户数据"""
         try:
+            if data_type == 'goals':
+                from .finance_funds_service import mutate_goal
+                mutate_goal(user_id, self, {}, str(data_id), delete=True)
+                return True, '目标删除成功，锁定资金已释放'
             # 1. MySQL 模式
             if is_mysql_mode():
                 if data_type == 'goals':
@@ -656,13 +678,10 @@ class UserDataService:
                     stats['total_assessments'] = assessments_info['cnt']
                     stats['last_assessment_date'] = assessments_info['max_ts'].isoformat() if assessments_info['max_ts'] else None
                 
-                # 获取 goals 统计
-                goals_info = MySQLHelper.execute_one(
-                    "SELECT COUNT(*) as cnt FROM goals WHERE user_id = %s",
-                    (user_id,)
-                )
-                if goals_info:
-                    stats['total_goals'] = goals_info['cnt']
+                goal_rows, goal_error = self.get_user_data(user_id, 'goals', limit=10001)
+                if goal_error:
+                    raise RuntimeError(goal_error)
+                stats['total_goals'] = len(goal_rows)
                 
                 # 获取用户最后登录时间
                 user_info = MySQLHelper.execute_one(
@@ -679,7 +698,6 @@ class UserDataService:
                 if user_id in _dev_db["users"]:
                     user_data = _dev_db["users"][user_id]
                     stats['total_assessments'] = len(user_data.get('assessments', []))
-                    stats['total_goals'] = len(user_data.get('goals', []))
                     stats['total_transactions'] = len(user_data.get('transactions', []))
                     
                     assessments = user_data.get('assessments', [])
@@ -689,11 +707,15 @@ class UserDataService:
             # 3. 生产 Firestore 模式
             else:
                 if self.db:
-                    for data_type in ['assessments', 'goals', 'transactions']:
+                    for data_type in ['assessments', 'transactions']:
                         collection_path = get_user_collection_path(user_id, data_type)
                         docs = self.db.collection(collection_path).stream()
                         stats[f'total_{data_type}'] = len(list(docs))
             
+            goal_rows, goal_error = self.get_user_data(user_id, 'goals', limit=10001)
+            if goal_error:
+                raise RuntimeError(goal_error)
+            stats['total_goals'] = len(goal_rows)
             return stats
             
         except Exception as e:

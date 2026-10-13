@@ -11,8 +11,13 @@ from flask import current_app
 def rank(candidates, snapshot, history):
     mode = current_app.config.get('PODCAST_RANKER_MODE', 'baseline')
     baseline = {c['program']['id']: c['score'] for c in candidates}
-    result = {'scores': baseline, 'mode': mode, 'used': 'baseline', 'model_version': 'finance-baseline-v1',
+    result = {'scores': baseline, 'mode': mode, 'used': 'baseline', 'model_version': 'finance-baseline-v2',
               'fallback': False, 'fallback_reason': None}
+    coverage = snapshot.get('coverage', {})
+    if coverage.get('invalid_transactions') or any(coverage.get(k) is False for k in ('transactions_complete', 'goals_complete', 'entries_complete')):
+        return dict(result, fallback=True, fallback_reason='finance_source_unavailable')
+    if not snapshot.get('features', {}).get('record_count'):
+        return dict(result, fallback=True, fallback_reason='insufficient_finance_data')
     if mode == 'baseline' or not candidates:
         return result
     if mode not in ('shadow', 'hstu'):

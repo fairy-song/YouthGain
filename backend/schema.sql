@@ -76,13 +76,15 @@ CREATE TABLE IF NOT EXISTS `coach_messages` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI教练对话记录表';
 
 
--- 7. 创建消费记录表
+-- 7. 创建收支记录表
 -- 这是决策引擎的数据来源。spent_at 为消费发生日期，timestamp 为记录写入时间，
 -- 两者不可混用：行为分析看的是 spent_at，审计与排序看的是 timestamp。
 CREATE TABLE IF NOT EXISTS `transactions` (
     `id` VARCHAR(64) NOT NULL COMMENT '记录ID (UUID)',
     `user_id` VARCHAR(64) NOT NULL COMMENT '关联的用户ID',
-    `amount` DOUBLE NOT NULL COMMENT '消费金额（元），必须大于 0',
+    `amount` DOUBLE NOT NULL COMMENT '收支金额（元），必须大于 0',
+    `transaction_type` VARCHAR(20) NOT NULL DEFAULT 'expense' COMMENT 'expense 支出 / income 实际收入',
+    `receipt_kind` VARCHAR(32) DEFAULT NULL COMMENT '收入来源：red_packet / external_transfer / other_income',
     `category` VARCHAR(64) NOT NULL COMMENT '消费类别，如 外卖/食堂/交通',
     `merchant` VARCHAR(128) DEFAULT NULL COMMENT '商户名，可选（用于后续自动分类）',
     `items` TEXT DEFAULT NULL COMMENT '消费内容：商品或服务',

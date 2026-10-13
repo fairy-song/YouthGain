@@ -38,9 +38,10 @@ CREATE INDEX IF NOT EXISTS recommendation_events_user_time
     ON recommendation_events(user_id, occurred_at);
 CREATE INDEX IF NOT EXISTS recommendation_events_recommendation
     ON recommendation_events(user_id, recommendation_id, occurred_at);
-CREATE UNIQUE INDEX IF NOT EXISTS recommendation_events_single_exposure
-    ON recommendation_events(user_id, recommendation_id, event_type)
-    WHERE event_type IN ('served','impression');
+-- Each actual impression has its own event_id; retries reuse that ID.
+DROP INDEX IF EXISTS recommendation_events_single_exposure;
+CREATE UNIQUE INDEX IF NOT EXISTS recommendation_events_single_served
+    ON recommendation_events(user_id, recommendation_id) WHERE event_type='served';
 CREATE TRIGGER IF NOT EXISTS recommendation_events_no_update
     BEFORE UPDATE ON recommendation_events BEGIN
         SELECT RAISE(ABORT, 'recommendation_events is append-only');
@@ -51,5 +52,9 @@ CREATE TRIGGER IF NOT EXISTS recommendation_events_no_delete
     END;
 CREATE TRIGGER IF NOT EXISTS finance_snapshots_no_update
     BEFORE UPDATE ON finance_snapshots BEGIN
+        SELECT RAISE(ABORT, 'finance_snapshots is immutable');
+    END;
+CREATE TRIGGER IF NOT EXISTS finance_snapshots_no_delete
+    BEFORE DELETE ON finance_snapshots BEGIN
         SELECT RAISE(ABORT, 'finance_snapshots is immutable');
     END;

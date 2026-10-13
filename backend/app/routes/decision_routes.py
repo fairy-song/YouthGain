@@ -7,9 +7,9 @@
 
     GET    /api/decision/report                  完整决策报告（核心）
     POST   /api/decision/opportunity-cost        单笔消费的机会成本（记录时即时反馈）
-    GET    /api/decision/transactions            消费记录列表
-    POST   /api/decision/transactions            新增消费记录
-    DELETE /api/decision/transactions/<id>       删除消费记录
+    GET    /api/decision/transactions            收支记录列表
+    POST   /api/decision/transactions            新增收支记录
+    DELETE /api/decision/transactions/<id>       删除收支记录
     PUT    /api/decision/transactions/<id>/regret 提交事后回访结果
 """
 
@@ -19,7 +19,8 @@ import json
 import re
 from math import isfinite
 from datetime import date, datetime, timedelta
-from app.services import learning_store, bill_import
+from zoneinfo import ZoneInfo
+from app.services import learning_store, bill_import, finance_context_service, finance_funds_service
 from app.services.learning_service import number, text_field
 from app.services.checkin_service import BEIJING
 
@@ -186,7 +187,11 @@ def goal_plan(user_info):
                 rows, txn_error = user_data_service.get_user_data(uid, 'transactions', limit=2000)
                 if txn_error or len(rows) >= 2000:
                     raise RuntimeError('消费记录读取不完整，请稍后重试')
-                estimated = round(estimate_balance(profile, rows, today) * 100)
+                balance = estimate_balance(profile, rows, today)
+                if balance is None:
+                    return jsonify(status='success', plan=None, result=None, stale=True, source='profile',
+                                   message='收入记录的余额核对依据尚不完整，请重新确认当前余额。')
+                estimated = round(balance * 100)
                 age = (today - date.fromisoformat(confirmed_on)).days
                 # Never assume an expected payment has arrived. Ask for a balance
                 # check on an income day, after a week, or if records imply a deficit.
@@ -531,11 +536,11 @@ def list_transactions(user_info):
     if error:
         return jsonify({'status': 'error', 'message': error}), 500
 
-    today = datetime.now(BEIJING).date()
+    profile = learning_store.read_entry(user_info['uid'], 'profile') or {}
+    today = datetime.now(ZoneInfo(profile.get('timezone') or 'Asia/Shanghai')).date()
     month = today.isoformat()[:7]
     cashflow, summary_error = user_data_service.get_monthly_cashflow(user_info['uid'], today)
     spent = cashflow['spent'] if cashflow else None
-    profile = learning_store.read_entry(user_info['uid'], 'profile') or {}
     budget = profile.get('monthly_income')
     complete = not summary_error
     from decimal import Decimal
@@ -561,8 +566,44 @@ def list_transactions(user_info):
     return jsonify({
         'status': 'success',
         'data': {'transactions': rows, 'count': len(rows), 'monthly_budget': monthly_budget,
-                 'monthly_cashflow': monthly_cashflow}
+                 'monthly_cashflow': monthly_cashflow, 'funds': _funds(user_info['uid'])}
     }), 200
+
+
+def _funds(user_id):
+    try:
+        snapshot = finance_context_service.build_snapshot(user_id)
+        keys = ('carryover_month', 'available_remaining_month', 'savings_locked_total', 'savings_net_transfer_month')
+        return {**{k: snapshot['features'][k] for k in keys},
+                'month': snapshot['as_of'][:7], 'as_of': snapshot['as_of'],
+                'complete': snapshot['features']['available_remaining_month'] is not None,
+                'reason': None if snapshot['features']['available_remaining_month'] is not None else 'carryover_or_sources_missing'}
+    except Exception:
+        logger.exception('Funds context unavailable')
+        return {'complete': False, 'available_remaining_month': None, 'reason': 'finance_source_unavailable'}
+
+
+@decision_bp.get('/funds')
+@require_auth
+def get_funds(user_info):
+    return jsonify(status='success', data=_funds(user_info['uid']))
+
+
+@decision_bp.post('/funds/carryover')
+@require_auth
+def confirm_carryover(user_info):
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(message='请求内容必须是对象'), 400
+    try:
+        result = finance_funds_service.set_carryover(user_info['uid'], data.get('month'),
+                                                    data.get('amount'), data.get('event_id'))
+        return jsonify(status='success', data=result)
+    except (ValueError, TypeError) as error:
+        return jsonify(message=str(error)), 400
+    except Exception:
+        logger.exception('Carryover confirmation failed')
+        return jsonify(message='结转保存失败，请重试'), 503
 
 
 @decision_bp.route('/checkin', methods=['GET'])
@@ -577,7 +618,7 @@ def get_checkin(user_info):
 @decision_bp.route('/transactions', methods=['POST'])
 @require_auth
 def create_transaction(user_info):
-    """新增一笔消费记录。
+    """新增一笔收支记录；未传 transaction_type 的旧客户端按支出处理。
 
     请求体::
 
@@ -586,23 +627,44 @@ def create_transaction(user_info):
 
     ``date`` 与 ``amount``、``category`` 为必填。
     """
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify(message='请求内容必须是对象'), 400
+    kind = payload.get('transaction_type', 'expense')
+    if kind not in ('expense', 'income'):
+        return jsonify(message='transaction_type 必须是 expense 或 income'), 400
+    receipt_kind = (payload.get('receipt_kind') or 'other_income') if kind == 'income' else None
+    if kind == 'income' and receipt_kind not in ('red_packet', 'external_transfer', 'other_income'):
+        return jsonify(message='收入来源无效；本人转账不属于收入'), 400
 
     try:
+        if isinstance(payload.get('amount'), bool):
+            raise ValueError
         amount = float(payload.get('amount', 0))
     except (TypeError, ValueError):
         return jsonify({'status': 'error', 'message': 'amount 必须是数字'}), 400
 
-    if not isfinite(amount) or amount <= 0:
-        return jsonify({'status': 'error', 'message': '消费金额必须大于 0'}), 400
+    if not isfinite(amount) or not 0 < amount <= 100000000:
+        return jsonify({'status': 'error', 'message': '金额必须大于 0 且不超过 100000000'}), 400
 
-    category = (payload.get('category') or '').strip()
+    try:
+        # Older clients send null for optional text fields.
+        fields = {key: ('' if payload.get(key) is None else payload[key])
+                  for key in ('category', 'merchant', 'items', 'note')}
+        category = text_field(fields, 'category', limit=64)
+        merchant = text_field(fields, 'merchant', limit=128)
+        items = text_field(fields, 'items', limit=1000)
+        note = text_field(fields, 'note', limit=255)
+    except ValueError as error:
+        return jsonify(message=str(error)), 400
     if not category:
-        return jsonify({'status': 'error', 'message': '消费类别不能为空'}), 400
+        return jsonify(message='收入来源不能为空' if kind == 'income' else '支出类别不能为空'), 400
 
     spent_at = _parse_date(payload.get('date'))
     if spent_at is None:
         return jsonify({'status': 'error', 'message': '日期格式应为 YYYY-MM-DD'}), 400
+    if kind == 'income' and spent_at > datetime.now(BEIJING).date():
+        return jsonify(message='收入只能记录实际到账，请将预计收入填写在财务资料中'), 400
 
     hour = payload.get('hour')
     if hour is not None:
@@ -613,22 +675,24 @@ def create_transaction(user_info):
         except (TypeError, ValueError):
             return jsonify({'status': 'error', 'message': 'hour 必须是 0-23 之间的整数'}), 400
 
-    if payload.get('planned') not in (None, '', 'planned', 'spontaneous', 'necessary'):
+    if kind == 'expense' and payload.get('planned') not in (None, '', 'planned', 'spontaneous', 'necessary'):
         return jsonify(message='消费计划选项无效'), 400
     try:
-        purpose = text_field(payload, 'purpose', limit=300)
+        purpose = text_field(payload, 'purpose', limit=300) if kind == 'expense' else ''
     except ValueError as error:
         return jsonify(message=str(error)), 400
     record = {
         'amount': amount,
+        'transaction_type': kind,
+        'receipt_kind': receipt_kind,
         'category': category,
         'date': spent_at.isoformat(),
-        'merchant': (payload.get('merchant') or '').strip(),
-        'items': (payload.get('items') or '').strip(),
-        'note': (payload.get('note') or '').strip(),
+        'merchant': merchant,
+        'items': items,
+        'note': note,
         'hour': hour,
         'regret': None,
-        'planned': payload.get('planned') or None,
+        'planned': (payload.get('planned') or None) if kind == 'expense' else None,
         'purpose': purpose,
     }
 
@@ -639,7 +703,7 @@ def create_transaction(user_info):
 
     return jsonify({
         'status': 'success',
-        'message': '消费记录已保存',
+        'message': '收支记录已保存',
         'data': record,
     }), 201
 
@@ -647,7 +711,7 @@ def create_transaction(user_info):
 @decision_bp.route('/transactions/<transaction_id>', methods=['DELETE'])
 @require_auth
 def delete_transaction(user_info, transaction_id):
-    """删除一笔消费记录。"""
+    """删除一笔收支记录。"""
     try:
         if bill_import.manual_has_refunds(user_info['uid'], transaction_id):
             return jsonify(status='error', message='退款仍关联这笔支出，请先修改退款关联或撤销退款批次'), 400

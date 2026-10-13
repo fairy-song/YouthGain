@@ -32,12 +32,14 @@ test('shows separate recorded spending income and remaining after a refund', asy
   listTransactions.mockResolvedValue({
     monthly_budget: { spent: 80, complete: true },
     monthly_cashflow: { spent: 80, income: 30, remaining: -50, complete: true },
+    funds: { complete: true, available_remaining_month: 750, carryover_month: 1000, savings_net_transfer_month: 200, savings_locked_total: 200 },
   });
   render(<MemoryRouter><TodayHome /></MemoryRouter>);
   expect(await screen.findByText('¥80.00')).toBeInTheDocument();
   expect(screen.getByText('¥30.00')).toBeInTheDocument();
-  expect(screen.getByText('¥-50.00')).toBeInTheDocument();
-  expect(screen.getByText(/剩余不是账户余额/)).toBeInTheDocument();
+  expect(screen.getByText('¥750.00')).toBeInTheDocument();
+  expect(screen.queryByText('¥-50.00')).not.toBeInTheDocument();
+  expect(screen.getByText(/不包含已锁定的储蓄资金/)).toBeInTheDocument();
 });
 
 test('warns when only one side of the cashflow has records', async () => {

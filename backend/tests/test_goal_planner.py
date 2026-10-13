@@ -81,9 +81,11 @@ def test_later_bills_protect_current_cash():
     assert result['goals'][0]['shortfall'] == 280
 
 
-def test_completed_and_cancelled_goals_release_envelopes():
+def test_completed_money_stays_locked_and_cancelled_goals_release_envelopes():
     goals = [{**goal(saved=580), 'status': 'completed'}, {**goal(gid='b'), 'status': 'cancelled'}]
-    assert build_plan(plan(420), goals)['free_now'] == 420
+    assert build_plan(plan(1000), goals)['free_now'] == 420
+    goals[0]['current_amount'] = 0
+    assert build_plan(plan(1000), goals)['free_now'] == 1000
 
 
 @pytest.mark.parametrize('amount', [True, -1, 'nan', 'Infinity', None])
@@ -119,4 +121,5 @@ def test_goal_changes_require_balance_reconfirmation(client, monkeypatch):
     response = call(client, 'get', '/api/decision/goal-plan').json
     assert response['stale'] is True
     assert response['result'] is None
+    rows[0]['current_amount'] = 0  # Explicitly release the envelope after actual payment.
     assert call(client, 'put', '/api/decision/goal-plan', {**payload, 'balance': 420}).json['result']['free_now'] == 420

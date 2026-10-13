@@ -5,6 +5,7 @@ import { listTransactions } from '../services/api';
 import { getAdaptiveLearning, getLearning } from '../services/learning';
 import { dateKey } from '../components/FinanceVisuals';
 import DailyPodcast from '../components/DailyPodcast';
+import MonthlyAvailableFunds from '../components/MonthlyAvailableFunds';
 import TodayPracticeMascot from '../components/TodayPracticeMascot';
 import './TodayHome.css';
 
@@ -88,7 +89,7 @@ export default function TodayHome() {
           <h2 id="today-ledger-title">本月收支</h2>
           {errors.ledger ? <p role="status">账本暂时无法读取。<button type="button" className="today-inline-button" onClick={() => setReload(value => value + 1)}>重试</button></p>
             : !budget ? <p role="status">{loading ? '正在读取本月记录…' : '暂无可汇总的账本记录。'}</p>
-              : budget.complete !== false && budget.spent != null ? <><div className="today-cashflow"><div><span>支出</span><strong className="today-amount">{yuan(cashflow?.spent ?? budget.spent)}</strong></div><div><span>收入</span><strong>{cashflow?.complete ? yuan(cashflow.income) : '暂未汇总'}</strong></div><div><span>剩余</span><strong>{cashflow?.complete ? yuan(cashflow.remaining) : '暂未汇总'}</strong></div></div><p>仅按已记录收支计算；退款抵减支出，剩余不是账户余额。{cashflow?.complete && (cashflow.has_expense_records === false || cashflow.has_income_records === false) && ' 本月有一侧尚无记录，结余可能不完整。'}</p></>
+              : budget.complete !== false && budget.spent != null ? <><div className="today-cashflow"><div><span>支出</span><strong className="today-amount">{yuan(cashflow?.spent ?? budget.spent)}</strong></div><div><span>收入</span><strong>{cashflow?.complete ? yuan(cashflow.income) : '暂未汇总'}</strong></div></div><MonthlyAvailableFunds funds={ledger?.funds} /><p>仅按已记录收支计算；退款抵减支出。{cashflow?.complete && (cashflow.has_expense_records === false || cashflow.has_income_records === false) && ' 本月有一侧尚无记录，结余可能不完整。'}</p></>
                 : <p>部分记录暂时无法汇总，请到账本核对。</p>}
           <div className="today-panel-links"><Link to="/dashboard">记一笔</Link><Link to="/dashboard">查看账本</Link></div>
         </section>

@@ -1,16 +1,33 @@
 """Account-scoped point-in-time features; no merchant names or raw notes."""
 import calendar
 import math
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from . import learning_store
+from . import learning_store, finance_funds_service, goal_planner, podcast_store
 from .user_data_service import user_data_service
 
-FEATURE_VERSION = 'finance-context-v1'
+FEATURE_VERSION = 'finance-context-v2'
 ROW_LIMIT = 10000
+
+
+def now():
+    return datetime.now(timezone.utc)
+
+
+def _observed_by(record, as_of, zone):
+    for key in ('updated_at', 'created_at', 'timestamp'):
+        value = record.get(key)
+        if value:
+            try:
+                stamp = value if isinstance(value, datetime) else datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+                if (stamp if stamp.tzinfo else stamp.replace(tzinfo=zone)) > as_of:
+                    return False
+            except (ValueError, TypeError):
+                return False
+    return True
 
 
 def _amount(value):
@@ -39,13 +56,21 @@ def _day(value, zone):
 
 
 def from_records(rows, goals, entries, as_of, *, transactions_complete=True,
-                 goals_complete=True, entries_complete=True):
+                 goals_complete=True, entries_complete=True, funds=None):
     """Pure computation. Missing=1, observed=0; scaled missing values are zero."""
+    sane_entries = [r for r in entries if isinstance(r, dict)]
+    entries_complete = entries_complete and len(sane_entries) == len(entries)
+    entries = sane_entries
     profile = next((r for r in entries if r.get('id') == 'profile'), {})
     try:
         zone = ZoneInfo(profile.get('timezone') or 'Asia/Shanghai')
     except (ValueError, TypeError, KeyError):
         zone = ZoneInfo('Asia/Shanghai')
+    filtered = [r for r in entries if isinstance(r, dict) and _observed_by(r, as_of, zone)]
+    if len(filtered) != len(entries):
+        entries_complete = False
+    entries = filtered
+    profile = next((r for r in entries if r.get('id') == 'profile'), {})
     today = as_of.astimezone(zone).date()
     month_start = today.replace(day=1)
     totals = {key: 0 for key in ('actual_income_month', 'net_expense_month',
@@ -55,6 +80,9 @@ def from_records(rows, goals, entries, as_of, *, transactions_complete=True,
     for row in rows:
         if not isinstance(row, dict):
             invalid_count += 1
+            continue
+        if not _observed_by(row, as_of, zone):
+            transactions_complete = False
             continue
         kind = row.get('transaction_type') or 'expense'
         if kind not in ('income', 'expense', 'refund') or row.get('receipt_kind') == 'internal_transfer':
@@ -119,7 +147,17 @@ def from_records(rows, goals, entries, as_of, *, transactions_complete=True,
     features['upcoming_count'] = len(upcoming) if upcoming_known else None
     features['nearest_upcoming_days'] = min((d - today).days for d, _ in upcoming) if upcoming_known and upcoming else None
     active, goals_invalid = [], False
+    locked = 0
     for goal in goals:
+        if not isinstance(goal, dict) or not _observed_by(goal, as_of, zone):
+            goals_complete = False
+            continue
+        if goal.get('status') != 'cancelled' and not goal.get('deleted'):
+            saved_amount = _amount(goal.get('current_amount', 0))
+            if saved_amount is None:
+                goals_complete = False
+            else:
+                locked += saved_amount
         if goal.get('status', 'active') != 'active':
             continue
         target, saved = _amount(goal.get('target_amount')), _amount(goal.get('current_amount', 0))
@@ -132,6 +170,24 @@ def from_records(rows, goals, entries, as_of, *, transactions_complete=True,
     features['active_goal_count'] = len(active) if goal_known else None
     features['goal_remaining'] = sum(a for a, _ in active) / 100 if goal_known else None
     features['nearest_goal_days'] = min(d for _, d in active) if goal_known and active else None
+    features['savings_locked_total'] = locked / 100 if goals_complete else None
+    for key in ('carryover_month', 'available_remaining_month', 'savings_net_transfer_month'):
+        features[key] = (funds or {}).get(key)
+    if funds is not None:
+        features['savings_locked_total'] = funds['savings_locked_total']
+    features.update(goal_plan_shortfall=None, planned_free_now=None)
+    if (goal_known and entries_complete and features['available_remaining_month'] is not None
+            and features['savings_locked_total'] is not None
+            and all(features[k] is not None for k in ('essential_monthly', 'emergency_buffer', 'expected_income_30d'))):
+        try:
+            plan_profile = dict(profile, current_balance=features['available_remaining_month'] + features['savings_locked_total'])
+            draft = goal_planner.draft_plan(today, goals, plan_profile, entries)
+            plan = goal_planner.validate_plan(draft, today)
+            result = goal_planner.build_plan(plan, goals)
+            features['goal_plan_shortfall'] = result['basic_shortfall'] + sum(g['shortfall'] for g in result['goals'])
+            features['planned_free_now'] = result['free_now']
+        except (ValueError, TypeError, OverflowError):
+            pass
     masks = {key: int(value is None) for key, value in features.items()}
     scaled = {key: 0.0 if value is None else math.copysign(math.log1p(abs(value)), value)
               for key, value in features.items()}
@@ -144,7 +200,10 @@ def from_records(rows, goals, entries, as_of, *, transactions_complete=True,
             'limitation': '只依据已记录数据；预计收入不是实际到账，收支结余不等于账户余额。'}
 
 
-def build_snapshot(user_id, as_of, entries=None, *, entries_complete=True):
+def build_snapshot(user_id, as_of=None, entries=None, *, entries_complete=True):
+    # Historical inference must load an existing snapshot, never rebuild from current sources.
+    if as_of is not None:
+        raise ValueError('历史数据只能通过 snapshot_id 读取；新快照自动冻结采集时点')
     if entries is None:
         try:
             entries = learning_store.read_entries(user_id)
@@ -160,5 +219,34 @@ def build_snapshot(user_id, as_of, entries=None, *, entries_complete=True):
             return [], False
     rows, complete = load('transactions')
     goals, goals_complete = load('goals')
+    as_of = now()
+    profile = next((r for r in entries if r.get('id') == 'profile'), {})
+    try:
+        zone = ZoneInfo(profile.get('timezone') or 'Asia/Shanghai')
+    except (ValueError, TypeError, KeyError):
+        zone = ZoneInfo('Asia/Shanghai')
+    as_of = as_of.astimezone(zone)
+    funds = None
+    try:
+        safe_rows = [r for r in rows if isinstance(r, dict) and _observed_by(r, as_of, zone)]
+        funds = finance_funds_service.context_at(user_id, safe_rows, as_of, zone,
+                                                complete=complete and len(safe_rows) == len(rows))
+        goals, goals_complete = funds['goals'], goals_complete and funds['goals_complete']
+    except Exception:
+        goals_complete = False
+    # Freeze only after every source read has finished. No database queries below this point.
+    captured = now().astimezone(zone)
+    if captured.date() != as_of.date() and funds is not None:
+        for key in ('carryover_month', 'available_remaining_month', 'savings_net_transfer_month'):
+            funds[key] = None
+    as_of = captured
     return from_records(rows, goals, entries, as_of, transactions_complete=complete,
-                        goals_complete=goals_complete, entries_complete=entries_complete)
+                        goals_complete=goals_complete, entries_complete=entries_complete, funds=funds)
+
+
+def load_snapshot(user_id, snapshot_id):
+    with podcast_store.transaction(write=False) as conn:
+        snapshot = podcast_store.read_snapshot(conn, user_id, snapshot_id)
+    if snapshot is None:
+        raise ValueError('快照不存在或不属于当前用户')
+    return snapshot

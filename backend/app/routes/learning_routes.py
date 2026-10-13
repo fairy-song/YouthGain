@@ -133,12 +133,14 @@ def profile(user_info):
     validated['balance_confirmed_on'] = (datetime.now(BEIJING).date().isoformat()
                                          if 'current_balance' in updates else previous.get('balance_confirmed_on'))
     validated['balance_recorded_total'] = previous.get('balance_recorded_total')
+    validated['balance_recorded_income_total'] = previous.get('balance_recorded_income_total')
     if 'current_balance' in updates:
-        from app.services.goal_planner import recorded_spending
+        from app.services.goal_planner import recorded_spending, recorded_income
         rows, error = user_data_service.get_user_data(user_info['uid'], 'transactions', limit=2000)
         if error or len(rows) >= 2000:
             raise RuntimeError('无法读取完整消费记录，余额尚未确认')
         validated['balance_recorded_total'] = recorded_spending(rows, datetime.now(BEIJING).date())
+        validated['balance_recorded_income_total'] = recorded_income(rows, datetime.now(BEIJING).date())
     record = store.write_entry(user_info['uid'], 'profile', validated)
     return jsonify(profile=balance_profile(user_info['uid'], record))
 

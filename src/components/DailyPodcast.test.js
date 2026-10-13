@@ -43,7 +43,7 @@ test('reports only visible exposure once and binds helpful feedback to its recom
     fireEvent(document, new Event('visibilitychange'));
     observe([{ isIntersecting: true, intersectionRatio: 1 }]);
     expect(sendPodcastImpression).toHaveBeenCalledTimes(1);
-    expect(sendPodcastImpression).toHaveBeenCalledWith('show-1', 'rec-1');
+    expect(sendPodcastImpression).toHaveBeenCalledWith('show-1', 'rec-1', expect.any(String));
     fireEvent.click(screen.getByRole('button', { name: '对我有帮助' }));
     await screen.findByRole('button', { name: '已反馈有帮助' });
     expect(sendPodcastFeedback).toHaveBeenCalledWith('show-1', 'helpful', expect.objectContaining({ recommendation_id: 'rec-1', event_id: expect.any(String) }));

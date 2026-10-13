@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { FaPiggyBank, FaExchangeAlt, FaLightbulb, FaExclamationTriangle, FaMicrophone } from 'react-icons/fa';
 import { getDecisionReport, listTransactions, getOpportunityCost, createTransaction, getUserGoals, createGoal, deleteGoal, updateGoal } from '../services/api';
 import FinanceVisuals, { dateKey } from '../components/FinanceVisuals';
+import MonthlyAvailableFunds from '../components/MonthlyAvailableFunds';
 import BackfillBillModal from '../components/ledger/BackfillBillModal';
 import CsvImportModal from '../components/ledger/CsvImportModal';
 import VoiceBillModal from '../components/VoiceBillModal';
@@ -31,6 +32,7 @@ const Dashboard = () => {
   const [report, setReport] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [monthlyBudget, setMonthlyBudget] = useState(null);
+  const [funds, setFunds] = useState(null);
   const [monthlyCashflow, setMonthlyCashflow] = useState(null);
   const [reflections, setReflections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +83,7 @@ const Dashboard = () => {
 
   // 记账表单状态
   const [recordForm, setRecordForm] = useState({
+    transaction_type: 'expense',
     amount: '',
     category: '餐饮',
     date: dateKey(),
@@ -93,6 +96,15 @@ const Dashboard = () => {
   const [recordResult, setRecordResult] = useState(null); // 记账成功后的机会成本即时反馈
   const [recordError, setRecordError] = useState('');
   const [savingRecord, setSavingRecord] = useState(false);
+  const isIncome = recordForm.transaction_type === 'income';
+  const handleRecordType = (event) => {
+    const transaction_type = event.target.value;
+    feedbackVersion.current += 1;
+    setRecordResult(null);
+    setRecordError('');
+    setRecordForm(f => ({ ...f, transaction_type,
+      category: transaction_type === 'income' ? '生活费' : '餐饮', planned: '', purpose: '' }));
+  };
 
   // 储蓄目标管理状态
   const [goals, setGoals] = useState([]);
@@ -116,6 +128,7 @@ const Dashboard = () => {
         setTransactions(data.transactions || []);
         setMonthlyBudget(data.monthly_budget || null);
         setMonthlyCashflow(data.monthly_cashflow || null);
+        setFunds(data.funds || null);
         setLoading(false);
       }))],
       ['详细分析', getDecisionReport({}).then(data => apply(() => setReport(data)))],
@@ -130,6 +143,7 @@ const Dashboard = () => {
         setTransactions([]);
         setMonthlyBudget(null);
         setMonthlyCashflow(null);
+        setFunds(null);
       }
       if (results[1].status === 'rejected') setReport(null);
       if (failures.length) setError(`${failures.join('、')}刷新失败，请重试。已保存的账目无需重复记账。`);
@@ -147,6 +161,7 @@ const Dashboard = () => {
     setReport(null);
     setTransactions([]);
     setMonthlyBudget(null);
+    setFunds(null);
     setMonthlyIncome(undefined);
     setGoals([]);
     setReflections([]);
@@ -154,7 +169,7 @@ const Dashboard = () => {
     return () => { feedbackVersion.current += 1; };
   }, [currentUser?.uid]);
 
-  // 记一笔消费：保存记录 → 立即给出机会成本反馈 → 刷新报告与流水
+  // 保存收支后刷新；只有支出才请求机会成本反馈。
   const handleRecordTransaction = async (event) => {
     event.preventDefault();
     setRecordError('');
@@ -162,13 +177,13 @@ const Dashboard = () => {
     const feedback = ++feedbackVersion.current;
 
     const amount = parseFloat(recordForm.amount);
-    if (isNaN(amount) || amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       setRecordError('请输入大于 0 的金额');
       return;
     }
     const category = recordForm.category.trim();
     if (!category) {
-      setRecordError('请输入消费类别');
+      setRecordError(isIncome ? '请选择收入来源' : '请选择支出类别');
       return;
     }
 
@@ -177,12 +192,15 @@ const Dashboard = () => {
     try {
       const payload = {
         amount,
+        transaction_type: recordForm.transaction_type,
         category,
         date: recordForm.date,
         merchant: recordForm.merchant.trim(),
         items: recordForm.items.trim(),
         note: recordForm.note.trim(),
-        planned: recordForm.planned || null, purpose: recordForm.purpose,
+        ...(isIncome ? {
+          receipt_kind: ({ 红包: 'red_packet', 他人转入: 'external_transfer' }[category] || 'other_income'),
+        } : { planned: recordForm.planned || null, purpose: recordForm.purpose }),
       };
       // 小时字段可选，填写后才传给后端（用于深夜消费模式识别）
       if (recordForm.hour !== '') payload.hour = parseInt(recordForm.hour, 10);
@@ -191,6 +209,10 @@ const Dashboard = () => {
       setRecordForm((f) => ({ ...f, amount: '', merchant: '', items: '', note: '', hour: '', planned: '', purpose: '' }));
       // Refresh immediately after saving; optional feedback runs independently.
       refreshLedger();
+      if (isIncome) {
+        if (feedback === feedbackVersion.current) setRecordResult({ income: true, message: '收入已保存。' });
+        return;
+      }
       getOpportunityCost(amount, monthlyIncome).then(cost => {
         if (feedback === feedbackVersion.current) setRecordResult(cost);
       }).catch(costErr => {
@@ -232,6 +254,7 @@ const Dashboard = () => {
         deadline: goalForm.deadline,
       };
       await createGoal(payload);
+      refreshLedger();
 
       // 清空表单并刷新目标列表与报告（目标可达性随之变化）
       setGoalForm({ title: '', target_amount: '', current_amount: '0', deadline: '' });
@@ -250,6 +273,7 @@ const Dashboard = () => {
   const handleGoalPaid = async (goalId) => {
     try {
       await updateGoal(goalId, { status: 'completed', current_amount: 0 });
+      refreshLedger();
       const goalData = await getUserGoals();
       setGoals(goalData?.data?.goals || []);
     } catch (err) { setGoalError(err?.response?.data?.message || '目标更新失败'); }
@@ -260,6 +284,7 @@ const Dashboard = () => {
     const values = new FormData(event.currentTarget);
     try {
       await updateGoal(goalId, { current_amount: Number(values.get('current_amount')), deadline: values.get('deadline') });
+      refreshLedger();
       const goalData = await getUserGoals();
       setGoals(goalData?.data?.goals || []);
     } catch (err) { setGoalError(err?.response?.data?.message || '目标更新失败'); }
@@ -269,6 +294,7 @@ const Dashboard = () => {
     if (!window.confirm('确定删除这个目标吗？')) return;
     try {
       await deleteGoal(goalId);
+      refreshLedger();
       const goalData = await getUserGoals();
       setGoals((goalData && goalData.data && goalData.data.goals) || []);
       const reportData = await getDecisionReport({ monthlyIncome });
@@ -333,8 +359,7 @@ const Dashboard = () => {
             <strong className="ledger-summary-amount">{monthlyCashflow?.complete ? `¥${Number(monthlyCashflow.spent).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '暂无法汇总'}</strong>
             <small>{monthlyCashflow?.complete ? `原支付 ¥${Number(monthlyCashflow.gross_expense).toFixed(2)} − 已关联退款 ¥${Number(monthlyCashflow.refunds).toFixed(2)}` : '已记录支出扣除已关联退款'}</small></div>
           <div className="ledger-metric"><span className="ledger-summary-label">本月收入</span><strong className="ledger-summary-amount">{monthlyCashflow?.complete ? `¥${Number(monthlyCashflow.income).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '暂无法汇总'}</strong><small>{monthlyCashflow?.complete ? `红包 ¥${Number(monthlyCashflow.income_breakdown?.red_packet || 0).toFixed(2)} · 他人转入 ¥${Number(monthlyCashflow.income_breakdown?.external_transfer || 0).toFixed(2)}` : '退款和本人转账不计收入'}</small></div>
-          <div className="ledger-metric"><span className="ledger-summary-label">本月剩余</span><strong className="ledger-summary-amount">{monthlyCashflow?.complete ? `¥${Number(monthlyCashflow.remaining).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '暂无法汇总'}</strong><small>已记录收入减退款后支出；不是账户余额。</small></div>
-          <div className="ledger-summary-side"><span>预算剩余</span><strong>{monthlyBudget?.remaining == null ? '尚未设置' : `¥${Math.abs(Number(monthlyBudget.remaining)).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}${monthlyBudget.remaining < 0 ? '（超支）' : ''}`}</strong><small>按资料中填写的月生活费估算；{monthlyCashflow?.complete && (!monthlyCashflow.has_expense_records || !monthlyCashflow.has_income_records) ? '本月一侧暂无记录，金额可能不完整。' : '漏记会影响结果。'}</small></div>
+          <MonthlyAvailableFunds key={currentUser?.uid} funds={funds} editable onSaved={refreshLedger} />
         </section>}
         {tab === 'analysis' && <><Alert variant="light">
           <strong>月收入或生活费：{monthlyIncome == null ? '尚未设置' : `¥${monthlyIncome}`}</strong>
@@ -344,7 +369,7 @@ const Dashboard = () => {
         </Alert><LedgerAnalysis {...{ surplus, income, avgSpending, spending, discretionary, goal, patterns, pca }} /></>}
         {tab === 'upcoming' && <UpcomingExpenses key={currentUser?.uid} />}
         {tab === 'overview' && <>
-        {/* 记一笔消费 —— 产品核心闭环的入口：记录当下即反馈 */}
+        {/* 保留旧锚点，兼容已有的记账链接。 */}
         <Row className="mb-5" id="record-expense">
           <Col md={12}>
             <Card className="border-0 rounded-4 shadow-sm dashboard-card">
@@ -353,8 +378,8 @@ const Dashboard = () => {
                   <div className="icon-container bg-success-light rounded-circle d-flex align-items-center justify-content-center me-3">
                     <FaPiggyBank className="text-success" />
                   </div>
-                  <h5 className="card-title mb-0">记一笔消费</h5>
-                  <span className="text-muted small ms-2">记录后立即告诉你这笔钱相当于几天结余</span>
+                  <h5 className="card-title mb-0">记一笔收支</h5>
+                  <span className="text-muted small ms-2">{isIncome ? '记录实际到账，更新可用资金；本人转账不算收入' : '记录日常支出，了解这笔钱相当于几天结余'}</span>
                   <Button variant="outline-success" size="sm" className="rounded-pill" onClick={() => setShowBackfillModal(true)}>补记账单</Button>
                   <Button variant="outline-success" size="sm" className="rounded-pill" onClick={() => setImportMode('expense')}>导入支出账单</Button>
                   <Button variant="outline-success" size="sm" className="rounded-pill" onClick={() => setImportMode('receipt')}>导入收款账单</Button>
@@ -364,10 +389,17 @@ const Dashboard = () => {
                     className="rounded-pill ms-auto"
                     onClick={() => setShowVoiceModal(true)}
                   >
-                    <FaMicrophone className="me-1" />语音录入
+                    <FaMicrophone className="me-1" />语音记支出
                   </Button>
                 </div>
                 <Form onSubmit={handleRecordTransaction}>
+                  <Form.Group controlId="record-type" className="mb-3">
+                    <Form.Label>收支类型</Form.Label>
+                    <Form.Select value={recordForm.transaction_type} onChange={handleRecordType} disabled={savingRecord} style={{ maxWidth: 180 }}>
+                      <option value="expense">支出</option>
+                      <option value="income">收入</option>
+                    </Form.Select>
+                  </Form.Group>
                   <Row className="g-3">
                     <Col md={2}>
                       <Form.Control
@@ -382,23 +414,20 @@ const Dashboard = () => {
                     </Col>
                     <Col md={2}>
                       <Form.Select
+                        aria-label={isIncome ? '收入来源' : '支出类别'}
                         value={recordForm.category}
                         onChange={(e) => setRecordForm({ ...recordForm, category: e.target.value })}
                       >
-                        <option>餐饮</option>
-                        <option>交通</option>
-                        <option>购物</option>
-                        <option>娱乐</option>
-                        <option>学习</option>
-                        <option>房租</option>
-                        <option>话费</option>
-                        <option>医疗</option>
-                        <option>其他</option>
+                        {(isIncome ? ['生活费', '工资', '兼职', '奖学金', '红包', '他人转入', '其他收入'] :
+                          ['餐饮', '交通', '购物', '娱乐', '学习', '房租', '话费', '医疗', '其他'])
+                          .map(category => <option key={category}>{category}</option>)}
                       </Form.Select>
                     </Col>
                     <Col md={2}>
                       <Form.Control
                         type="date"
+                        aria-label="收支日期"
+                        max={isIncome ? dateKey() : undefined}
                         required
                         value={recordForm.date}
                         onChange={(e) => setRecordForm({ ...recordForm, date: e.target.value })}
@@ -407,7 +436,7 @@ const Dashboard = () => {
                     <Col md={2}>
                       <Form.Control
                         type="text"
-                        placeholder="商户（可选）"
+                        placeholder={isIncome ? '付款方（可选）' : '商户（可选）'}
                         value={recordForm.merchant}
                         onChange={(e) => setRecordForm({ ...recordForm, merchant: e.target.value })}
                       />
@@ -432,10 +461,10 @@ const Dashboard = () => {
                   <Row className="mt-2 g-3">
                     <Col md={4}>
                       <Form.Group controlId="record-items">
-                        <Form.Label>消费内容（可选）</Form.Label>
+                        <Form.Label>{isIncome ? '收入说明（可选）' : '消费内容（可选）'}</Form.Label>
                         <Form.Control
                           type="text"
-                          placeholder="例如：午餐、奶茶、教材"
+                          placeholder={isIncome ? '例如：兼职工资、奖学金' : '例如：午餐、奶茶、教材'}
                           value={recordForm.items}
                           onChange={(e) => setRecordForm({ ...recordForm, items: e.target.value })}
                         />
@@ -446,19 +475,20 @@ const Dashboard = () => {
                         <Form.Label>备注（可选）</Form.Label>
                         <Form.Control
                           type="text"
-                          placeholder="备注（可选，例如：和室友吃饭）"
+                          placeholder={isIncome ? '备注（可选，例如：十月兼职结算）' : '备注（可选，例如：和室友吃饭）'}
                           value={recordForm.note}
                           onChange={(e) => setRecordForm({ ...recordForm, note: e.target.value })}
                         />
                       </Form.Group>
                     </Col>
                   </Row>
-                  <TransactionIntent value={recordForm} onChange={setRecordForm} />
+                  {!isIncome && <TransactionIntent value={recordForm} onChange={setRecordForm} />}
                 </Form>
 
                 {recordError && <Alert variant="danger" className="mt-3 mb-0 small">{recordError}</Alert>}
 
-                {recordResult && !recordResult.unavailable && (
+                {recordResult?.income && <Alert variant="success" className="mt-3 mb-0 small">{recordResult.message}</Alert>}
+                {recordResult && !recordResult.unavailable && !recordResult.income && (
                   <div className="mt-3 p-3 rounded-4 bg-success-light">
                     <div className="d-flex align-items-baseline gap-2 flex-wrap">
                       <span className="display-6 fw-bold text-success">¥{recordResult.amount}</span>
@@ -502,8 +532,8 @@ const Dashboard = () => {
                       <tr>
                         <th scope="col">日期</th>
                         <th scope="col">类别</th>
-                        <th scope="col">商户</th>
-                        <th scope="col">消费内容</th>
+                        <th scope="col">对方</th>
+                        <th scope="col">内容</th>
                         <th scope="col">备注</th>
                         <th scope="col" className="text-end">金额</th>
                         <th scope="col">回访</th>
@@ -513,7 +543,7 @@ const Dashboard = () => {
               {transactions.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="text-center text-muted py-4">
-                    还没有消费记录
+                    还没有收支记录
                   </td>
                 </tr>
               ) : (
@@ -537,15 +567,15 @@ const Dashboard = () => {
                     <td className="transaction-detail">{t.merchant || '—'}</td>
                     <td className="transaction-detail">{t.items || '—'}</td>
                     <td className="transaction-detail">{t.note || '—'}{t.purpose && <div className="small text-muted">当时的需要：{t.purpose}</div>}{t.planned && <div className="small text-muted">{{ planned: '提前计划', spontaneous: '临时决定', necessary: '临时必要开支' }[t.planned]}</div>}</td>
-                    <td className="text-end fw-medium text-danger text-nowrap">
-                      {t.transaction_type === 'refund' || t.transaction_type === 'income' ? '+' : '-'}¥{Number(t.amount).toLocaleString()}
+                    <td className={`text-end fw-medium text-nowrap ${['refund', 'income'].includes(t.transaction_type) ? 'text-success' : t.transaction_type === 'transfer' ? 'text-muted' : 'text-danger'}`}>
+                      {t.transaction_type === 'refund' || t.transaction_type === 'income' ? '+' : t.transaction_type === 'transfer' ? '' : '-'}¥{Number(t.amount).toLocaleString()}
                       {t.transaction_type && t.transaction_type !== 'expense' && <div className="small text-muted">{t.transaction_type === 'income' ? ({ red_packet: '红包', external_transfer: '他人转入', other_income: '其他收入' }[t.receipt_kind] || '收入') : { refund: '退款', transfer: '本人转账' }[t.transaction_type]}</div>}
                       {t.custom_category_name && <div className="small text-muted">{t.custom_category_name}</div>}
                       {t.transaction_type === 'expense' && Number(t.refunded_amount) > 0 && <div className="small text-muted">原支付 ¥{t.original_amount} · 已退 ¥{t.refunded_amount} · 实际支出 ¥{t.net_amount}</div>}
                       {t.transaction_type === 'refund' && t.related_source_id && <div className="small text-muted">关联原交易 {t.related_source_id}</div>}
                     </td>
                     <td>
-                      {t.source === 'manual' ? <TransactionReflection transactionId={t.id} saved={reflections.find(r => r.transaction_id === String(t.id))} /> : <Button size="sm" variant="link" onClick={() => setImportMode('expense')}>修改导入记录</Button>}
+                      {t.source === 'manual' ? (!t.transaction_type || t.transaction_type === 'expense' ? <TransactionReflection transactionId={t.id} saved={reflections.find(r => r.transaction_id === String(t.id))} /> : '—') : <Button size="sm" variant="link" onClick={() => setImportMode(t.transaction_type && t.transaction_type !== 'expense' ? 'receipt' : 'expense')}>修改导入记录</Button>}
                     </td>
                   </tr>
                 ))

@@ -28,11 +28,11 @@ export default function GoalCashflow({ goals, onResult }) {
         {result.basic_shortfall > 0 && <div className="text-danger mt-2">生活开支等还差 {money(result.basic_shortfall)}，暂不新增目标储蓄。</div>}
         {data.balance_deficit > 0 && <div className="text-danger mt-2">已记录消费超出余额 {money(data.balance_deficit)}，当前没有可分配资金。</div>}
         <details className="small text-muted mt-2"><summary>查看依据</summary>
-          <p className="mt-2">按首次填写或最近修改的余额与后续记账估算。预计收入只用于未来安排，不自动计入当前余额。月必要开支按剩余天数预留，待支付事项另外计入。</p>
+          <p className="mt-2">按最近确认的余额，加上后续记录的实际收入、减去支出估算。预计收入只用于未来安排，不自动计入当前余额。月必要开支按剩余天数预留，待支付事项另外计入。</p>
           {data.stale && <p>资料较久未更新或已到预计收入日，结果仍基于现有记录，可能与实际余额不同。</p>}
           <Link to="/profile">我的财务资料</Link>
         </details>
-      </> : <><p className="mb-1">财务资料尚不完整，暂时无法自动计算。</p><Link to="/profile">查看我的财务资料</Link></>}
+      </> : <><p className="mb-1">{data?.message || '财务资料尚不完整，暂时无法自动计算。'}</p><Link to="/profile">查看我的财务资料</Link></>}
   </div>;
 }
 

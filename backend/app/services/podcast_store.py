@@ -39,6 +39,7 @@ def transaction(write=True):
             PRIMARY KEY(user_id, local_date, program_id, kind))''')
         schema = Path(__file__).resolve().parent.parent / 'sql' / 'podcast_recommendations.sql'
         connection.executescript(schema.read_text(encoding='utf-8'))
+        connection.executescript(schema.with_name('finance_funds.sql').read_text(encoding='utf-8'))
         connection.execute('BEGIN IMMEDIATE')
         columns = {row['name'] for row in connection.execute('PRAGMA table_info(daily_picks)')}
         if 'recommendation_id' not in columns:
@@ -112,6 +113,12 @@ def save_snapshot(connection, user_id, snapshot):
                         json.dumps(snapshot, ensure_ascii=False, allow_nan=False)))
 
 
+def read_snapshot(connection, user_id, snapshot_id):
+    row = connection.execute('SELECT payload FROM finance_snapshots WHERE user_id=? AND snapshot_id=?',
+                             (user_id, snapshot_id)).fetchone()
+    return json.loads(row['payload']) if row else None
+
+
 def event_by_id(connection, user_id, event_id):
     row = connection.execute('SELECT * FROM recommendation_events WHERE user_id=? AND event_id=?',
                              (user_id, event_id)).fetchone()
@@ -124,7 +131,7 @@ def append_event(connection, user_id, record, event_id, event_type, occurred_at)
         VALUES(?,?,?,?,?,?,?,?,?)''',
         (user_id, event_id, record['recommendation_id'], record['date'], record['program_id'],
          event_type, occurred_at, record.get('snapshot_id'), record.get('model_version', 'legacy')))
-    if event_type in ('served', 'impression'):
+    if event_type == 'served':
         return connection.execute('''SELECT event_id FROM recommendation_events
             WHERE user_id=? AND recommendation_id=? AND event_type=?''',
             (user_id, record['recommendation_id'], event_type)).fetchone()['event_id']

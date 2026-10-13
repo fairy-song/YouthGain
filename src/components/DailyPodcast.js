@@ -47,10 +47,11 @@ export default function DailyPodcast({ userId }) {
     const key = `${userId}:${result.recommendation_id}`;
     const current = version.current;
     let visible = false;
+    const impressionId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const report = () => {
       if (current !== version.current || exposed.current.has(key) || document.visibilityState === 'hidden' || !visible) return;
       exposed.current.add(key);
-      sendPodcastImpression(result.program.id, result.recommendation_id).catch(() => exposed.current.delete(key));
+      sendPodcastImpression(result.program.id, result.recommendation_id, impressionId).catch(() => exposed.current.delete(key));
     };
     const observer = new IntersectionObserver(entries => {
       visible = entries.some(e => e.isIntersecting && e.intersectionRatio >= 0.1);
@@ -87,7 +88,7 @@ export default function DailyPodcast({ userId }) {
       <p className="daily-podcast-description">{result.program.episode_summary}</p>
       <p className="daily-podcast-reason">为什么适合你：{result.reason}</p>
       {result.evidence?.length > 0 && <details><summary>查看推荐依据</summary>
-        <p>依据时间：{result.as_of?.slice(0, 10)}。只使用已记录数据，收支结余不等于账户余额。</p>
+        <p>依据时间：{result.as_of?.slice(0, 10)}。只使用推荐时已记录的数据；锁定储蓄独立计算，预计收入不算实际到账。</p>
         <ul>{result.evidence.map(item => <li key={item.feature}>{item.label}：{Number(item.value).toFixed(2)} {item.unit}</li>)}</ul>
       </details>}
       <div className="daily-podcast-actions">

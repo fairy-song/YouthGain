@@ -101,7 +101,7 @@ export default function LedgerGoals({ goals, goalForm, setGoalForm, goalError, s
                               <Button size="sm" variant="outline-danger" onClick={() => handleGoalDelete(g.id)}>
                                 删除
                               </Button>
-                              {g.status === 'active' && <Button size="sm" variant="outline-success" onClick={() => handleGoalPaid(g.id)}>已付款，结束预留</Button>}
+                              {g.status === 'active' && <Button size="sm" variant="outline-success" onClick={() => handleGoalPaid(g.id)}>结束目标，释放锁定</Button>}
                             </div>
                           </div>
                           <GoalReserveHint goal={g} result={goalPlanResult} />
@@ -112,7 +112,7 @@ export default function LedgerGoals({ goals, goalForm, setGoalForm, goalError, s
                           </div>
                           {g.deadline && <div className="text-muted small mt-1">付款截止：{g.deadline}</div>}
                           {g.status === 'active' && <details className="mt-2"><summary className="small">调整目标</summary><Form className="mt-2" onSubmit={e => handleGoalEdit(e, g.id)}>
-                            <Form.Label htmlFor={`reserve-${g.id}`} className="small">更新实际已预留金额（含在账户总余额中，不是新增消费）</Form.Label>
+                            <Form.Label htmlFor={`reserve-${g.id}`} className="small">更新锁定金额（增加时从日常结余划入，减少时释放；不计收入或支出）</Form.Label>
                             <Form.Control id={`reserve-${g.id}`} name="current_amount" type="number" min="0" step="0.01" required defaultValue={current} />
                             <Form.Label htmlFor={`deadline-${g.id}`} className="small mt-2">调整付款截止日</Form.Label>
                             <Form.Control id={`deadline-${g.id}`} name="deadline" type="date" required defaultValue={String(g.deadline || '').slice(0, 10)} />

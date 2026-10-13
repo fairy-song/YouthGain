@@ -1,0 +1,89 @@
+{
+  "openapi": "3.1.0",
+  "info": {"title": "青盈财务快照与每日播客", "version": "2.0.0"},
+  "security": [{"UserBearer": []}],
+  "paths": {
+    "/api/podcasts/today": {"get": {"responses": {
+      "200": {"description": "固定每日推荐，包含空状态与降级原因", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Today"}}}},
+      "401": {"description": "未登录"}, "503": {"description": "每日推荐持久化不可用"}
+    }}},
+    "/api/podcasts/feedback": {"post": {
+      "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Feedback"}}}},
+      "responses": {"200": {"description": "追加成功或相同事件幂等重试", "content": {"application/json": {"schema": {"type": "object", "properties": {"feedback": {"$ref": "#/components/schemas/SavedEvent"}}}}}},
+        "400": {"description": "字段无效或 helpful 缺少推荐 ID"}, "404": {"description": "推荐不属于当前用户或内容不对应"}, "409": {"description": "事件 ID 冲突"}}
+    }},
+    "/api/podcasts/events": {"post": {
+      "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Impression"}}}},
+      "responses": {"200": {"description": "每次实际曝光使用不同事件 ID，重试复用 ID", "content": {"application/json": {"schema": {"type": "object", "properties": {"event": {"$ref": "#/components/schemas/SavedEvent"}}}}}}, "404": {"description": "本人推荐不存在或内容失效"}, "409": {"description": "事件 ID 冲突"}}
+    }},
+    "/api/decision/funds": {"get": {"responses": {"200": {"description": "只依据当前采集的数据；未知金额为 null", "content": {"application/json": {"schema": {"type": "object", "properties": {"status": {"const": "success"}, "data": {"$ref": "#/components/schemas/Funds"}}}}}}}}},
+    "/api/decision/funds/carryover": {"post": {
+      "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Carryover"}}}},
+      "responses": {"200": {"description": "追加结转确认；同 ID 相同内容幂等"}, "400": {"description": "金额、月份、事件 ID 无效或冲突"}, "503": {"description": "写入失败"}}
+    }},
+    "/rank": {"post": {
+      "x-external-service": true,
+      "description": "外部独立 HSTU 服务协议示例路径。本项目不提供该端点，实际 URL 由 PODCAST_HSTU_URL 配置。",
+      "security": [{"HstuServiceBearer": []}],
+      "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HstuRequest"}}}},
+      "responses": {"200": {"description": "必须覆盖所有候选且无重复、未知 ID", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HstuResponse"}}}}}
+    }}
+  },
+  "components": {
+    "securitySchemes": {"UserBearer": {"type": "http", "scheme": "bearer"}, "HstuServiceBearer": {"type": "http", "scheme": "bearer", "description": "独立服务 API key，允许空配置时不发送"}},
+    "schemas": {
+      "Id": {"type": "string", "minLength": 1, "maxLength": 100},
+      "MoneyOrUnknown": {"type": ["number", "null"]},
+      "Evidence": {"type": "object", "required": ["feature", "label", "value", "unit", "snapshot_id", "as_of"], "properties": {
+        "feature": {"type": "string"}, "label": {"type": "string"}, "value": {"type": "number"}, "unit": {"const": "元"},
+        "snapshot_id": {"$ref": "#/components/schemas/Id"}, "as_of": {"type": "string", "format": "date-time"}
+      }},
+      "Today": {"type": "object", "required": ["date", "status", "program", "recommendation_id", "as_of", "evidence", "fallback", "fallback_reason", "ranker_used"], "properties": {
+        "date": {"type": "string", "format": "date"}, "status": {"enum": ["ready", "none", "dismissed", "unavailable"]},
+        "program": {"type": ["object", "null"], "description": "保留原节目全部公开字段"}, "reason": {"type": ["string", "null"]}, "message": {"type": ["string", "null"]},
+        "recommendation_id": {"$ref": "#/components/schemas/Id"}, "as_of": {"type": ["string", "null"], "format": "date-time"},
+        "timezone": {"type": "string"}, "evidence": {"type": "array", "maxItems": 2, "items": {"$ref": "#/components/schemas/Evidence"}},
+        "helpful": {"type": "boolean"}, "followed": {"type": "boolean"}, "fallback": {"type": "boolean"},
+        "fallback_reason": {"type": ["string", "null"]}, "ranker_used": {"enum": ["baseline", "hstu"]}
+      }},
+      "Feedback": {"type": "object", "required": ["program_id", "kind"], "properties": {
+        "program_id": {"$ref": "#/components/schemas/Id"}, "recommendation_id": {"$ref": "#/components/schemas/Id"}, "event_id": {"$ref": "#/components/schemas/Id"},
+        "kind": {"enum": ["view", "follow", "dislike", "helpful", "impression"]}, "value": {"type": "boolean", "default": true}
+      }, "allOf": [{"if": {"properties": {"kind": {"const": "helpful"}}}, "then": {"required": ["recommendation_id"]}}]},
+      "Impression": {"type": "object", "required": ["program_id", "recommendation_id", "kind"], "properties": {
+        "program_id": {"$ref": "#/components/schemas/Id"}, "recommendation_id": {"$ref": "#/components/schemas/Id"},
+        "event_id": {"$ref": "#/components/schemas/Id"}, "kind": {"const": "impression"}
+      }},
+      "SavedEvent": {"type": "object", "required": ["program_id", "kind", "saved", "recommendation_id", "event_id"], "properties": {
+        "program_id": {"$ref": "#/components/schemas/Id"}, "kind": {"type": "string"}, "saved": {"const": true},
+        "recommendation_id": {"$ref": "#/components/schemas/Id"}, "event_id": {"$ref": "#/components/schemas/Id"}
+      }},
+      "Funds": {"type": "object", "required": ["available_remaining_month", "complete", "reason"], "properties": {
+        "month": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$"}, "as_of": {"type": "string", "format": "date-time"},
+        "carryover_month": {"$ref": "#/components/schemas/MoneyOrUnknown"}, "available_remaining_month": {"$ref": "#/components/schemas/MoneyOrUnknown"},
+        "savings_locked_total": {"$ref": "#/components/schemas/MoneyOrUnknown"}, "savings_net_transfer_month": {"$ref": "#/components/schemas/MoneyOrUnknown"},
+        "complete": {"type": "boolean"}, "reason": {"type": ["string", "null"]}
+      }},
+      "Carryover": {"type": "object", "required": ["month", "amount"], "properties": {
+        "month": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$"}, "amount": {"type": "number", "minimum": -100000000, "maximum": 100000000},
+        "event_id": {"$ref": "#/components/schemas/Id"}
+      }},
+      "HstuRequest": {"type": "object", "required": ["feature_version", "snapshot_id", "as_of", "features", "missing_mask", "history", "candidates"], "properties": {
+        "feature_version": {"const": "finance-context-v2"}, "snapshot_id": {"$ref": "#/components/schemas/Id"}, "as_of": {"type": "string", "format": "date-time"},
+        "features": {"type": "object", "additionalProperties": {"type": "number"}, "description": "signed log1p 数值；包含独立 savings_locked_total，未知缩放为 0"},
+        "missing_mask": {"type": "object", "additionalProperties": {"enum": [0, 1]}, "description": "1=未知，0=已观测；与 features 同字段"},
+        "history": {"type": "array", "maxItems": 100, "items": {"type": "object", "required": ["program_id", "action", "occurred_at"], "properties": {
+          "program_id": {"$ref": "#/components/schemas/Id"}, "action": {"enum": ["click", "follow", "dislike", "helpful_yes", "helpful_no"]}, "occurred_at": {"type": "string", "format": "date-time"}
+        }}},
+        "candidates": {"type": "array", "maxItems": 100, "items": {"type": "object", "required": ["program_id", "topics", "title", "summary", "baseline_score"], "properties": {
+          "program_id": {"$ref": "#/components/schemas/Id"}, "topics": {"type": "array", "items": {"type": "string"}}, "title": {"type": "string"}, "summary": {"type": "string"}, "baseline_score": {"type": "number"}
+        }}}
+      }},
+      "HstuResponse": {"type": "object", "required": ["model_version", "scores"], "properties": {
+        "model_version": {"type": "string", "minLength": 1, "maxLength": 100}, "scores": {"type": "array", "maxItems": 100, "items": {"type": "object", "required": ["program_id", "score"], "properties": {
+          "program_id": {"$ref": "#/components/schemas/Id"}, "score": {"type": "number"}
+        }}}
+      }}
+    }
+  }
+}

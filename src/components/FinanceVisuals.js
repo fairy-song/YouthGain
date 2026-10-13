@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './FinanceVisuals.css';
+import MonthlyAvailableFunds from './MonthlyAvailableFunds';
 
 const colors = ['#168575', '#527bc1', '#c88735', '#9569b0', '#ce6479', '#6c7c89'];
 const money = n => `¥${Number(n).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}`;
@@ -43,7 +44,7 @@ function SpendingDonut({ items, total, net, selectedCategory }) {
   </svg>;
 }
 
-export default function FinanceVisuals({ monthlyCashflow, monthlyBudget, onCategory, selectedCategory = '', showBudgetSummary = true }) {
+export default function FinanceVisuals({ monthlyCashflow, monthlyBudget, funds, onCategory, selectedCategory = '', showBudgetSummary = true }) {
   const [view, setView] = useState('category');
   const [activeDay, setActiveDay] = useState('');
   const complete = monthlyCashflow?.complete === true &&
@@ -61,12 +62,7 @@ export default function FinanceVisuals({ monthlyCashflow, monthlyBudget, onCateg
 
   return <section className="fv-panel mb-4" aria-labelledby="spending-visual-title">
     <div className="fv-heading"><div><span className="fv-eyebrow">看见每一笔</span><h2 id="spending-visual-title">消费概览</h2></div><div className="fv-tabs" aria-label="图表类型">{[['category', '本月支出构成'], ['week', '近七天']].map(([key, title]) => <button type="button" key={key} aria-pressed={view === key} onClick={() => setView(key)}>{title}</button>)}</div></div>
-    {showBudgetSummary && <div className="mb-3 p-3 rounded bg-light" role="status">
-      <div className="text-muted">{monthlyBudget?.month || dateKey().slice(0, 7)} · {monthlyBudget?.remaining < 0 ? '本月超支' : '本月预算剩余'}</div>
-      <strong className={monthlyBudget?.remaining < 0 ? 'h3 text-danger' : 'h3 text-success'}>{monthlyBudget?.remaining == null ? (monthlyBudget?.budget == null ? '请在“我的”填写月生活费或收入' : '消费记录不完整，暂无法计算') : money(Math.abs(monthlyBudget.remaining))}</strong>
-      {monthlyBudget?.spent != null && <div>本月净消费 {money(monthlyBudget.spent)}{monthlyBudget.budget != null && ` · 本月预算 ${money(monthlyBudget.budget)}`}</div>}
-      <div className="small text-muted">以月生活费或收入作为预算，仅扣本月已发生的记录，不含历史积蓄；尚未扣除未来开支，漏记会影响结果。</div>
-    </div>}
+    {showBudgetSummary && <MonthlyAvailableFunds funds={funds} />}
     {!complete ? <div className="fv-empty" role="status">消费概览暂无法汇总，请重试。不会用最近账单代替本月统计。</div> : <>
       <p className="fv-caption" role="status">{monthlyCashflow.month} · {net < 0 ? '本月净回款' : '本月净支出'} <strong>{ledgerMoney(net)}</strong>（原支付 {ledgerMoney(monthlyCashflow.gross_expense)} − 已关联退款 {ledgerMoney(monthlyCashflow.refunds)}）。按全部已记录交易汇总；下方最近账单仅展示部分明细。</p>
       {view === 'category' ? !categories.length ? <div className="fv-empty">本月尚无已记录的消费或关联退款。</div> : <div>

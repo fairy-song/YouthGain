@@ -153,6 +153,10 @@ def _validate_program(data, previous=None):
     if isinstance(quality, bool) or not isinstance(quality, (int, float)) or not math.isfinite(quality) or not 0 <= quality <= 1:
         raise PodcastError('质量评分必须在 0 至 1 之间')
     record['quality_score'] = round(float(quality), 2)
+    link_status = data.get('link_status', record.get('link_status', 'unknown'))
+    if link_status not in ('valid', 'invalid', 'unknown'):
+        raise PodcastError('链接状态无效')
+    record['link_status'] = link_status
     for flag in ('promotion_flag', 'product_pitch'):
         value = data.get(flag, record.get(flag, False))
         if type(value) is not bool:
@@ -423,6 +427,8 @@ def _interest(user_id, entries=None):
 
 
 def _eligible(program, today, max_difficulty):
+    if program.get('link_status') == 'invalid':
+        return False
     if program['status'] != 'approved' or program['quality_score'] < MIN_QUALITY:
         return False
     if not program.get('episode_url') or not program.get('episode_title') or not program.get('episode_summary'):
@@ -473,6 +479,9 @@ def _candidates(programmes, history, feedback, today, interest, snapshot):
     if facts.get('recorded_surplus_month') is not None and facts['recorded_surplus_month'] < 0:
         weights['budget'] += 0.6
         interest['reasons']['budget'] = '本月已记录支出超过已记录收入'
+    if facts.get('available_remaining_month') is not None and facts['available_remaining_month'] < 0:
+        weights['budget'] += 0.4
+        interest['reasons']['budget'] = '按已确认结转与内部储蓄划拨计算，本月可用剩余为负'
     for program in programmes:
         if program['id'] in followed:
             for topic in program['topics']:
@@ -505,9 +514,11 @@ def _evidence(snapshot, program):
     facts, evidence = snapshot['features'], []
     for key, label, topic in [('upcoming_30d', '未来30日已记录待处理开支', 'buffer'),
                               ('goal_remaining', '活跃储蓄目标尚需金额', 'budget'),
+                              ('available_remaining_month', '本月可用剩余', 'budget'),
+                              ('savings_locked_total', '储蓄锁定总资金', 'budget'),
                               ('recorded_surplus_month', '本月已记录收支结余', 'budget')]:
         value = facts.get(key)
-        if topic in program['topics'] and value is not None and (value > 0 or key == 'recorded_surplus_month' and value < 0):
+        if topic in program['topics'] and value is not None and (value > 0 or key in ('recorded_surplus_month', 'available_remaining_month') and value < 0):
             evidence.append({'feature': key, 'label': label, 'value': value, 'unit': '元',
                              'snapshot_id': snapshot['snapshot_id'], 'as_of': snapshot['as_of']})
     return evidence[:2]
@@ -517,6 +528,9 @@ def _response(connection, record, today, user_id):
     extra = {'recommendation_id': record.get('recommendation_id'),
              'as_of': record.get('as_of') or record.get('created_at'), 'evidence': record.get('evidence', []),
              'timezone': record.get('timezone', 'Asia/Shanghai')}
+    extra.update(fallback=record.get('ranking', {}).get('fallback', False),
+                 fallback_reason=record.get('ranking', {}).get('fallback_reason'),
+                 ranker_used=record.get('ranking', {}).get('used', 'baseline'))
     program = podcast_store.program(connection, record['program_id']) if record.get('program_id') else None
     user_feedback = {row['kind'] for row in podcast_store.feedback_rows(connection, user_id)
                      if row['program_id'] == record.get('program_id')}
@@ -535,6 +549,17 @@ def _response(connection, record, today, user_id):
             'reason': record.get('reason'), 'message': record.get('message')}
 
 
+def _reason(interest, topic, evidence, *, enhancer=None):
+    """Verified template. Optional LLM-enhancement contract is reserved, disabled."""
+    if enhancer is not None:
+        raise ValueError('首版不启用大模型理由增强')
+    reason = f"{interest['reasons'].get(topic, '当前学习方向')}与“{TOPIC_NAMES[topic]}”有关；这一期聚焦相关的具体问题。"
+    if evidence:
+        item = evidence[0]
+        reason += f" 推荐时已记录的{item['label']}为 {item['value']:.2f} 元。"
+    return reason
+
+
 def today_for(user_id):
     try:
         entries, entries_complete = learning_store.read_entries(user_id), True
@@ -551,25 +576,28 @@ def today_for(user_id):
             existing.update(recommendation_id=str(uuid4()), as_of=existing.get('created_at'), evidence=[],
                             model_version='legacy', timezone=interest['timezone'])
             podcast_store.update_pick(connection, user_id, existing)
-        if existing and existing.get('program_id'):
+        if existing:
             return _response(connection, existing, today, user_id)
         programmes = podcast_store.program_rows(connection)
         history = podcast_store.recent_picks(connection, user_id, (today - timedelta(days=COOLDOWN_DAYS)).isoformat())
         feedback = podcast_store.feedback_rows(connection, user_id)
         events = podcast_store.event_history(connection, user_id, local_now.astimezone(timezone.utc).isoformat())
     # Finance queries and HTTP inference must not hold the SQLite write lock.
-    snapshot = finance_context_service.build_snapshot(user_id, local_now, entries, entries_complete=entries_complete)
+    snapshot = finance_context_service.build_snapshot(user_id, entries=entries, entries_complete=entries_complete)
+    if datetime.fromisoformat(snapshot['as_of']).astimezone(ZoneInfo(interest['timezone'])).date() != today:
+        return today_for(user_id)  # Source collection crossed the user's midnight; select the new local day.
     candidates = _candidates(programmes, history, feedback, today, interest, snapshot)
     ranking = podcast_ranker.rank(candidates, snapshot, events)
     with podcast_store.transaction() as connection:
         existing = podcast_store.daily_pick(connection, user_id, date_string)
-        if existing and existing.get('program_id'):
+        if existing:
             return _response(connection, existing, today, user_id)
         rejected = {r['program_id'] for r in podcast_store.feedback_rows(connection, user_id) if r['kind'] == 'dislike'}
         fresh = []
         for candidate in candidates:
             program = podcast_store.program(connection, candidate['program']['id'])
-            if program and program['id'] not in rejected and _eligible(program, today, interest['max_difficulty']):
+            if (program and program == candidate['program'] and program['id'] not in rejected
+                    and _eligible(program, today, interest['max_difficulty'])):
                 fresh.append(dict(candidate, program=program))
         chosen = {'program_id': None, 'program_topics': [], 'status': 'none',
                   'message': '今天没有合适的新单集。', 'reason': None, 'evidence': []}
@@ -577,13 +605,11 @@ def today_for(user_id):
             best = max(fresh, key=lambda c: (ranking['scores'][c['program']['id']], c['program']['id']))
             program, topic = best['program'], best['topic']
             chosen = {'program_id': program['id'], 'program_topics': program['topics'], 'status': 'ready',
-                      'reason': f"{interest['reasons'].get(topic, '当前学习方向')}与“{TOPIC_NAMES[topic]}”有关；这一期聚焦相关的具体问题。",
+                      'reason': _reason(interest, topic, _evidence(snapshot, program)),
                       'topic': topic, 'score': ranking['scores'][program['id']],
                       'baseline_score': best['baseline_score'], 'similarity': best['similarity'],
                       'evidence': _evidence(snapshot, program), 'message': None}
-        if existing and not chosen['program_id']:
-            return _response(connection, existing, today, user_id)
-        record = {**chosen, 'date': date_string, 'rank_version': 'finance-context-v1',
+        record = {**chosen, 'date': date_string, 'rank_version': 'finance-context-v2',
                   'recommendation_id': str(uuid4()), 'snapshot_id': snapshot['snapshot_id'],
                   'as_of': snapshot['as_of'], 'timezone': interest['timezone'],
                   'model_version': ranking['model_version'], 'ranking': ranking,
@@ -591,7 +617,7 @@ def today_for(user_id):
                       for key, value in interest['weights'].items() if value > 0},
                   'created_at': local_now.isoformat()}
         podcast_store.save_snapshot(connection, user_id, snapshot)
-        podcast_store.save_pick(connection, user_id, date_string, record, replace_empty=bool(existing))
+        podcast_store.save_pick(connection, user_id, date_string, record)
         if chosen['program_id']:
             podcast_store.append_event(connection, user_id, record, str(uuid4()), 'served',
                                        local_now.astimezone(timezone.utc).isoformat())
@@ -606,6 +632,8 @@ def save_feedback(user_id, program_id, kind, recommendation_id=None, event_id=No
     program_id = _text(program_id, '单集ID', 100, True)
     if kind == 'helpful' and not isinstance(value, bool):
         raise PodcastError('helpful 的 value 必须是布尔值')
+    if kind == 'helpful' and recommendation_id is None:
+        raise PodcastError('有帮助反馈需要绑定推荐ID')
     if recommendation_id is not None:
         recommendation_id = _text(recommendation_id, '推荐ID', 100, True)
     event_id = _text(event_id, '事件ID', 100, True) if event_id is not None else str(uuid4())

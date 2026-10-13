@@ -14,6 +14,14 @@ def client(base_client, monkeypatch, tmp_path):
     monkeypatch.setattr(auth_service, 'verify_firebase_token', lambda token: (
         {'uid': token, 'email': f'{token}@example.org', 'role': 'admin' if token == 'admin' else 'user'}, None))
     monkeypatch.setattr(service, 'now', lambda: datetime.fromisoformat('2026-10-11T12:00:00+08:00'))
+    from app.services import finance_context_service, finance_funds_service, learning_store
+    monkeypatch.setattr(finance_context_service, 'now', lambda: service.now())
+    monkeypatch.setattr(finance_funds_service, 'now', lambda: service.now().astimezone(__import__('datetime').timezone.utc))
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return service.now().astimezone(tz) if tz else service.now()
+    monkeypatch.setattr(learning_store, 'datetime', FixedDatetime)
     base_client.application.config.update(PODCAST_DB_PATH=str(tmp_path / 'podcasts.db'),
                                           PODCAST_RSS_ALLOWED_HOSTS='feed.example',
                                           PODCAST_STARTER_CATALOG_ENABLED=False)
@@ -77,7 +85,7 @@ def test_review_quality_duplicate_platforms_and_no_forced_candidate(client):
                payload('内部链接', canonical_url='https://127.0.0.1/private'), user='admin')
     assert bad.status_code == 400
     program = add(client, name='优质节目')
-    assert call(client, 'get', '/api/podcasts/today').json['program']['id'] == program
+    assert call(client, 'get', '/api/podcasts/today').json == empty
     assert call(client, 'get', '/api/podcasts/today', user='carol').json['program']['id'] == program
     assert call(client, 'post', f'/api/podcasts/admin/programs/{program}/review',
                 {'approved': False}, user='admin').status_code == 200
@@ -98,10 +106,12 @@ def test_interest_and_timezone_change_recommendation_day(client, monkeypatch):
     assert call(client, 'get', '/api/podcasts/today').json['status'] == 'none'
 
 
-def test_starter_catalog_populates_empty_db_and_repairs_cached_empty(client):
+def test_starter_catalog_respects_cached_empty_until_next_local_day(client, monkeypatch):
     empty = call(client, 'get', '/api/podcasts/today').json
     assert empty['status'] == 'none'
     client.application.config['PODCAST_STARTER_CATALOG_ENABLED'] = True
+    assert call(client, 'get', '/api/podcasts/today').json == empty
+    monkeypatch.setattr(service, 'now', lambda: datetime.fromisoformat('2026-10-12T12:00:00+08:00'))
     ready = call(client, 'get', '/api/podcasts/today').json
     assert ready['status'] == 'ready'
     assert ready['program']['episode_url'].startswith('https://www.xiaoyuzhoufm.com/episode/')

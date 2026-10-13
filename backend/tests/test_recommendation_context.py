@@ -66,12 +66,14 @@ def test_failed_sources_do_not_claim_zero_cashflow_or_goals(client, monkeypatch)
     monkeypatch.setattr(finance.user_data_service, 'get_user_data', lambda *a, **k: ([], 'offline'))
     monkeypatch.setattr(finance.learning_store, 'read_entries', lambda uid: (_ for _ in ()).throw(RuntimeError('offline')))
     with client.application.app_context():
-        snapshot = finance.build_snapshot('alice', STAMP)
+        snapshot = finance.build_snapshot('alice')
     for key in ('actual_income_month', 'goal_remaining', 'upcoming_30d', 'confirmed_balance'):
         assert snapshot['missing_mask'][key] == 1
 
 
-def test_snapshot_reads_manual_and_committed_import_ledger(client):
+def test_snapshot_reads_manual_and_committed_import_ledger(client, monkeypatch):
+    from datetime import timezone
+    monkeypatch.setattr(finance, 'now', lambda: datetime.now(timezone.utc))
     assert call(client, 'put', '/api/learning/profile', {'monthly_income': 2500, 'income_day': 15}).status_code == 200
     assert call(client, 'post', '/api/decision/transactions', {
         'amount': 20, 'category': '学习', 'date': '2026-10-10'}).status_code in (200, 201)
@@ -88,8 +90,8 @@ def test_snapshot_reads_manual_and_committed_import_ledger(client):
                 {'row_id': 4, 'date': '2026-10-10', 'amount': '50', 'transaction_type': 'refund',
                  'related_source': 'standard', 'related_source_id': 'P1', 'source_transaction_id': 'R1'},
             ]})
-        snapshot = finance.build_snapshot('alice', STAMP)
-        other = finance.build_snapshot('bob', STAMP)
+        snapshot = finance.build_snapshot('alice')
+        other = finance.build_snapshot('bob')
     assert snapshot['features']['actual_income_month'] == 1000
     assert snapshot['features']['expected_income_30d'] == 2500
     assert snapshot['features']['net_expense_month'] == 170
@@ -141,7 +143,7 @@ def test_events_snapshot_ownership_and_idempotency(client):
     assert call(client, 'post', '/api/podcasts/events', body).status_code == 200
     assert call(client, 'post', '/api/podcasts/events', body).status_code == 200
     duplicate = call(client, 'post', '/api/podcasts/events', {**body, 'event_id': 'visible-2'})
-    assert duplicate.json['event']['event_id'] == 'visible-1'
+    assert duplicate.json['event']['event_id'] == 'visible-2'
     assert call(client, 'post', '/api/podcasts/events', body, user='bob').status_code == 404
     positive = {**body, 'kind': 'helpful', 'event_id': 'helpful-1'}
     assert call(client, 'post', '/api/podcasts/feedback', positive).status_code == 200
@@ -152,7 +154,7 @@ def test_events_snapshot_ownership_and_idempotency(client):
     assert call(client, 'post', '/api/podcasts/feedback', {**positive, 'kind': 'dislike'}).status_code == 409
     with client.application.app_context(), store.transaction() as conn:
         rows = conn.execute('SELECT * FROM recommendation_events WHERE user_id=?', ('alice',)).fetchall()
-        assert sorted(r['event_type'] for r in rows) == ['helpful_no', 'helpful_yes', 'impression', 'served']
+        assert sorted(r['event_type'] for r in rows) == ['helpful_no', 'helpful_yes', 'impression', 'impression', 'served']
         snapshot = conn.execute('SELECT payload FROM finance_snapshots WHERE snapshot_id=?', (rows[0]['snapshot_id'],)).fetchone()
         assert json.loads(snapshot[0])['as_of'] == today['as_of']
         with pytest.raises(sqlite3.IntegrityError):
@@ -171,7 +173,14 @@ class Response:
         yield json.dumps(self.data).encode()
 
 
+def ready_finance():
+    from app.services.firestore_service import _dev_db
+    _dev_db['users'].setdefault('alice', {})['transactions'] = [
+        {'id': 'synthetic-cashflow', 'date': '2026-10-10', 'amount': 10, 'category': '学习'}]
+
+
 def test_hstu_inference_releases_lock_and_applies_scores(client, monkeypatch):
+    ready_finance()
     first, second = add(client, name='预算甲'), add(client, name='预算乙')
     app = client.application
     app.config.update(PODCAST_RANKER_MODE='hstu', PODCAST_HSTU_URL='http://localhost:9090/rank')
@@ -192,6 +201,7 @@ def test_hstu_inference_releases_lock_and_applies_scores(client, monkeypatch):
 
 @pytest.mark.parametrize('mode', ['baseline', 'shadow', 'hstu'])
 def test_modes_and_timeout_fallback(client, monkeypatch, mode):
+    ready_finance()
     pid = add(client)
     app = client.application
     app.config.update(PODCAST_RANKER_MODE=mode, PODCAST_HSTU_URL='http://localhost:9090/rank')
@@ -210,6 +220,7 @@ def test_modes_and_timeout_fallback(client, monkeypatch, mode):
 
 
 def test_shadow_preserves_baseline_and_stores_comparison(client, monkeypatch):
+    ready_finance()
     pid = add(client)
     client.application.config.update(PODCAST_RANKER_MODE='shadow', PODCAST_HSTU_URL='http://localhost/rank')
     monkeypatch.setattr(ranker.requests, 'post', lambda *a, **k: Response({
@@ -228,7 +239,7 @@ def test_invalid_inference_response_falls_back(client, monkeypatch, scores):
     client.application.config.update(PODCAST_RANKER_MODE='hstu', PODCAST_HSTU_URL='http://localhost/rank')
     monkeypatch.setattr(ranker.requests, 'post', lambda *a, **k: Response({'model_version': 'hstu', 'scores': scores}))
     with client.application.app_context():
-        snapshot = finance.from_records([], [], [], STAMP)
+        snapshot = finance.from_records([{'date': '2026-10-10', 'amount': 10}], [], [], STAMP)
         result = ranker.rank([{'program': {'id': 'a', 'topics': ['budget'], 'episode_title': '预算', 'episode_summary': '内容'}, 'score': 0.5}], snapshot, [])
     assert result['scores'] == {'a': 0.5} and result['fallback'] is True
 
@@ -263,3 +274,21 @@ def test_withdrawn_candidate_is_not_committed_after_inference(client, monkeypatc
     monkeypatch.setattr(ranker, 'rank', withdraw)
     result = call(client, 'get', '/api/podcasts/today').json
     assert result['status'] == 'none' and result['program'] is None
+
+
+def test_new_user_and_source_errors_skip_external_inference_and_report_reason(client, monkeypatch):
+    add(client)
+    client.application.config.update(PODCAST_RANKER_MODE='hstu', PODCAST_HSTU_URL='http://localhost/rank')
+    monkeypatch.setattr(ranker.requests, 'post', lambda *a, **k: pytest.fail('must not call HSTU'))
+    result = call(client, 'get', '/api/podcasts/today').json
+    assert result['fallback'] is True and result['fallback_reason'] == 'insufficient_finance_data'
+    with client.application.app_context():
+        snapshot = finance.from_records([], [], [], STAMP, transactions_complete=False)
+        ranked = ranker.rank([{'program': {'id': 'x'}, 'score': 1}], snapshot, [])
+    assert ranked['fallback_reason'] == 'finance_source_unavailable'
+
+
+def test_invalid_link_and_unbound_helpful_are_rejected(client):
+    add(client, link_status='invalid')
+    assert call(client, 'get', '/api/podcasts/today').json['status'] == 'none'
+    assert call(client, 'post', '/api/podcasts/feedback', {'program_id': 'x', 'kind': 'helpful'}).status_code == 400

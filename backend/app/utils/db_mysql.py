@@ -197,6 +197,10 @@ class MySQLHelper:
             from app.services.learning_store import TABLE_SQL
             cls.execute_update(TABLE_SQL)
             if cls.execute_query("SHOW TABLES LIKE 'transactions'"):
+                if not cls.execute_query("SHOW COLUMNS FROM transactions LIKE 'transaction_type'"):
+                    cls.execute_update("ALTER TABLE transactions ADD COLUMN transaction_type VARCHAR(20) NOT NULL DEFAULT 'expense'")
+                if not cls.execute_query("SHOW COLUMNS FROM transactions LIKE 'receipt_kind'"):
+                    cls.execute_update("ALTER TABLE transactions ADD COLUMN receipt_kind VARCHAR(32) DEFAULT NULL")
                 if not cls.execute_query("SHOW COLUMNS FROM transactions LIKE 'planned'"):
                     cls.execute_update("ALTER TABLE transactions ADD COLUMN planned VARCHAR(20) DEFAULT NULL")
                 if not cls.execute_query("SHOW COLUMNS FROM transactions LIKE 'purpose'"):

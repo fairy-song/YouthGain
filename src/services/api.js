@@ -360,7 +360,8 @@ export const undoBillImport = async sha256 => {
 };
 
 /**
- * 新增一笔消费记录。
+ * 新增一笔收支记录。transaction_type 支持 expense（默认）/ income（实际到账）。
+ * 收入可带 receipt_kind: red_packet / external_transfer / other_income。
  * @param {Object} data 必填 amount / category / date(YYYY-MM-DD)，可选 merchant / items / note / hour
  */
 export const createTransaction = async (data) => {
@@ -369,12 +370,12 @@ export const createTransaction = async (data) => {
     window.dispatchEvent(new Event('transaction-saved'));
     return response.data.data;
   } catch (error) {
-    console.error('保存消费记录失败:', error);
+    console.error('保存收支记录失败:', error);
     throw error;
   }
 };
 
-/** 删除一笔消费记录。 */
+/** 删除一笔收支记录。 */
 export const deleteTransaction = async (transactionId) => {
   try {
     const response = await api.delete(`/decision/transactions/${transactionId}`);
