@@ -16,5 +16,9 @@
 .daily-podcast-links a { display: inline-block; color: var(--yg-primary-text); margin: .7rem 1rem 0 0; }
 .daily-podcast-note { margin: 1rem 0 0; }
 .daily-podcast-empty { color: var(--yg-muted); margin-bottom: .8rem; }
+.daily-podcast-dismissed-banner { background: #FFF7E6; border: 1px solid #FFD591; border-radius: 12px; padding: .8rem 1rem; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.daily-podcast-dismissed-banner p { margin: 0; color: #874D00; font-size: .9rem; }
+.daily-podcast-dismissed-banner button { background: #fff; border: 1px solid #FFD591; color: #874D00; border-radius: 8px; padding: .4rem .9rem; font-weight: 600; cursor: pointer; }
+.daily-podcast-dismissed-banner button:hover { background: #FFF1B8; }
 .daily-podcast button:focus-visible, .daily-podcast a:focus-visible, .daily-podcast summary:focus-visible { outline: 3px solid var(--yg-secondary-text); outline-offset: 3px; }
 @media (max-width: 700px) { .daily-podcast { margin: 0 1rem 5rem; padding: 1.25rem; } }

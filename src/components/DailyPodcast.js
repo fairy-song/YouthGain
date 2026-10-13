@@ -70,7 +70,8 @@ export default function DailyPodcast({ userId }) {
         await sendPodcastFeedback(result.program.id, kind, { recommendation_id: result.recommendation_id, event_id: eventId });
       } else { await sendPodcastFeedback(result.program.id, kind); }
       if (current !== version.current) return;
-      if (kind === 'dislike') setResult({ ...result, status: 'dismissed', program: null, message: '今天的节目已收起。' });
+      if (kind === 'dislike') setResult({ ...result, dismissed: true, message: '今天的节目已收起。点下方按钮可恢复。' });
+      if (kind === 'undislike') setResult({ ...result, dismissed: false });
       if (kind === 'follow') setResult({ ...result, followed: true });
       if (kind === 'helpful') setResult({ ...result, helpful: true });
     } catch { if (current === version.current) setError('反馈暂时没保存，请重试。'); }
@@ -82,6 +83,11 @@ export default function DailyPodcast({ userId }) {
     <h2 id="daily-podcast-title">今天推荐这一期</h2>
     {error && <p role="alert">{error} <button type="button" onClick={load}>重试</button></p>}
     {result?.program ? <>
+      {result.dismissed && <div className="daily-podcast-dismissed-banner">
+        <p>{result.message}</p>
+        <button type="button" onClick={() => feedback('undislike')} disabled={!!busy}>恢复本期推荐</button>
+      </div>}
+      <div style={result.dismissed ? { filter: 'grayscale(0.8)', opacity: 0.5 } : undefined}>
       <h3>{result.program.episode_title}</h3>
       <p className="daily-podcast-publisher">来自《{result.program.name}》 · {result.program.publisher} · {result.program.episode_published_at}</p>
       <p className="daily-podcast-description">{result.program.episode_summary}</p>
@@ -97,7 +103,20 @@ export default function DailyPodcast({ userId }) {
         <button type="button" disabled={!!busy || result.helpful} onClick={() => feedback('helpful')}>{result.helpful ? '已反馈有帮助' : '对我有帮助'}</button>
       </div>
       {result.program.platform_links.some(link => link.url !== result.program.episode_url) && <details className="daily-podcast-links"><summary>其他收听链接</summary>{result.program.platform_links.filter(link => link.url !== result.program.episode_url).map(link => <a key={link.url} href={link.url} onClick={() => feedback('view')}>{({ xiaoyuzhou: '小宇宙', ximalaya: '喜马拉雅', website: '网站', other: '其他平台' })[link.platform]} →</a>)}</details>}
-    </> : result && <p className="daily-podcast-empty">{result.message || '今天没有合适的新单集。'}</p>}
+      </div>
+    </> : result?.status === 'dismissed' && result.program_id ? (
+      <div className="daily-podcast-dismissed-banner">
+        <p>{result.message}</p>
+        <button type="button" disabled={!!busy} onClick={async () => {
+          setBusy('undislike');
+          try {
+            await sendPodcastFeedback(result.program_id, 'undislike', { recommendation_id: result.recommendation_id });
+            load();
+          } catch { setError('恢复失败，请重试。'); }
+          finally { setBusy(''); }
+        }}>恢复本期推荐</button>
+      </div>
+    ) : result && <p className="daily-podcast-empty">{result.message || '今天没有合适的新单集。'}</p>}
     <p className="daily-podcast-note">收藏只影响青盈后续推荐，不会在外部平台收藏；收听不代表已经掌握知识。</p>
   </section>;
 }
