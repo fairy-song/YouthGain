@@ -539,7 +539,8 @@ def _response(connection, record, today, user_id):
         ORDER BY occurred_at DESC, rowid DESC LIMIT 1''', (user_id, record.get('recommendation_id'))).fetchone()
     if 'dislike' in user_feedback:
         return {**extra, 'evidence': [], 'date': record['date'], 'status': 'dismissed', 'program': None,
-                'reason': None, 'message': '今天的节目已收起。'}
+                'program_id': record.get('program_id'),
+                'reason': None, 'message': '今天的节目已收起。点下方按钮可恢复。'}
     if program and not _eligible(program, today, 3):
         return {**extra, 'evidence': [], 'date': record['date'], 'status': 'unavailable', 'program': None,
                 'reason': None, 'message': '今天的节目暂时不可查看。'}
@@ -627,7 +628,7 @@ def today_for(user_id):
 
 
 def save_feedback(user_id, program_id, kind, recommendation_id=None, event_id=None, value=True):
-    if kind not in ('view', 'follow', 'dislike', 'impression', 'helpful'):
+    if kind not in ('view', 'follow', 'dislike', 'impression', 'helpful', 'undislike'):
         raise PodcastError('反馈类型无效')
     program_id = _text(program_id, '单集ID', 100, True)
     if kind == 'helpful' and not isinstance(value, bool):
@@ -664,6 +665,9 @@ def save_feedback(user_id, program_id, kind, recommendation_id=None, event_id=No
         if kind == 'view':
             connection.execute('INSERT OR IGNORE INTO events VALUES(?,?,?,?,?)',
                                (user_id, now().date().isoformat(), program_id, kind, stamp))
+        elif kind == 'undislike':
+            connection.execute('DELETE FROM feedback WHERE user_id=? AND program_id=? AND kind=?',
+                               (user_id, program_id, 'dislike'))
         elif kind in ('follow', 'dislike', 'helpful'):
             opposite = 'dislike' if kind == 'follow' else 'follow' if kind == 'dislike' else 'helpful_no'
             if kind == 'helpful' and not value:
