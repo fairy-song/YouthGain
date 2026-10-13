@@ -13,24 +13,37 @@ import { submitAssessmentNew, getAssessmentHistory } from '../services/api';
 // Constants
 // ─────────────────────────────────────────────────
 
-const questions = [
+const questionBank = [
   ['budget', '安排生活费时，我会先确认必要开支和近期要付的钱。'],
   ['budget', '我会把红包、退款和生活费一起考虑，再决定用途。'],
+  ['budget', '超预算时，我会主动找一笔可削减的支出，而不是硬撑到月底。'],
+  ['budget', '我知道自己每月固定支出大概占生活费的几成。'],
   ['choice', '面对想买的东西，我能说出它满足什么需要。'],
   ['choice', '我会比较至少两个选择，并说明自己愿意接受的取舍。'],
+  ['choice', '促销时我会先算最终支出，再决定要不要下单。'],
+  ['choice', '买完东西后我很少后悔，因为买前想过它的使用频率。'],
   ['buffer', '我会留意不定期开支，并考虑可行的准备方式。'],
   ['buffer', '当收入或计划变化时，我会重新安排并保留必要生活开支。'],
+  ['buffer', '我手头有至少能撑两周吃饭的应急钱。'],
+  ['buffer', '遇到计划外支出时，我不需要立刻借钱。'],
   ['risk', '面对回报承诺，我会询问可能损失、费用和退出限制。'],
   ['risk', '信息不足时，我能先核实再决定，而不是只跟随别人的选择。'],
-].map(([category, question], index) => ({
-  id: index + 1, category, question,
-  options: [
-    { id: 'a', text: '还没有这样做过', score: 1 },
-    { id: 'b', text: '偶尔会这样做', score: 2 },
-    { id: 'c', text: '多数时候会这样做', score: 3 },
-    { id: 'd', text: '经常这样做，也能解释原因', score: 4 },
-  ],
-}));
+  ['risk', '我知道"保本高收益"几乎一定有问题。'],
+  ['risk', '陌生链接要我输验证码或支付密码时，我会停下来核实。'],
+];
+
+function buildQuestions() {
+  const shuffled = [...questionBank].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 8).map(([category, question], index) => ({
+    id: index + 1, category, question,
+    options: [
+      { id: 'a', text: '还没有这样做过', score: 1 },
+      { id: 'b', text: '偶尔会这样做', score: 2 },
+      { id: 'c', text: '多数时候会这样做', score: 3 },
+      { id: 'd', text: '经常这样做，也能解释原因', score: 4 },
+    ],
+  }));
+}
 
 const CATEGORY_NAMES = {
   budget: '安排收支', choice: '理解取舍', buffer: '留有余地',
@@ -91,8 +104,30 @@ function getCategoryVariant(percentage) {
   return 'danger';
 }
 
-function getResultMessage(score) {
-  return { title: '从认识自己的习惯开始', message: '这些回答反映你目前对自身习惯的看法。它们不是专业诊断或能力认证，也不衡量收入高低。选择一个想探索的主题，在真实情境里试一试。', icon: <FaLightbulb className="text-primary" size={48} />, color: 'primary', percentage: score / (questions.length * 4) * 100 };
+function getResultMessage(score, categoryScores) {
+  const totalPct = score / 32 * 100;
+  const entries = Object.entries(categoryScores || {});
+  const weakest = entries.sort((a, b) => a[1] - b[1])[0];
+  const weakestName = weakest ? getCategoryName(weakest[0]) : '';
+  const tips = {
+    budget: '你在预算规划方面自评偏低，建议先从"记录一周全部支出"开始，看看钱到底花在哪。',
+    choice: '你在消费取舍方面还有提升空间，下次下单前试试问自己：这是需要还是想要？',
+    buffer: '你在应急储备方面比较薄弱，建议先设一个小目标，比如先存够 200 块应急钱。',
+    risk: '你在风险认知方面需要加强，遇到"高收益"承诺先停下来，核实清楚再决定。',
+  };
+  const tip = weakest ? tips[weakest[0]] || tips.budget : '';
+  let title, color;
+  if (totalPct >= 75) { title = '习惯基础很扎实'; color = 'success'; }
+  else if (totalPct >= 50) { title = '有基础，继续巩固'; color = 'info'; }
+  else if (totalPct >= 30) { title = '从一个小习惯开始'; color = 'warning'; }
+  else { title = '先认识自己的钱'; color = 'primary'; }
+  return {
+    title,
+    message: `${tip} 这是你自评中较少实践的主题：${weakestName}。用一个真实情境尝试一次，看看是否适合你。`,
+    icon: <FaLightbulb className="text-primary" size={48} />,
+    color,
+    percentage: totalPct,
+  };
 }
 
 function formatDate(ts) {
@@ -266,6 +301,7 @@ const Assessment = () => {
   const [score, setScore] = useState(0);
   const [categoryScores, setCategoryScores] = useState({});
   const [userName, setUserName] = useState('');
+  const [questions, setQuestions] = useState(() => buildQuestions());
 
   // History state
   const [historyData, setHistoryData] = useState([]);
@@ -369,6 +405,7 @@ const Assessment = () => {
     setCategoryScores({});
     setUserName('');
     setSaveStatus(null);
+    setQuestions(buildQuestions());
     setView('quiz');
   };
 
@@ -572,7 +609,7 @@ const Assessment = () => {
 
   // ── RESULT VIEW ──
   if (view === 'result') {
-    const result = getResultMessage(score);
+    const result = getResultMessage(score, categoryScores);
     const maxScore = questions.length * 4;
     const pct = Math.round((score / maxScore) * 100);
 

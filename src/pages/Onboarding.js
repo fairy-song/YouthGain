@@ -26,12 +26,14 @@ export default function Onboarding() {
     if (question.type === 'number' && (value === '' || Number(value) < (question.min || 0))) { setError('请填一个有效数字，之后也可以修改。'); return; }
     if (step < questions.length - 1) { setStep(s => s + 1); return; }
     setSaving(true);
+    const timeoutId = setTimeout(() => setError('保存时间较长，请稍候——如果长时间无反应，可以刷新页面后重试。'), 10000);
     try {
       await saveLearningProfile({ ...form, onboarding_complete: true, topic: 'budget', personal_rule: '' });
+      clearTimeout(timeoutId);
       if (currentUser?.email) localStorage.setItem(`onboarding_complete:${currentUser.email.toLowerCase()}`, 'true');
       navigate('/dashboard', { replace: true });
     }
-    catch (e) { setError(learningError(e)); setSaving(false); }
+    catch (e) { clearTimeout(timeoutId); setError(learningError(e)); setSaving(false); }
   };
   return <main className="min-vh-100 d-flex align-items-center justify-content-center bg-light p-3">
     <Card className="border-0 shadow-sm rounded-4" style={{ maxWidth: 520, width: '100%' }}><Card.Body className="p-4 p-md-5">

@@ -30,7 +30,11 @@ export default function ResearchParticipation() {
     <p className="text-muted">自主选择是否提供研究贡献，帮助学校了解参与者的消费结构与预算安排。</p>
     <p><Link to="/profile">返回我的资料</Link> · <Link to="/research">学校研究入口</Link></p>
     {error && <Alert variant="danger">{error}<Button variant="link" onClick={() => { setError(''); setReload(v => v + 1); }}>重试</Button></Alert>}
-    {loading ? <Spinner animation="border" aria-label="加载研究项目" /> : !projects.length && <Alert variant="light">暂无开放的真实研究项目。你可以继续使用记账和学习功能。</Alert>}
+    {loading ? <Spinner animation="border" aria-label="加载研究项目" /> : !projects.length && <Alert variant="light">
+      <h5 className="alert-heading">研究功能正在内测</h5>
+      <p className="mb-2">下一阶段研究预计 2026 年秋季开放。你可以先完善消费记录和学习路径，研究开放后将自动邀请你参与。</p>
+      <p className="mb-0 small text-muted">此页面仅在有开放研究项目时显示可参与的项目，不影响记账和学习功能。</p>
+    </Alert>}
     {projects.map(project => <Card key={project.id} className="mb-4 border-0 shadow-sm"><Card.Body>
       <h2 className="h5">{project.title}</h2>
       <p>{project.school} · {project.start_month} 至 {project.end_month}</p>

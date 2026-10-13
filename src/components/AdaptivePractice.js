@@ -67,7 +67,28 @@ export default function AdaptivePractice({ lessons = [], onSelectLesson }) {
     {error && <Alert variant="danger" role="alert">{error} <Button variant="link" disabled={busy} onClick={load}>刷新推荐</Button></Alert>}
     {!data && busy && <Spinner animation="border" role="status"><span className="visually-hidden">加载情境</span></Spinner>}
     {data && <>
-      {!item && !feedback && <p className="learning-practice-empty">今天的新情境已经做完了，可以先休息一下。</p>}
+      {!item && !feedback && <div className="learning-practice-summary">
+        <h3>今日练习完成</h3>
+        <p className="text-muted mb-3">今天的新情境已经做完了，看看本次表现。</p>
+        {(() => {
+          const attempts = Object.values(data.attempts || {});
+          const answered = attempts.filter(a => a.correct !== null);
+          const correct = answered.filter(a => a.correct === true).length;
+          const wrong = answered.filter(a => a.correct === false).length;
+          const reflection = attempts.filter(a => a.correct === null).length;
+          const totalExp = correct * 10 + Math.round((answered.length - correct - wrong) * 5);
+          return <div className="row g-3 mb-3">
+            <div className="col-4"><div className="border rounded p-3 text-center"><div className="fs-4 fw-bold text-success">{correct}</div><div className="small text-muted">答对</div></div></div>
+            <div className="col-4"><div className="border rounded p-3 text-center"><div className="fs-4 fw-bold text-warning">{wrong}</div><div className="small text-muted">需巩固</div></div></div>
+            <div className="col-4"><div className="border rounded p-3 text-center"><div className="fs-4 fw-bold text-primary">+{totalExp}</div><div className="small text-muted">经验值</div></div></div>
+            {reflection > 0 && <div className="col-12"><p className="small text-muted mb-0">已记录 {reflection} 段开放思考。</p></div>}
+          </div>;
+        })()}
+        <div className="d-flex gap-2">
+          <Button as={Link} to="/knowledge" variant="outline-secondary">去知识库学习</Button>
+          <Button as={Link} to="/learning" variant="primary">明天继续练习</Button>
+        </div>
+      </div>}
       {item && <div className="learning-practice-progress">{item.scenario_id ? `情境练习 · 第 ${item.step} / ${item.steps_total} 步` : `${item.level || '基础'}练习 · 一次只做一步`}{data.recommendation_mode === 'review' && item.id === data.next_item?.id ? ' · 简短复习' : ''}{item.review_status === 'pilot' ? ' · 试用题' : ''}</div>}
       {item && !feedback && <Form onSubmit={submit}>
         {item.scenario_context && <p className="learning-practice-context">{item.scenario_context}</p>}
@@ -83,6 +104,7 @@ export default function AdaptivePractice({ lessons = [], onSelectLesson }) {
         </fieldset>
       </Form>}
       {feedback && <>{reviewing && item && <><p className="learning-practice-question">{item.question}</p><p className="learning-practice-review-note">已完成的回答，仅供回看。</p></>}<div className="learning-practice-feedback" role="status"><strong>{feedback.correct === null ? '你的想法已记录。' : feedback.correct ? '这次抓住了关键条件。' : feedback.score === 0.5 ? '你已算对一部分，再核对遗漏的费用。' : '再核对一下关键数字或条件。'}</strong><p className="mb-1">你的回答：{feedback.evidence}</p><p className="mb-0">{feedback.explanation}</p></div>
+        {feedback.correct === null && <div className="learning-practice-reflection-tip mt-2 p-2 bg-light rounded"><small className="text-muted">💡 思考对照：你的判断依据是否提到了「总成本」「风险」「下一步行动」这三个角度？下次写判断时可以试着覆盖其中两点。</small></div>}
         {feedback.micro_action && <p className="learning-practice-review-note">今天可以试一小步：{feedback.micro_action}</p>}
         <div className="learning-practice-actions">{canGoBack && <Button variant="outline-secondary" disabled={busy} onClick={previous}>上一步</Button>}{needsRefresh ? <Button className="learning-practice-primary" disabled={busy} onClick={load}>刷新下一步</Button> : (reviewing && followingItem) || data.next_item ? <Button className="learning-practice-primary" disabled={busy} onClick={next}>下一步</Button> : <p className="learning-practice-empty mb-0">今天先到这里。想继续时，可以再来练习。</p>}</div>
         <div className="learning-practice-secondary"><Button as={Link} variant="link" size="sm" to="/">今天先到这里</Button></div>

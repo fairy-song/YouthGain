@@ -12,10 +12,16 @@ const goals = [
 ];
 const markdownComponents = { a: ({ node, children, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer">{children}</a> };
 function Article({ article, back }) {
-  const content = article.content || '正文尚未补充。';
+  const content = article.content || '';
   const answerIndex = content.indexOf('## 参考答案');
   const sourceIndex = content.indexOf('## 资料来源', answerIndex);
   const hasAnswer = answerIndex >= 0 && sourceIndex > answerIndex;
+  if (!content.trim()) return <article className="kb-article">
+    <Link to={back} className="btn btn-outline-secondary btn-sm mb-4">← 返回知识库</Link>
+    <div className="kb-eyebrow">青盈 · 理财实践指南</div><h1>{article.title}</h1>
+    <p className="kb-summary">{article.summary}</p>
+    <div className="kb-empty"><h3>这篇文章正在完善中</h3><p>我们正在补充正文，你可以先看看其他分类。</p><Link to={back}>返回知识库</Link></div>
+  </article>;
   return <article className="kb-article">
     <Link to={back} className="btn btn-outline-secondary btn-sm mb-4">← 返回知识库</Link>
     <div className="kb-eyebrow">青盈 · 理财实践指南</div><h1>{article.title}</h1>
@@ -43,9 +49,9 @@ export default function KnowledgePage() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { window.scrollTo(0, 0); }, [articleId]);
   function change(key, value) { const next = new URLSearchParams(params); next.delete('article'); value ? next.set(key, value) : next.delete(key); setParams(next, { replace: key === 'q' }); }
-  const categoryList = [...knowledgeCategories, ...legacyCategories.filter(c => articles.some(a => a.category === c.id))];
-  const unknownCategories = [...new Set(articles.map(a => a.category || 'uncategorized'))].filter(id => !categoryList.some(c => c.id === id));
-  unknownCategories.forEach(id => categoryList.push({ id, name: id === 'uncategorized' ? '未分类' : id }));
+  const catNameMap = Object.fromEntries([...knowledgeCategories, ...legacyCategories].map(c => [c.id, c.name]));
+  const existingCatIds = [...new Set(articles.map(a => a.category).filter(Boolean))];
+  const categoryList = existingCatIds.map(id => ({ id, name: catNameMap[id] || id }));
   const filtered = articles.filter(a => (category === 'all' || (a.category || 'uncategorized') === category) && [a.title, a.summary, ...(a.tags || [])].join(' ').toLowerCase().includes(query.trim().toLowerCase()));
   const selected = articles.find(a => String(a.id) === articleId);
   const backParams = new URLSearchParams(params); backParams.delete('article');

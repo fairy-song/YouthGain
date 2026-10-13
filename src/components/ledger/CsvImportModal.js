@@ -227,7 +227,7 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
       {error && <Alert variant="danger" role="alert">{error}</Alert>}
       {message && <Alert variant="success" role="status">{message}</Alert>}
       <div className="d-flex flex-wrap gap-2 align-items-end mb-3">
-        <Form.Group controlId="csv-source"><Form.Label>账单来源</Form.Label><Form.Select value={source} disabled={busy} onChange={e => { setSource(e.target.value); clearPreview(); }}><option value="wechat">微信支付 CSV / XLSX</option><option value="standard">青盈标准 CSV</option><option value="auto">自动识别</option></Form.Select></Form.Group>
+        <Form.Group controlId="csv-source"><Form.Label>账单来源</Form.Label><Form.Select value={source} disabled={busy} onChange={e => { setSource(e.target.value); clearPreview(); }}><option value="wechat">微信支付</option><option value="standard">青盈标准 CSV</option><option value="auto">自动识别</option></Form.Select></Form.Group>
         <Form.Group controlId="csv-file"><Form.Label>文件（CSV / XLSX，最多 2 MB、1500 行）</Form.Label><Form.Control type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={busy} onChange={e => { setFile(e.target.files?.[0] || null); clearPreview(); }} /></Form.Group>
         <Button variant="outline-success" disabled={busy || !file} onClick={runPreview}>{busy ? '处理中…' : '预览账单'}</Button>
         <a href="/templates/qingying-bill-template.csv" download className="small mb-2">下载标准模板</a>
