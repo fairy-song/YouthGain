@@ -36,6 +36,10 @@ class Config:
     PODCAST_DB_PATH = os.environ.get('PODCAST_DB_PATH')
     PODCAST_RSS_ALLOWED_HOSTS = os.environ.get('PODCAST_RSS_ALLOWED_HOSTS', '')
     PODCAST_STARTER_CATALOG_ENABLED = os.environ.get('PODCAST_STARTER_CATALOG_ENABLED', 'true').lower() == 'true'
+    PODCAST_RANKER_MODE = os.environ.get('PODCAST_RANKER_MODE', 'baseline')
+    PODCAST_HSTU_URL = os.environ.get('PODCAST_HSTU_URL')
+    PODCAST_HSTU_API_KEY = os.environ.get('PODCAST_HSTU_API_KEY')
+    PODCAST_HSTU_TIMEOUT_SECONDS = os.environ.get('PODCAST_HSTU_TIMEOUT_SECONDS', '2')
     
     # MySQL 数据库配置
     MYSQL_HOST = os.environ.get('MYSQL_HOST', '127.0.0.1')

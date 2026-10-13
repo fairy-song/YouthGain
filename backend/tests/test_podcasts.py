@@ -94,7 +94,8 @@ def test_interest_and_timezone_change_recommendation_day(client, monkeypatch):
     assert first['program']['id'] == choice
     monkeypatch.setattr(service, 'now', lambda: datetime.fromisoformat('2026-10-12T20:00:00+08:00'))
     assert call(client, 'get', '/api/podcasts/today').json['date'] == '2026-10-12'
-    assert call(client, 'get', '/api/podcasts/today').json['program']['id'] == choice
+    # The previous episode is excluded by the new 30-day cooldown.
+    assert call(client, 'get', '/api/podcasts/today').json['status'] == 'none'
 
 
 def test_starter_catalog_populates_empty_db_and_repairs_cached_empty(client):

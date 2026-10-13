@@ -44,7 +44,18 @@ def today(user_info):
 @require_auth
 def feedback(user_info):
     data = payload()
-    return jsonify(feedback=service.save_feedback(user_info['uid'], data.get('program_id'), data.get('kind')))
+    return jsonify(feedback=service.save_feedback(user_info['uid'], data.get('program_id'), data.get('kind'),
+        data.get('recommendation_id'), data.get('event_id'), data.get('value', True)))
+
+
+@podcast_bp.post('/events')
+@require_auth
+def impression(user_info):
+    data = payload()
+    if data.get('kind') != 'impression' or not data.get('recommendation_id'):
+        raise service.PodcastError('可见曝光需要 impression 类型和推荐ID')
+    return jsonify(event=service.save_feedback(user_info['uid'], data.get('program_id'), 'impression',
+        data.get('recommendation_id'), data.get('event_id')))
 
 
 @podcast_bp.get('/admin/programs')
