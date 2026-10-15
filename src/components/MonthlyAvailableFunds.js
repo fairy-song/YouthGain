@@ -25,12 +25,12 @@ export default function MonthlyAvailableFunds({ funds, editable = false, onSaved
   };
   return <div className="ledger-metric">
     <span className="ledger-summary-label">本月可用剩余</span>
-    <strong className="ledger-summary-amount">{money(funds?.available_remaining_month)}</strong>
+    <strong className="ledger-summary-amount">{money(funds?.available_remaining_month)}{!funds?.available_complete && funds?.available_remaining_month != null && <small className="text-muted ms-1" style={{fontWeight:400}}>（估算）</small>}</strong>
     <small>{AVAILABLE_NOTE}</small>
     <details><summary>查看资金口径</summary>
       <p>上月结转：{money(funds?.carryover_month)} · 本月净储蓄划拨：{money(funds?.savings_net_transfer_month)}</p>
-      <p>储蓄锁定总资金：{money(funds?.savings_locked_total)}。划拨不计收入或支出，释放资金反向调整。</p>
-      {!funds?.complete && <p>结转或数据未确认时，不把可用剩余当作零。</p>}
+      <p>储蓄锁定总资金：{money(funds?.savings_locked_total)}。已从可用剩余中扣除。</p>
+      {!funds?.available_complete && <p className="text-warning">上月结转尚未确认，当前数字按本月收支减去储蓄划拨估算。确认结转后即为精确值。</p>}
       {editable && <form onSubmit={save}>
         <label>确认本月期初日常结转（已排除锁定资金）<input type="number" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)} /></label>
         <button type="submit" disabled={busy}>{busy ? '保存中…' : '保存结转'}</button>
