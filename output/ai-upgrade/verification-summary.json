@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-15",
+  "backend": {
+    "unique_cases_covered": 316,
+    "full_run_before_final_corrections": {"passed": 313, "failed": 2, "total": 315},
+    "corrected_coach_hstu_and_learning_scope": {"passed": 99, "failed": 0},
+    "final_financial_rendering_scope": {"passed": 24, "failed": 0},
+    "final_hstu_service_and_financial_snapshot_scope": {"passed": 40, "failed": 0},
+    "note": "The two full-run failures were corrected and rerun in the targeted scope. One additional unit/interpretation case was added afterwards. Counts are unique cases covered across runs, not a claim that one final full run covered every revision."
+  },
+  "frontend": {
+    "unique_cases_covered": 130,
+    "full_run": {"passed": 129, "failed": 1, "total": 130},
+    "coach_and_daily_podcast_scope": {"passed": 8, "failed": 0},
+    "corrected_adaptive_practice_scope": {"passed": 14, "failed": 0},
+    "note": "The single failure was an outdated completion-text assertion; its full 14-case suite passed after correction."
+  },
+  "build": "passed_with_existing_warnings_in_other_pages",
+  "local_startup_check": "passed",
+  "local_project_restart": "frontend_backend_and_api_proxy_ready",
+  "real_model_smoke": {
+    "knowledge_retrieval": "bm25+dense+rrf+cross_encoder",
+    "synthetic_query_hits_at_3": 4,
+    "synthetic_queries": 4,
+    "out_of_domain_retrieved_sources": 0,
+    "live_coach_numeric_binding": "passed_without_repair_or_fallback",
+    "hstu_training_and_inference": "actual_pytorch_cpu_with_synthetic_data"
+  },
+  "limitations": ["No real-campus HSTU training/effect evaluation", "No verified financial-literacy improvement", "Citation checks are not full semantic entailment", "Synthetic retrieval cases are not a general accuracy benchmark"]
+}

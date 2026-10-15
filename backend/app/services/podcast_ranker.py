@@ -1,4 +1,4 @@
-"""External HSTU client; baseline and shadow never depend on model availability."""
+"""Local/external HSTU inference with independent baseline and shadow modes."""
 import json
 import math
 import time
@@ -8,7 +8,7 @@ import requests
 from flask import current_app
 
 
-def rank(candidates, snapshot, history):
+def rank(candidates, snapshot, history, learning_topic=None):
     mode = current_app.config.get('PODCAST_RANKER_MODE', 'baseline')
     baseline = {c['program']['id']: c['score'] for c in candidates}
     result = {'scores': baseline, 'mode': mode, 'used': 'baseline', 'model_version': 'finance-baseline-v2',
@@ -20,9 +20,25 @@ def rank(candidates, snapshot, history):
         return dict(result, fallback=True, fallback_reason='insufficient_finance_data')
     if mode == 'baseline' or not candidates:
         return result
-    if mode not in ('shadow', 'hstu'):
+    if mode not in ('shadow', 'hstu', 'local_hstu', 'local_shadow'):
         return dict(result, fallback=True, fallback_reason='invalid_mode')
     try:
+        payload = make_payload(candidates, snapshot, history, learning_topic)
+        if mode in ('local_hstu', 'local_shadow'):
+            from .hstu_runtime import predict
+            started = time.monotonic()
+            data = predict(payload, current_app.config.get('PODCAST_HSTU_MODEL_PATH'),
+                           allow_demo=current_app.config.get('PODCAST_HSTU_ALLOW_DEMO') is True,
+                           production=str(current_app.config.get('APP_ENV', '')).strip().lower() == 'production')
+            result['inference_ms'] = round((time.monotonic()-started)*1000, 2)
+            result['training_kind'] = data['training_kind']
+            result['cold_start'] = data['cold_start']
+            if mode == 'local_shadow':
+                result['shadow'] = data
+            else:
+                result.update(scores={s['program_id']: s['score'] for s in data['scores']},
+                              used='hstu', model_version=data['model_version'])
+            return result
         url = current_app.config.get('PODCAST_HSTU_URL') or ''
         parts = urlsplit(url)
         if parts.scheme not in ('https', 'http') or not parts.hostname or parts.username or parts.password or parts.fragment:
@@ -31,13 +47,6 @@ def rank(candidates, snapshot, history):
         if not math.isfinite(timeout) or not 0 < timeout <= 30:
             raise ValueError('invalid_timeout')
         # Only derived features and content metadata cross this internal boundary.
-        payload = {'feature_version': snapshot['feature_version'], 'snapshot_id': snapshot['snapshot_id'],
-                   'as_of': snapshot['as_of'], 'features': snapshot['scaled_features'],
-                   'missing_mask': snapshot['missing_mask'], 'history': history,
-                   'candidates': [{'program_id': c['program']['id'], 'topics': c['program']['topics'],
-                                   'title': c['program']['episode_title'],
-                                   'summary': c['program']['episode_summary'],
-                                   'baseline_score': c['score']} for c in candidates]}
         headers = {}
         key = current_app.config.get('PODCAST_HSTU_API_KEY')
         if key:
@@ -54,6 +63,11 @@ def rank(candidates, snapshot, history):
                     raise ValueError('response_limit')
                 chunks.append(chunk)
             data = json.loads(b''.join(chunks))
+        if data.get('training_kind') == 'demo':
+            if (str(current_app.config.get('APP_ENV', '')).strip().lower() == 'production'
+                    or current_app.config.get('PODCAST_HSTU_ALLOW_DEMO') is not True):
+                raise ValueError('demo_checkpoint_not_allowed')
+            result['training_kind'] = 'demo'
         version = data.get('model_version')
         if not isinstance(version, str) or not version.strip() or len(version) > 100:
             raise ValueError('invalid_model_version')
@@ -74,6 +88,18 @@ def rank(candidates, snapshot, history):
         reason = 'timeout'
     except requests.RequestException:
         reason = 'connection_error'
-    except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError, OSError, ImportError, RuntimeError):
         reason = 'invalid_response_or_config'
     return dict(result, fallback=True, fallback_reason=reason)
+
+
+def make_payload(candidates, snapshot, history, learning_topic=None):
+    """Shared immutable model input; baseline score is diagnostic, never a neural feature."""
+    return {'feature_version': snapshot['feature_version'], 'snapshot_id': snapshot['snapshot_id'],
+            'as_of': snapshot['as_of'], 'features': snapshot['scaled_features'],
+            'missing_mask': snapshot['missing_mask'], 'history': history,
+            'learning_topic': snapshot.get('learning_topic', '') if learning_topic is None else learning_topic,
+            'candidates': [{'program_id': c['program']['id'], 'topics': c['program']['topics'],
+                            'title': c['program']['episode_title'], 'summary': c['program']['episode_summary'],
+                            'difficulty': c['program'].get('difficulty'),
+                            'baseline_score': c['score']} for c in candidates]}

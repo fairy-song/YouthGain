@@ -108,6 +108,10 @@ modules = ['flask', 'flask_cors', 'dotenv', 'openpyxl', 'numpy', 'sklearn', 'dif
 if importlib.util.find_spec('dotenv'):
     from dotenv import load_dotenv
     load_dotenv('.env.local' if os.path.isfile('.env.local') else '.env')
+    if os.getenv('COACH_RETRIEVAL_MODE', 'hybrid') == 'hybrid':
+        modules.append('sentence_transformers')
+    if os.getenv('PODCAST_RANKER_MODE', 'local_hstu') in ('local_hstu', 'local_shadow'):
+        modules.append('torch')
     bypass = os.getenv('DEV_MODE', '').lower() == 'true' and os.getenv('APP_ENV', 'development').lower() != 'production'
     if not bypass or os.getenv('DB_TYPE') == 'firestore' or os.getenv('FIREBASE_ADMIN_SDK_PATH'):
         modules.append('firebase_admin')
@@ -121,6 +125,10 @@ print(json.dumps([name for name in modules if importlib.util.find_spec(name) is 
         Write-Host '正在安装后端依赖（首次运行可能需要几分钟）…'
         & $pythonExe -m pip install -r (Join-Path $projectRoot 'backend\requirements.txt')
         if ($LASTEXITCODE -ne 0) { throw '后端依赖安装失败，请检查网络后重新启动。' }
+        if (@($missing | Where-Object { $_ -in @('torch', 'sentence_transformers') }).Count -gt 0) {
+            & $pythonExe -m pip install -r (Join-Path $projectRoot 'backend\requirements-ai.txt')
+            if ($LASTEXITCODE -ne 0) { throw 'AI 计算依赖安装失败，请检查网络。' }
+        }
     }
     if (-not (Test-Path -LiteralPath (Join-Path $projectRoot 'node_modules\react-scripts\scripts\start.js'))) {
         if ($CheckOnly) { throw '缺少前端依赖；正常启动时将安装。' }

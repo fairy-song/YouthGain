@@ -124,3 +124,5 @@ assess_live.txt
 vendor_pkgs/
 # 本地后端进程锁，由启动器创建并持有
 backend/.local-backend.lock
+# Downloaded public language models and locally trained recommendation weights.
+models/

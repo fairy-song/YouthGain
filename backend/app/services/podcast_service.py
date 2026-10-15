@@ -423,7 +423,7 @@ def _interest(user_id, entries=None):
         zone = ZoneInfo('Asia/Shanghai')
     q1 = questionnaire.get('answers', {}).get('q1')
     return {'weights': weights, 'reasons': reasons, 'max_difficulty': min(3, DIFFICULTY.get(q1, 2) + 1),
-            'timezone': str(zone)}
+            'timezone': str(zone), 'learning_topic': TOPIC_TEXT.get(preferred, TOPIC_TEXT.get(question_topic, ''))}
 
 
 def _eligible(program, today, max_difficulty):
@@ -530,7 +530,9 @@ def _response(connection, record, today, user_id):
              'timezone': record.get('timezone', 'Asia/Shanghai')}
     extra.update(fallback=record.get('ranking', {}).get('fallback', False),
                  fallback_reason=record.get('ranking', {}).get('fallback_reason'),
-                 ranker_used=record.get('ranking', {}).get('used', 'baseline'))
+                 ranker_used=record.get('ranking', {}).get('used', 'baseline'),
+                 model_version=record.get('model_version'),
+                 demo_model=record.get('ranking', {}).get('training_kind') == 'demo')
     program = podcast_store.program(connection, record['program_id']) if record.get('program_id') else None
     user_feedback = {row['kind'] for row in podcast_store.feedback_rows(connection, user_id)
                      if row['program_id'] == record.get('program_id')}
@@ -588,6 +590,12 @@ def today_for(user_id):
     if datetime.fromisoformat(snapshot['as_of']).astimezone(ZoneInfo(interest['timezone'])).date() != today:
         return today_for(user_id)  # Source collection crossed the user's midnight; select the new local day.
     candidates = _candidates(programmes, history, feedback, today, interest, snapshot)
+    catalog = {p['id']: p for p in programmes}
+    events = [dict(e, title=catalog.get(e['program_id'], {}).get('episode_title', ''),
+                   summary=catalog.get(e['program_id'], {}).get('episode_summary', ''),
+                   topics=catalog.get(e['program_id'], {}).get('topics', [])) for e in events]
+    learning_topic = interest['learning_topic']
+    snapshot['learning_topic'] = learning_topic
     ranking = podcast_ranker.rank(candidates, snapshot, events)
     with podcast_store.transaction() as connection:
         existing = podcast_store.daily_pick(connection, user_id, date_string)
@@ -614,6 +622,7 @@ def today_for(user_id):
                   'recommendation_id': str(uuid4()), 'snapshot_id': snapshot['snapshot_id'],
                   'as_of': snapshot['as_of'], 'timezone': interest['timezone'],
                   'model_version': ranking['model_version'], 'ranking': ranking,
+                  'rank_input': podcast_ranker.make_payload(candidates, snapshot, events, learning_topic),
                   'vector_model': MODEL_VERSION, 'topic_signals': {key: round(value, 2)
                       for key, value in interest['weights'].items() if value > 0},
                   'created_at': local_now.isoformat()}

@@ -2,7 +2,9 @@
 import logging
 from flask import Blueprint, request, jsonify
 from app.services.auth_service import require_auth
-from app.services.coach_evidence import retrieve, compute_facts, VERSION
+from app.services.coach_evidence import compute_facts, VERSION
+from app.services.knowledge_retriever import retrieve_knowledge
+from app.services.coach_tools import understand, fact_catalog
 from app.services.learning_service import number
 
 logger = logging.getLogger(__name__)
@@ -24,7 +26,7 @@ def chat(user_info):
     if not zhipuai_service:
         return jsonify(status='error', message='教练服务暂不可用，仍可继续成长页中的练习。'), 503
     history = data.get('chat_history', [])
-    if not isinstance(history, list) or any(not isinstance(m, dict) or m.get('role') not in ('user', 'assistant') or not isinstance(m.get('content'), str) or len(m['content']) > 16000 for m in history):
+    if not isinstance(history, list) or len(history) > 100 or any(not isinstance(m, dict) or m.get('role') not in ('user', 'assistant') or not isinstance(m.get('content'), str) or len(m['content']) > 16000 for m in history):
         return jsonify(status='error', message='对话历史格式无效'), 400
     context = None
     amount = None
@@ -35,13 +37,19 @@ def chat(user_info):
             amount = number(data['purchase_amount'], '试算金额', 0.01)
         except ValueError as error:
             return jsonify(status='error', message=str(error)), 400
-    evidence = {'version': VERSION, 'sources': [], 'calculation': None, 'knowledge_status': 'available'}
+    history = history[-10:]
+    if sum(len(m['content']) for m in history) > 32000:
+        return jsonify(status='error', message='对话历史过长，请开始新对话'), 400
+    task = understand(data['message'].strip(), history)
+    snapshot = None
+    evidence = {'version': VERSION, 'sources': [], 'calculation': None, 'knowledge_status': 'available',
+                'task': task, 'financial_context_authorized': data.get('use_learning_context') is True}
     try:
         from app.services.admin_service import list_kb_articles
         articles, error = list_kb_articles()
         if error:
             raise RuntimeError(error)
-        evidence['sources'] = retrieve(data['message'], articles)
+        evidence.update(retrieve_knowledge(task['retrieval_query'], articles))
     except Exception:
         logger.exception('Knowledge retrieval failed')
         evidence['knowledge_status'] = 'unavailable'
@@ -52,6 +60,12 @@ def chat(user_info):
             context = {'source': '用户在青盈保存的资料与最近学习记录；自评并非能力诊断',
                        'profile': next((e for e in entries if e['id'] == 'profile'), {}),
                        'recent_entries': [e for e in entries if e.get('kind') in ('exercise', 'review', 'decision')][:5]}
+        except Exception:
+            return jsonify(status='error', message='成长记录读取失败。请重试，或关闭引用记录后继续对话。'), 503
+        if not task['needs_financial_tools'] and amount is None:
+            context['profile'] = {k: v for k, v in context['profile'].items() if k in ('topic', 'timezone')}
+    if context is not None and (task['needs_financial_tools'] or amount is not None):
+        try:
             # Reuse the same account-scoped conversion as the decision API.
             from app.routes.decision_routes import _load_engine_inputs, MAX_TRANSACTIONS_PER_REPORT
             from datetime import datetime
@@ -63,8 +77,16 @@ def chat(user_info):
             evidence['calculation'] = compute_facts(
                 transactions, income, amount, today=datetime.now(BEIJING).date(), skipped=skipped,
                 limited=len(transactions) + skipped >= MAX_TRANSACTIONS_PER_REPORT)
+            try:
+                from app.services.finance_context_service import build_snapshot
+                snapshot = build_snapshot(user_info['uid'], entries=entries)
+                evidence['snapshot'] = {k: snapshot[k] for k in ('snapshot_id', 'as_of', 'feature_version', 'coverage', 'limitation')}
+            except Exception:
+                logger.warning('Coach cashflow snapshot unavailable', exc_info=False)
+                evidence['snapshot_status'] = 'unavailable'
         except Exception:
             return jsonify(status='error', message='成长记录读取失败。请重试，或关闭引用记录后继续对话。'), 503
+    evidence['facts'] = fact_catalog(evidence['calculation'], snapshot, message=data['message'], history=history)
     response = zhipuai_service.get_chat_response({'message': data['message'].strip(), 'user_id': user_info['uid'],
                                                   'chat_history': history[-10:], 'learning_context': context,
                                                   'evidence': evidence})

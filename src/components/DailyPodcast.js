@@ -97,6 +97,7 @@ export default function DailyPodcast({ userId }) {
       <p className="daily-podcast-publisher">来自《{result.program.name}》 · {result.program.publisher} · {result.program.episode_published_at}</p>
       <p className="daily-podcast-description">{result.program.episode_summary}</p>
       <p className="daily-podcast-reason">为什么适合你：{result.reason}</p>
+      {result.demo_model && <p className="daily-podcast-note">当前为合成数据训练的演示推荐，尚未用校园数据验证推荐效果。</p>}
       {result.evidence?.length > 0 && <details><summary>查看推荐依据</summary>
         <p>依据时间：{result.as_of?.slice(0, 10)}。只使用推荐时已记录的数据；锁定储蓄独立计算，预计收入不算实际到账。</p>
         <ul>{result.evidence.map(item => <li key={item.feature}>{item.label}：{Number(item.value).toFixed(2)} {item.unit}</li>)}</ul>

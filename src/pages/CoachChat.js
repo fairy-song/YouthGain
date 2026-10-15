@@ -10,6 +10,7 @@ import remarkGfm from 'remark-gfm';
 import { Link, useLocation } from 'react-router-dom';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import CoachEvidence from '../components/CoachEvidence';
 
 // 自定义Markdown组件
 const MarkdownRenderer = ({ children }) => {
@@ -67,14 +68,16 @@ const CoachChat = () => {
   const [purchaseAmount, setPurchaseAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
-  const [typingEffect, setTypingEffect] = useState(false);
-  const [currentTypingText, setCurrentTypingText] = useState('');
-  const [fullMessageText, setFullMessageText] = useState('');
+  const requestVersion = useRef(0);
   
   useEffect(() => {
+    requestVersion.current += 1;
     setMessages([{ id: 1, sender: 'ai', text: '你好，我是青盈。我们可以从一件真实的小事开始：最近有没有一笔消费或一个计划，让你不知道怎样取舍？我会帮助你看清选择，最后由你决定。' }]);
     setInput(location.state?.prompt || '');
     setUseLearningContext(false);
+    setPurchaseAmount('');
+    setLoading(false);
+    return () => { requestVersion.current += 1; };
   }, [currentUser?.uid, location.state]);
 
   // 自动滚动到最新消息
@@ -84,42 +87,21 @@ const CoachChat = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, currentTypingText]);
+  }, [messages]);
 
-  // 处理打字效果
-  useEffect(() => {
-    if (typingEffect && fullMessageText) {
-      let i = 0;
-      const interval = setInterval(() => {
-        if (i <= fullMessageText.length) {
-          setCurrentTypingText(fullMessageText.substring(0, i));
-          i++;
-        } else {
-          clearInterval(interval);
-          setTypingEffect(false);
-          
-          // 完成打字效果后更新消息
-          setMessages(prevMessages => {
-            const newMessages = [...prevMessages];
-            const lastIndex = newMessages.length - 1;
-            if (lastIndex >= 0 && newMessages[lastIndex].sender === 'ai') {
-              newMessages[lastIndex] = {
-                ...newMessages[lastIndex],
-                text: fullMessageText
-              };
-            }
-            return newMessages;
-          });
-        }
-      }, 20); // 调整速度
-
-      return () => clearInterval(interval);
-    }
-  }, [typingEffect, fullMessageText]);
+  const changeConsent = checked => {
+    requestVersion.current += 1;
+    setLoading(false);
+    setUseLearningContext(checked);
+    setPurchaseAmount('');
+    // Remove previously authorised personal facts from subsequent provider history.
+    setMessages([{ id: Date.now(), sender: 'ai', text: checked ? '已允许引用资料。可以开始本轮分析。' : '已关闭资料引用，新的对话不会带入此前的个人分析。' }]);
+  };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || loading) return;
+    const version = ++requestVersion.current;
     
     const userMessage = { id: Date.now(), sender: 'user', text: input };
     setMessages(prevMessages => [...prevMessages, userMessage]);
@@ -130,8 +112,7 @@ const CoachChat = () => {
       // 构建发送到后端的上下文
       let contextData = {
         message: input,
-        user_id: currentUser?.uid || 'guest',
-        chat_history: messages.map(msg => ({
+        chat_history: messages.slice(-10).map(msg => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.text
         }))
@@ -141,17 +122,18 @@ const CoachChat = () => {
       if (useLearningContext && purchaseAmount !== '') contextData.purchase_amount = purchaseAmount;
 
       const response = await sendMessageToCoach(contextData);
+      if (version !== requestVersion.current) return;
       setLoading(false);
       
       if (response && response.reply) {
-        const aiMessage = { id: Date.now() + 1, sender: 'ai', text: '' };
+        const aiMessage = { id: Date.now() + 1, sender: 'ai', text: response.reply,
+          evidence: response.evidence, validation: response.validation };
         setMessages(prevMessages => [...prevMessages, aiMessage]);
-        
-        // 启动打字效果
-        setFullMessageText(response.reply);
-        setTypingEffect(true);
+      } else {
+        throw new Error('empty_coach_response');
       }
     } catch (error) {
+      if (version !== requestVersion.current) return;
       setLoading(false);
       setMessages(prevMessages => [
         ...prevMessages,
@@ -189,7 +171,7 @@ const CoachChat = () => {
       
       <Container className="py-5">
         <Link to={/^\/(dashboard|learning)(\?|$)/.test(location.state?.returnTo || '') ? location.state.returnTo : '/'} className="btn btn-link mb-3">← 返回刚才的页面</Link>
-        <Form.Check type="checkbox" id="share-learning-context" className="mb-3" label="允许教练引用资料、最近五条学习记录及消费汇总计算（会发送给 AI 服务）" checked={useLearningContext} onChange={e => setUseLearningContext(e.target.checked)} />
+        <Form.Check type="checkbox" id="share-learning-context" className="mb-3" label="允许教练引用资料、最近五条学习记录及消费汇总计算（会发送给 AI 服务）" checked={useLearningContext} onChange={e => changeConsent(e.target.checked)} />
         {useLearningContext && <Form.Group controlId="coach-purchase-amount" className="mb-3"><Form.Label>本次试算金额（元，可选）</Form.Label><Form.Control type="number" min="0.01" max="100000000" step="0.01" value={purchaseAmount} onChange={e => setPurchaseAmount(e.target.value)} placeholder="填写明确金额，避免从聊天文字猜测" /><Form.Text>只做一次性支出试算，不自动记账。每次发送消息时使用此金额，可随时清空。</Form.Text></Form.Group>}
         <Row className="justify-content-center mb-4">
           <Col md={10} lg={8}>
@@ -219,7 +201,7 @@ const CoachChat = () => {
               </Card.Header>
               
               <Card.Body className="chat-messages p-4" style={{ height: '500px', overflowY: 'auto' }}>
-                {messages.map((message, index) => (
+                {messages.map(message => (
             <div 
               key={message.id} 
                     className={`message-container d-flex ${message.sender === 'user' ? 'justify-content-end' : 'justify-content-start'} mb-3`}
@@ -235,11 +217,8 @@ const CoachChat = () => {
                         message.sender === 'user' ? 'animate__fadeInRight' : 'animate__fadeInLeft'
                       }`}
                     >
-                      {message.sender === 'ai' && index === messages.length - 1 && typingEffect ? (
-                        <MarkdownRenderer>{currentTypingText}</MarkdownRenderer>
-                      ) : (
-                        <MarkdownRenderer>{message.text}</MarkdownRenderer>
-                      )}
+                      <MarkdownRenderer>{message.text}</MarkdownRenderer>
+                      {message.sender === 'ai' && <CoachEvidence evidence={message.evidence} validation={message.validation} />}
                       <small className="message-time text-muted d-block text-end mt-1">{formatMessageTime()}</small>
                     </div>
                     

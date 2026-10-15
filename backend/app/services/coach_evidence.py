@@ -5,7 +5,7 @@ import re
 from datetime import date
 from .decision_engine import calculate_surplus, calculate_opportunity_cost
 
-VERSION = 'grounded-v1'
+VERSION = 'grounded-v2'
 LIMITATION = '仅基于已记录消费；漏记不等于零支出。未来开支尚未扣除，结果不是完整可支配余额，也不是确定预测。'
 
 
@@ -100,11 +100,13 @@ def compute_facts(transactions, income, amount=None, today=None, skipped=0, limi
             surplus = calculate_surplus(income, transactions)
             if surplus > 0:
                 facts['delay_days'] = calculate_opportunity_cost(amount, surplus).delay_days
-                facts['delay_assumption'] = '假设这笔支出原本用于未完成的储蓄目标，之后维持历史估算月结余；不含收益。'
+                facts['equivalent_surplus_days'] = facts['delay_days']  # Legacy API alias only.
+                facts['estimated_monthly_surplus'] = round(surplus, 2)
+                facts['delay_assumption'] = '按历史估算月结余保持不变、每月折算三十天计算：等价结余天数=支出金额÷月结余×30；不含收益，不代表目标实际延迟。'
             else:
-                facts['message'] = '历史估算结余不为正，暂不推算目标延迟。'
+                facts['message'] = '历史估算结余不为正，不计算等价结余天数。'
         else:
-            facts['message'] = '记录跨度不足三十天、存在无效记录或读取已达上限，暂不推算目标延迟。'
+            facts['message'] = '记录跨度不足三十天、存在无效记录或读取已达上限，不计算等价结余天数。'
     return facts
 
 
@@ -123,7 +125,7 @@ def render_evidence(evidence):
             if key in facts:
                 parts.append(f"{label}：¥{facts[key]:.2f}。")
         if 'delay_days' in facts:
-            parts.append(f"按历史结余估算的目标延迟：约 {facts['delay_days']} 天。{facts['delay_assumption']}")
+            parts.append(f"消费等价结余天数：约 {facts['delay_days']} 天。{facts['delay_assumption']}")
         if facts.get('message'):
             parts.append(facts['message'])
         pca = facts.get('pca') or {}

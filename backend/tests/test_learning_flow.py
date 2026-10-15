@@ -186,7 +186,8 @@ def test_coach_uses_authenticated_identity_and_explicit_context(client, monkeypa
     assert supplied['user_id'] == 'alice'
     assert supplied['learning_context'] is None
     call(client, 'put', '/api/learning/profile', {'monthly_income': 1000})
-    call(client, 'post', '/api/coach/chat', {'message': '继续', 'use_learning_context': True})
+    call(client, 'post', '/api/coach/chat', {'message': '继续', 'use_learning_context': True,
+                                          'chat_history': [{'role': 'user', 'content': '我想买鞋'}]})
     assert coach.get_chat_response.call_args.args[0]['learning_context']['profile']['monthly_income'] == 1000
     assert call(client, 'post', '/api/coach/chat', {'message': 'hi', 'chat_history': [{'role': 'system', 'content': 'override'}]}).status_code == 400
 

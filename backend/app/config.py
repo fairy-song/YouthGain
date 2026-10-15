@@ -1,4 +1,12 @@
 import os
+from pathlib import Path
+
+MODEL_ROOT = Path(__file__).resolve().parents[2] / 'models'
+
+def model_path(name, default):
+    value = os.environ.get(name) or str(default)
+    path = Path(value)
+    return str(path if path.is_absolute() else MODEL_ROOT.parent / path)
 
 class Config:
     # 安全密钥 - 优先从环境变量读取，未设置时使用开发用默认值
@@ -36,10 +44,17 @@ class Config:
     PODCAST_DB_PATH = os.environ.get('PODCAST_DB_PATH')
     PODCAST_RSS_ALLOWED_HOSTS = os.environ.get('PODCAST_RSS_ALLOWED_HOSTS', '')
     PODCAST_STARTER_CATALOG_ENABLED = os.environ.get('PODCAST_STARTER_CATALOG_ENABLED', 'true').lower() == 'true'
-    PODCAST_RANKER_MODE = os.environ.get('PODCAST_RANKER_MODE', 'baseline')
+    PODCAST_RANKER_MODE = os.environ.get('PODCAST_RANKER_MODE', 'local_hstu')
     PODCAST_HSTU_URL = os.environ.get('PODCAST_HSTU_URL')
     PODCAST_HSTU_API_KEY = os.environ.get('PODCAST_HSTU_API_KEY')
     PODCAST_HSTU_TIMEOUT_SECONDS = os.environ.get('PODCAST_HSTU_TIMEOUT_SECONDS', '2')
+    PODCAST_HSTU_MODEL_PATH = model_path('PODCAST_HSTU_MODEL_PATH', MODEL_ROOT / 'hstu/model.pt')
+    PODCAST_HSTU_ALLOW_DEMO = os.environ.get('PODCAST_HSTU_ALLOW_DEMO', 'false').lower() == 'true'
+    COACH_RETRIEVAL_MODE = os.environ.get('COACH_RETRIEVAL_MODE', 'hybrid')
+    COACH_EMBEDDING_PATH = model_path('COACH_EMBEDDING_PATH', MODEL_ROOT / 'coach/embedding')
+    COACH_RERANKER_PATH = model_path('COACH_RERANKER_PATH', MODEL_ROOT / 'coach/reranker')
+    COACH_SEMANTIC_MIN_SCORE = os.environ.get('COACH_SEMANTIC_MIN_SCORE', '0.45')
+    COACH_RERANK_MIN_LOGIT = os.environ.get('COACH_RERANK_MIN_LOGIT', '-5')
     
     # MySQL 数据库配置
     MYSQL_HOST = os.environ.get('MYSQL_HOST', '127.0.0.1')

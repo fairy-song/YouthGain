@@ -72,11 +72,17 @@ def test_failed_sources_do_not_claim_zero_cashflow_or_goals(client, monkeypatch)
 
 
 def test_snapshot_reads_manual_and_committed_import_ledger(client, monkeypatch):
-    from datetime import timezone
-    monkeypatch.setattr(finance, 'now', lambda: datetime.now(timezone.utc))
+    # Fix the decision time; crossing the 15th otherwise changes whether the
+    # next monthly income arrives within 30 days, although the ledger is identical.
+    monkeypatch.setattr(finance, 'now', lambda: STAMP)
     assert call(client, 'put', '/api/learning/profile', {'monthly_income': 2500, 'income_day': 15}).status_code == 200
     assert call(client, 'post', '/api/decision/transactions', {
         'amount': 20, 'category': '学习', 'date': '2026-10-10'}).status_code in (200, 201)
+    from app.services import firestore_service
+    for transaction in firestore_service._dev_db['users']['alice']['transactions']:
+        for key in ('created_at', 'updated_at', 'timestamp'):
+            if key in transaction:
+                transaction[key] = STAMP.isoformat()
     with client.application.app_context():
         finance.learning_store.write_entry('alice', 'import:synthetic', {
             'kind': 'import_batch', 'status': 'committed', 'source': 'standard',

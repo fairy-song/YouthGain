@@ -1,0 +1,240 @@
+{
+  "questions_are_synthetic": true,
+  "retrieval_cases": [
+    {
+      "query": "饭钱和月底还款应该先留着吗",
+      "expected": "budget",
+      "returned": [
+        "budget",
+        "risk",
+        "opportunity"
+      ],
+      "hit_at_3": true,
+      "used": "bm25+dense+rrf+cross_encoder",
+      "degraded": false,
+      "milliseconds": 25022.25
+    },
+    {
+      "query": "买电脑时放弃旅行算哪种代价",
+      "expected": "opportunity",
+      "returned": [
+        "opportunity"
+      ],
+      "hit_at_3": true,
+      "used": "bm25+dense+rrf+cross_encoder",
+      "degraded": false,
+      "milliseconds": 461.52
+    },
+    {
+      "query": "为什么拿到奖金比生活费更容易花掉",
+      "expected": "account",
+      "returned": [
+        "account",
+        "opportunity",
+        "budget"
+      ],
+      "hit_at_3": true,
+      "used": "bm25+dense+rrf+cross_encoder",
+      "degraded": false,
+      "milliseconds": 1036.54
+    },
+    {
+      "query": "兼职收入忽多忽少怎么办",
+      "expected": "risk",
+      "returned": [
+        "budget",
+        "risk",
+        "opportunity"
+      ],
+      "hit_at_3": true,
+      "used": "bm25+dense+rrf+cross_encoder",
+      "degraded": false,
+      "milliseconds": 741.03
+    }
+  ],
+  "out_of_domain_sources": [],
+  "hstu": {
+    "model_version": "youthgain-hstu-demo-24216ddf74d0",
+    "training_kind": "demo",
+    "scores": [
+      {
+        "program_id": "demo-item-160-0",
+        "score": 0.9992483854293823,
+        "click_probability": 0.9989811778068542,
+        "helpful_probability": 0.9993922710418701
+      },
+      {
+        "program_id": "demo-item-160-5",
+        "score": 1.1796828403021209e-05,
+        "click_probability": 1.4880753042234574e-05,
+        "helpful_probability": 1.0136252967640758e-05
+      },
+      {
+        "program_id": "demo-item-160-3",
+        "score": 2.3078788879971057e-11,
+        "click_probability": 3.3292195389389434e-11,
+        "helpful_probability": 1.7579260963573873e-11
+      },
+      {
+        "program_id": "demo-item-160-1",
+        "score": 5.908007096877554e-07,
+        "click_probability": 7.774613095534733e-07,
+        "helpful_probability": 4.902911427961953e-07
+      },
+      {
+        "program_id": "demo-item-160-4",
+        "score": 3.0839458591003233e-12,
+        "click_probability": 5.07062577689843e-12,
+        "helpful_probability": 2.0141952342123126e-12
+      },
+      {
+        "program_id": "demo-item-160-6",
+        "score": 2.525460951474656e-10,
+        "click_probability": 3.5380615104330104e-10,
+        "helpful_probability": 1.980214742181019e-10
+      },
+      {
+        "program_id": "demo-item-160-7",
+        "score": 1.1174986283557509e-11,
+        "click_probability": 1.759717371818681e-11,
+        "helpful_probability": 7.71688529049852e-12
+      },
+      {
+        "program_id": "demo-item-160-2",
+        "score": 1.6467040231393781e-10,
+        "click_probability": 2.4255433772601975e-10,
+        "helpful_probability": 1.227329071706862e-10
+      }
+    ],
+    "cold_start": false,
+    "probability_note": "模型输出尚未做概率校准；有帮助反馈不等于金融素养提升。"
+  },
+  "live_coach": {
+    "status": "success",
+    "reply": "以下按本轮给定情境分析，未提供的其他开支尚未扣除。\n\n根据您提供的测试情境，您的月收入为2000.00元，必要支出为1200.00元。给定收入减必要支出的差额为800.00元（其他未提供开支尚未扣除）。在管理这些资金时，应注意以下几点：\n1. 确保预留足够的应急资金，以应对突发事件或紧急支出。\n2. 优先考虑长期目标，如储蓄或投资，同时也要满足短期需求。\n3. 避免不必要的浪费，合理规划消费，确保收支平衡。\n4. 定期审视和调整您的预算，以适应生活变化和财务目标。",
+    "evidence": {
+      "sources": [
+        {
+          "article_id": "budget",
+          "passage_id": "budget:0:0",
+          "title": "预算约束",
+          "excerpt": "预算是根据收入和支出的时间安排资金。优先预留必要生活开支，考虑到期还款与未来不定期开支，再分配可调整消费。不要把预计收入当作已到账余额。",
+          "date": "",
+          "source_id": "K1",
+          "scores": {
+            "bm25": 2.995601,
+            "cosine": 0.605351,
+            "rrf": 0.03278689,
+            "cross_encoder": 0.653825
+          }
+        },
+        {
+          "article_id": "risk",
+          "passage_id": "risk:0:0",
+          "title": "风险与应急资金",
+          "excerpt": "面对未来收入与必要开支的不确定性，预留应急资金可以保持流动性。投资有风险，不应承诺收益。应先理解产品条款和还款期限。",
+          "date": "",
+          "source_id": "K2",
+          "scores": {
+            "bm25": 1.483712,
+            "cosine": 0.55023,
+            "rrf": 0.03200205,
+            "cross_encoder": 0.078712
+          }
+        },
+        {
+          "article_id": "opportunity",
+          "passage_id": "opportunity:0:0",
+          "title": "机会成本",
+          "excerpt": "机会成本是选择一个方案时放弃的最佳替代方案的价值。衡量消费取舍时，比较其他用途和目标，金额并不等于心理感受。等价结余天数按正的历史估算月结余折算积累时间，不等于目标实际延迟。",
+          "date": "",
+          "source_id": "K3",
+          "scores": {
+            "bm25": 0.0,
+            "cosine": 0.551469,
+            "rrf": 0.01612903,
+            "cross_encoder": 0.062867
+          }
+        }
+      ],
+      "retrieval": {
+        "version": "coach-hybrid-v2",
+        "requested": "hybrid",
+        "used": "bm25+dense+rrf+cross_encoder",
+        "degraded": false,
+        "reason": null,
+        "semantic_model": "E:\\YouthGain\\YouthGain\\models\\coach\\embedding",
+        "reranker_model": "E:\\YouthGain\\YouthGain\\models\\coach\\reranker",
+        "corpus_version": "655d641701fc94778f431523965ec64f05a099e8579f3d07c2f74a4bce5d4955"
+      },
+      "facts": [
+        {
+          "id": "F:scenario_income",
+          "label": "本轮给定月收入",
+          "value": 2000.0,
+          "unit": "元",
+          "source": "user_scenario",
+          "assumptions": []
+        },
+        {
+          "id": "F:scenario_essential",
+          "label": "本轮给定必要支出",
+          "value": 1200.0,
+          "unit": "元",
+          "source": "user_scenario",
+          "assumptions": []
+        },
+        {
+          "id": "F:scenario_surplus",
+          "label": "本轮给定收入减必要支出",
+          "value": 800.0,
+          "unit": "元",
+          "source": "user_scenario",
+          "assumptions": [
+            "仅比较明确提供的两项金额，其他未提供开支未扣除。"
+          ]
+        }
+      ],
+      "financial_context_authorized": false,
+      "knowledge_status": "available",
+      "used_sources": []
+    },
+    "validation": {
+      "errors": [],
+      "checked_fact_ids": [
+        "F:scenario_essential",
+        "F:scenario_income",
+        "F:scenario_surplus"
+      ],
+      "used_source_ids": [],
+      "example_arithmetic_verified": false,
+      "literal_scenario_bindings": [],
+      "interpretation_rewrites": [
+        "scenario_surplus_is_not_disposable_balance"
+      ],
+      "scope": "核对程序事实绑定、数值口径、来源编号与片段词面关联；不保证所有陈述的语义真实性。",
+      "fallback": false,
+      "repaired": false
+    }
+  },
+  "synthetic_generation_diagnostics": [
+    {
+      "synthetic_response": "```json\n{\n  \"explanation\": \"根据您提供的测试情境，您的月收入为{{F:scenario_income}}元，必要支出为{{F:scenario_essential}}元。您本月可支配的金额为{{F:scenario_surplus}}元。在管理这些资金时，应注意以下几点：\\n1. 确保预留足够的应急资金，以应对突发事件或紧急支出。\\n2. 优先考虑长期目标，如储蓄或投资，同时也要满足短期需求。\\n3. 避免不必要的浪费，合理规划消费，确保收支平衡。\\n4. 定期审视和调整您的预算，以适应生活变化和财务目标。\",\n  \"source_ids\": [],\n  \"fact_ids\": [\"F:scenario_income\", \"F:scenario_essential\", \"F:scenario_surplus\"],\n  \"claims\": []\n}\n```",
+      "checks": {
+        "errors": [],
+        "checked_fact_ids": [
+          "F:scenario_essential",
+          "F:scenario_income",
+          "F:scenario_surplus"
+        ],
+        "used_source_ids": [],
+        "example_arithmetic_verified": false,
+        "literal_scenario_bindings": [],
+        "interpretation_rewrites": [
+          "scenario_surplus_is_not_disposable_balance"
+        ],
+        "scope": "核对程序事实绑定、数值口径、来源编号与片段词面关联；不保证所有陈述的语义真实性。"
+      }
+    }
+  ]
+}

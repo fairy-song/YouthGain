@@ -72,7 +72,8 @@ test('pilot content is labeled on the card before answering', async () => {
 test('finished session does not force a repeated question', async () => {
   getAdaptiveLearning.mockResolvedValue({ ...data, next_item: null });
   setup();
-  expect(await screen.findByText('今天的新情境已经做完了，可以先休息一下。')).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: '今日练习完成' })).toBeInTheDocument();
+  expect(screen.getByText(/今天的新情境已经做完了/)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: '看看我的想法' })).not.toBeInTheDocument();
 });
 

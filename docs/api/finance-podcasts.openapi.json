@@ -23,14 +23,14 @@
     }},
     "/rank": {"post": {
       "x-external-service": true,
-      "description": "外部独立 HSTU 服务协议示例路径。本项目不提供该端点，实际 URL 由 PODCAST_HSTU_URL 配置。",
+      "description": "独立 HSTU 推理服务路径，由 backend/hstu_server.py 提供；也可配置兼容外部服务。业务后端的 local_hstu 模式直接推理，不调用此端点。",
       "security": [{"HstuServiceBearer": []}],
       "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HstuRequest"}}}},
       "responses": {"200": {"description": "必须覆盖所有候选且无重复、未知 ID", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HstuResponse"}}}}}
     }}
   },
   "components": {
-    "securitySchemes": {"UserBearer": {"type": "http", "scheme": "bearer"}, "HstuServiceBearer": {"type": "http", "scheme": "bearer", "description": "独立服务 API key，允许空配置时不发送"}},
+    "securitySchemes": {"UserBearer": {"type": "http", "scheme": "bearer"}, "HstuServiceBearer": {"type": "http", "scheme": "bearer", "description": "项目内独立服务必须配置 API key；第三方服务按其协议设置"}},
     "schemas": {
       "Id": {"type": "string", "minLength": 1, "maxLength": 100},
       "MoneyOrUnknown": {"type": ["number", "null"]},
@@ -45,7 +45,8 @@
         "recommendation_id": {"$ref": "#/components/schemas/Id"}, "as_of": {"type": ["string", "null"], "format": "date-time"},
         "timezone": {"type": "string"}, "evidence": {"type": "array", "maxItems": 2, "items": {"$ref": "#/components/schemas/Evidence"}},
         "helpful": {"type": "boolean"}, "followed": {"type": "boolean"}, "fallback": {"type": "boolean"},
-        "fallback_reason": {"type": ["string", "null"]}, "ranker_used": {"enum": ["baseline", "hstu"]}
+        "fallback_reason": {"type": ["string", "null"]}, "ranker_used": {"enum": ["baseline", "hstu"]},
+        "demo_model": {"type": "boolean"}, "model_version": {"type": ["string", "null"]}
       }},
       "Feedback": {"type": "object", "required": ["program_id", "kind"], "properties": {
         "program_id": {"$ref": "#/components/schemas/Id"}, "recommendation_id": {"$ref": "#/components/schemas/Id"}, "event_id": {"$ref": "#/components/schemas/Id"},
@@ -73,16 +74,18 @@
         "feature_version": {"const": "finance-context-v2"}, "snapshot_id": {"$ref": "#/components/schemas/Id"}, "as_of": {"type": "string", "format": "date-time"},
         "features": {"type": "object", "additionalProperties": {"type": "number"}, "description": "signed log1p 数值；包含独立 savings_locked_total，未知缩放为 0"},
         "missing_mask": {"type": "object", "additionalProperties": {"enum": [0, 1]}, "description": "1=未知，0=已观测；与 features 同字段"},
+        "learning_topic": {"type": "string", "description": "推荐时明确的学习主题，不是从个人身份猜测"},
         "history": {"type": "array", "maxItems": 100, "items": {"type": "object", "required": ["program_id", "action", "occurred_at"], "properties": {
-          "program_id": {"$ref": "#/components/schemas/Id"}, "action": {"enum": ["click", "follow", "dislike", "undislike", "helpful_yes", "helpful_no"]}, "occurred_at": {"type": "string", "format": "date-time"}
+          "program_id": {"$ref": "#/components/schemas/Id"}, "action": {"enum": ["click", "follow", "dislike", "undislike", "helpful_yes", "helpful_no"]}, "occurred_at": {"type": "string", "format": "date-time"},
+          "title": {"type": "string"}, "summary": {"type": "string"}, "topics": {"type": "array", "items": {"type": "string"}}
         }}},
         "candidates": {"type": "array", "maxItems": 100, "items": {"type": "object", "required": ["program_id", "topics", "title", "summary", "baseline_score"], "properties": {
-          "program_id": {"$ref": "#/components/schemas/Id"}, "topics": {"type": "array", "items": {"type": "string"}}, "title": {"type": "string"}, "summary": {"type": "string"}, "baseline_score": {"type": "number"}
+          "program_id": {"$ref": "#/components/schemas/Id"}, "topics": {"type": "array", "items": {"type": "string"}}, "title": {"type": "string"}, "summary": {"type": "string"}, "baseline_score": {"type": "number", "description": "诊断与对比字段，项目 HSTU 网络不读取"}, "difficulty": {"type": ["integer", "null"]}
         }}}
       }},
       "HstuResponse": {"type": "object", "required": ["model_version", "scores"], "properties": {
-        "model_version": {"type": "string", "minLength": 1, "maxLength": 100}, "scores": {"type": "array", "maxItems": 100, "items": {"type": "object", "required": ["program_id", "score"], "properties": {
-          "program_id": {"$ref": "#/components/schemas/Id"}, "score": {"type": "number"}
+        "model_version": {"type": "string", "minLength": 1, "maxLength": 100}, "training_kind": {"enum": ["demo", "real"]}, "cold_start": {"type": "boolean"}, "scores": {"type": "array", "maxItems": 100, "items": {"type": "object", "required": ["program_id", "score"], "properties": {
+          "program_id": {"$ref": "#/components/schemas/Id"}, "score": {"type": "number"}, "click_probability": {"type": "number"}, "helpful_probability": {"type": "number"}
         }}}
       }}
     }
