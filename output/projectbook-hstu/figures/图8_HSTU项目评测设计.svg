@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1000" viewBox="0 0 1500 1000">
+<rect width="100%" height="100%" fill="white"/>
+<text x="50" y="34" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="39" font-weight="700" fill="#183B44">青盈 HSTU 评测设计</text>
+<text x="50" y="94" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="23" font-weight="400" fill="#586D73">对应原论文图 7 的验证思路重新设计；没有绘制未经实测的性能曲线</text>
+<rect x="50" y="180" width="430" height="236" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="265.0" y="202" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">一  推荐效果对比</text>
+<text x="265.0" y="248" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">本地加权基线与内容匹配</text>
+<text x="265.0" y="286" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">HSTU 序列模型</text>
+<text x="265.0" y="324" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">HSTU 序列模型＋财务条件</text>
+<polyline points="265,416 265,473" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="265,473 271.0,461.0 259.0,461.0" fill="#168575"/>
+<rect x="50" y="473" width="430" height="170" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="265.0" y="495" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">评价指标</text>
+<text x="265.0" y="541" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">nDCG@5 与 Recall@5</text>
+<text x="265.0" y="579" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">内容覆盖与有帮助反馈</text>
+<rect x="535" y="180" width="430" height="236" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="202" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">二  关键机制消融</text>
+<text x="750.0" y="248" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">完整适配模型</text>
+<text x="750.0" y="286" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">移除时间偏置或行为类型</text>
+<text x="750.0" y="324" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">移除财务情境条件</text>
+<polyline points="750,416 750,473" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="750,473 756.0,461.0 744.0,461.0" fill="#168575"/>
+<rect x="535" y="473" width="430" height="170" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="495" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">评价重点</text>
+<text x="750.0" y="541" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">各部分对排序是否有贡献</text>
+<text x="750.0" y="579" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">冷启动与稀疏历史表现</text>
+<rect x="1020" y="180" width="430" height="236" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="1235.0" y="202" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">三  资源与响应权衡</text>
+<text x="1235.0" y="248" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">逐档调整历史窗口与层数</text>
+<text x="1235.0" y="286" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">固定数据、候选与硬件</text>
+<text x="1235.0" y="324" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">比较效果及计算成本</text>
+<polyline points="1235,416 1235,473" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="1235,473 1241.0,461.0 1229.0,461.0" fill="#168575"/>
+<rect x="1020" y="473" width="430" height="170" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="1235.0" y="495" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">评价指标</text>
+<text x="1235.0" y="541" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">端到端 P95 延迟与吞吐</text>
+<text x="1235.0" y="579" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">峰值显存与模型大小</text>
+<rect x="50" y="711" width="1400" height="125" rx="17" fill="#FFFFFF" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="733" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">共同实验约束</text>
+<text x="750.0" y="779" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">按时间划分训练、验证和测试；冻结候选与预测时点；报告样本量及置信区间</text>
+<text x="750" y="900" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#586D73">图中为拟开展的实验项目与评价维度，青盈的结果数值均待实测。</text>
+</svg>

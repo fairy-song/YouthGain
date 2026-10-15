@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1050" viewBox="0 0 1500 1050">
+<rect width="100%" height="100%" fill="white"/>
+<text x="50" y="34" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="39" font-weight="700" fill="#183B44">HSTU 核心计算与青盈候选预测</text>
+<text x="50" y="94" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="23" font-weight="400" fill="#586D73">参照原论文第 3 节与图 3；下面区分通用计算单元和项目任务适配</text>
+<rect x="50" y="165" width="1400" height="112" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="187" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">输入序列表示 X</text>
+<text x="750.0" y="233" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">内容、行为与时间信息经过编码；候选内容在预测时已知</text>
+<polyline points="750,277 750,310 265,310 265,350" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="265,350 271.0,338.0 259.0,338.0" fill="#168575"/>
+<rect x="50" y="350" width="430" height="240" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="265.0" y="372" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">阶段一  逐点投影</text>
+<text x="265.0" y="418" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">线性映射与 SiLU 激活</text>
+<text x="265.0" y="456" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">生成 U、Q、K、V</text>
+<text x="265.0" y="494" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">U 提供门控分支</text>
+<polyline points="480,470 535,470" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="535,470 523.0,464.0 523.0,476.0" fill="#168575"/>
+<rect x="535" y="350" width="430" height="240" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="372" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">阶段二  序列信息聚合</text>
+<text x="750.0" y="418" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">Q、K 与时间位置偏置</text>
+<text x="750.0" y="456" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">因果掩码屏蔽未来事件</text>
+<text x="750.0" y="494" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">以 SiLU 权重聚合历史 V</text>
+<polyline points="965,470 1020,470" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="1020,470 1008.0,464.0 1008.0,476.0" fill="#168575"/>
+<rect x="1020" y="350" width="430" height="240" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="1235.0" y="372" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">阶段三  逐点变换</text>
+<text x="1235.0" y="418" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">聚合结果进行归一化</text>
+<text x="1235.0" y="456" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">与门控 U 逐元素相乘</text>
+<text x="1235.0" y="494" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">线性映射并接入残差</text>
+<polyline points="265,590 265,660 1235,660 1235,590" fill="none" stroke="#586D73" stroke-width="3" stroke-dasharray="8 6"/>
+<polygon points="1235,590 1229.0,602.0 1241.0,602.0" fill="#586D73"/>
+<text x="750" y="620" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="24" font-weight="400" fill="#586D73">U 门控分支</text>
+<polyline points="1450,470 1475,470 1475,713 750,713 750,760" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="750,760 756.0,748.0 744.0,748.0" fill="#168575"/>
+<rect x="300" y="760" width="900" height="150" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="782" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">堆叠编码后进行青盈任务预测</text>
+<text x="750.0" y="828" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">候选播客的点击、有帮助等任务需分别定义标签</text>
+<text x="750.0" y="866" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">新词表、财务条件融合与任务头均需训练和验证</text>
+<text x="750" y="970" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="24" font-weight="400" fill="#586D73">图示为原理简化与场景设计；多层堆叠本身不保证效果优于本地基线。</text>
+</svg>

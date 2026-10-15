@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="910" viewBox="0 0 1500 910">
+<rect width="100%" height="100%" fill="white"/>
+<text x="50" y="34" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="39" font-weight="700" fill="#183B44">青盈关键技术与评价指标</text>
+<text x="50" y="94" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="23" font-weight="400" fill="#586D73">以检索与生成、序列推荐、确定性计算构成技术主线</text>
+<rect x="50" y="165" width="430" height="276" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="265.0" y="187" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">AI 金融素养教练</text>
+<text x="265.0" y="233" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">上下文问题理解</text>
+<text x="265.0" y="271" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">BM25 ＋ 语义向量召回</text>
+<text x="265.0" y="309" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">RRF 融合与语义精排</text>
+<text x="265.0" y="347" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">财务工具与生成后校验</text>
+<polyline points="265,441 265,498" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="265,498 271.0,486.0 259.0,486.0" fill="#168575"/>
+<rect x="50" y="498" width="430" height="209" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="265.0" y="520" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">评价指标</text>
+<text x="265.0" y="566" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">Recall@5 与回答准确性</text>
+<text x="265.0" y="604" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">数值引用与依据一致性</text>
+<text x="265.0" y="642" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">连续追问处理能力</text>
+<rect x="535" y="165" width="430" height="276" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="187" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">HSTU 个性化推荐</text>
+<text x="750.0" y="233" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">财务快照与历史交互</text>
+<text x="750.0" y="271" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">审核目录与候选筛选</text>
+<text x="750.0" y="309" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">外部 HSTU 候选精排</text>
+<text x="750.0" y="347" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">基线对照与异常回退</text>
+<polyline points="750,441 750,498" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="750,498 756.0,486.0 744.0,486.0" fill="#168575"/>
+<rect x="535" y="498" width="430" height="209" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="520" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">评价指标</text>
+<text x="750.0" y="566" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">nDCG@5 与内容覆盖率</text>
+<text x="750.0" y="604" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">有帮助反馈与近期去重</text>
+<text x="750.0" y="642" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">真实服务可用性</text>
+<rect x="1020" y="165" width="430" height="276" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="1235.0" y="187" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">确定性财务计算</text>
+<text x="1235.0" y="233" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">机会成本与资金规划</text>
+<text x="1235.0" y="271" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">金额精度与输入校验</text>
+<text x="1235.0" y="309" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">时点、版本与缺项说明</text>
+<text x="1235.0" y="347" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">可复核结果与证据记录</text>
+<polyline points="1235,441 1235,498" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="1235,498 1241.0,486.0 1229.0,486.0" fill="#168575"/>
+<rect x="1020" y="498" width="430" height="209" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="1235.0" y="520" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">评价指标</text>
+<text x="1235.0" y="566" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">金额误差与计算一致性</text>
+<text x="1235.0" y="604" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">端到端 P95 响应时间</text>
+<text x="1235.0" y="642" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">异常回退与请求成功率</text>
+<rect x="50" y="759" width="1400" height="104" rx="17" fill="#FFFFFF" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="781" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">统一评价方法</text>
+<text x="750.0" y="827" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">固定评测样本与版本，开展基线对照；报告样本规模、运行条件和实测结果</text>
+</svg>

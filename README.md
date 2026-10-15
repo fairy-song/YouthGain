@@ -173,6 +173,7 @@ npm run build
 | [财务推荐 v2 模块定义](docs/财务推荐v2模块定义.md) | 资金口径、快照约束、服务职责与 HSTU 协议 |
 | [OpenAPI schema](docs/api/finance-podcasts.openapi.json) | 资金、每日推荐、反馈与外部推理接口 |
 | [每日推荐接口与实施说明](docs/每日推荐接口与实施说明.md) | 推荐编排、事件语义、兼容规则与验证 |
+| [播客三阶段升级与运行说明](docs/播客三阶段升级与运行说明.md) | 多源发现、后台增量采集、AI 整理、审核及 HSTU 推荐接入 |
 | [个性化推荐修改方案](output/pdf/青盈每日内容个性化推荐修改方案.md) | 原始算法与工程设计；另有 [PDF](output/pdf/青盈每日内容个性化推荐修改方案.pdf) / [Word](output/docx/青盈每日内容个性化推荐修改方案.docx) |
 
 ## 参与贡献

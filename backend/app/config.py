@@ -43,6 +43,16 @@ class Config:
     RESEARCH_GLOBAL_EPSILON_MILLI = int(os.environ.get('RESEARCH_GLOBAL_EPSILON_MILLI', '6000'))
     PODCAST_DB_PATH = os.environ.get('PODCAST_DB_PATH')
     PODCAST_RSS_ALLOWED_HOSTS = os.environ.get('PODCAST_RSS_ALLOWED_HOSTS', '')
+    PODCAST_LOCAL_WORKER_ENABLED = os.environ.get('PODCAST_LOCAL_WORKER_ENABLED', 'true').lower() == 'true'
+    PODCAST_SEMANTIC_ENABLED = os.environ.get('PODCAST_SEMANTIC_ENABLED', 'true').lower() == 'true'
+    PODCAST_AI_ENABLED = os.environ.get('PODCAST_AI_ENABLED', 'true').lower() == 'true'
+    PODCAST_AI_MODEL = os.environ.get('PODCAST_AI_MODEL') or os.environ.get('ZHIPUAI_MODEL', 'glm-4-flash')
+    PODCAST_INDEX_KEY = os.environ.get('PODCAST_INDEX_KEY', '')
+    PODCAST_INDEX_SECRET = os.environ.get('PODCAST_INDEX_SECRET', '')
+    PODCAST_LISTENNOTES_KEY = os.environ.get('PODCAST_LISTENNOTES_KEY', '')
+    PODCAST_DISCOVERY_QUERIES = os.environ.get('PODCAST_DISCOVERY_QUERIES', '大学生预算,消费决策,金融素养')
+    PODCAST_WEBSUB_CALLBACK_BASE = os.environ.get('PODCAST_WEBSUB_CALLBACK_BASE', '')
+    PODCAST_WEBSUB_ALLOWED_HOSTS = os.environ.get('PODCAST_WEBSUB_ALLOWED_HOSTS', '')
     PODCAST_STARTER_CATALOG_ENABLED = os.environ.get('PODCAST_STARTER_CATALOG_ENABLED', 'true').lower() == 'true'
     PODCAST_RANKER_MODE = os.environ.get('PODCAST_RANKER_MODE', 'local_hstu')
     PODCAST_HSTU_URL = os.environ.get('PODCAST_HSTU_URL')

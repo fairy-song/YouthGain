@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1050" viewBox="0 0 1500 1050">
+<rect width="100%" height="100%" fill="white"/>
+<text x="50" y="34" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="39" font-weight="700" fill="#183B44">青盈推荐特征的序列化适配</text>
+<text x="50" y="94" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="23" font-weight="400" fill="#586D73">参照原论文图 2 重绘；模型编码与训练部分属于项目适配设计</text>
+<rect x="50" y="175" width="365" height="147" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="232.5" y="197" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">历史交互来源</text>
+<text x="232.5" y="243" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">浏览、收藏与反馈</text>
+<text x="232.5" y="281" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">单集标识与事件时间</text>
+<rect x="50" y="360" width="365" height="147" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="232.5" y="382" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">财务与学习资料</text>
+<text x="232.5" y="428" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">可用剩余、储蓄目标</text>
+<text x="232.5" y="466" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">未来开支与学习主题</text>
+<rect x="50" y="545" width="365" height="147" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="232.5" y="567" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">审核播客目录</text>
+<text x="232.5" y="613" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">单集主题、难度与摘要</text>
+<text x="232.5" y="651" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">来源状态与候选资格</text>
+<rect x="500" y="175" width="950" height="147" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="975.0" y="197" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">交互主序列  按时间正序</text>
+<text x="975.0" y="243" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">浏览 A → 收藏 A → 浏览 B → 有帮助 B</text>
+<text x="975.0" y="281" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">内容与行为交替编码，保留事件时间</text>
+<rect x="500" y="360" width="950" height="147" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="975.0" y="382" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">预测时点的财务条件</text>
+<text x="975.0" y="428" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">保留程序计算值，连同缺失标记编码</text>
+<text x="975.0" y="466" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">每次预测只读取该时点已经发生或已知的信息</text>
+<rect x="500" y="545" width="950" height="147" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="975.0" y="567" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">当前候选单集</text>
+<text x="975.0" y="613" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">主题与内容表示用于候选编码</text>
+<text x="975.0" y="651" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">候选与同一历史前缀配对，预测其交互价值</text>
+<polyline points="415,248 500,248" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="500,248 488.0,242.0 488.0,254.0" fill="#168575"/>
+<polyline points="1450,248 1475,248" fill="none" stroke="#168575" stroke-width="3"/>
+<polyline points="415,433 500,433" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="500,433 488.0,427.0 488.0,439.0" fill="#168575"/>
+<polyline points="1450,433 1475,433" fill="none" stroke="#168575" stroke-width="3"/>
+<polyline points="415,618 500,618" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="500,618 488.0,612.0 488.0,624.0" fill="#168575"/>
+<polyline points="1450,618 1475,618" fill="none" stroke="#168575" stroke-width="3"/>
+<polyline points="1475,248 1475,735 975,735" fill="none" stroke="#168575" stroke-width="3"/>
+<polyline points="975,735 975,778" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="975,778 981.0,766.0 969.0,766.0" fill="#168575"/>
+<rect x="500" y="778" width="950" height="142" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="975.0" y="800" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">外部 HSTU 排序服务</text>
+<text x="975.0" y="846" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">序列编码 ＋ 财务条件融合 ＋ 候选任务预测</text>
+<text x="975.0" y="884" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">返回候选得分与模型版本，再由青盈确定当日推荐</text>
+<text x="50" y="775" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="26" font-weight="700" fill="#183B44">项目接口已有：</text>
+<text x="50" y="822" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="24" font-weight="400" fill="#586D73">财务特征、缺失标记</text>
+<text x="50" y="862" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="24" font-weight="400" fill="#586D73">历史事件与候选元数据</text>
+<text x="750" y="970" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="24" font-weight="400" fill="#586D73">本图为场景适配方案，不表示现有接口已经完成 HSTU 网络训练。</text>
+</svg>

@@ -92,6 +92,9 @@ backend/.pytest_tmp_*/
 .local-archive/
 # 文档整理生成的原稿提取，不提交
 docs/原稿提取.txt
+# 项目书排版的中间文本数据；成品文档和配图正常同步。
+/output/projectbook/content.json
+/output/projectbook-technology/content.json
 # 本地回退快照和含标准答案的审核工作表不发布到代码仓库
 b01-before-*.zip
 ui-before-redesign-*.zip

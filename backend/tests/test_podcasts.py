@@ -240,7 +240,9 @@ def test_rss_sync_reads_metadata_only_and_preserves_last_good_record(client, mon
         def close(self):
             pass
 
-    monkeypatch.setattr(service.requests, 'get', lambda *args, **kwargs: Response())
+    from app.services import podcast_ingestion
+    monkeypatch.setattr(podcast_ingestion, 'public_request', lambda *args, **kwargs:
+                        (200, {}, b''.join(Response().iter_content(65536))))
     synced = call(client, 'post', f'/api/podcasts/admin/programs/{program_id}/sync', user='admin')
     assert synced.status_code == 200, synced.json
     assert synced.json['program']['description'] == 'Publisher description of budgeting'
@@ -249,7 +251,8 @@ def test_rss_sync_reads_metadata_only_and_preserves_last_good_record(client, mon
     assert call(client, 'post', f'/api/podcasts/admin/programs/{program_id}/review',
                 {'approved': True}, user='admin').status_code == 200
     assert call(client, 'get', '/api/podcasts/today').json['program']['id'] == program_id
-    monkeypatch.setattr(service.requests, 'get', lambda *args, **kwargs: (_ for _ in ()).throw(service.requests.ConnectionError('offline')))
+    monkeypatch.setattr(podcast_ingestion, 'public_request', lambda *args, **kwargs:
+                        (_ for _ in ()).throw(service.PodcastError('来源离线', 502)))
     failed = call(client, 'post', f'/api/podcasts/admin/programs/{program_id}/sync', user='admin')
     assert failed.status_code == 502
     stored = call(client, 'get', '/api/podcasts/admin/programs', user='admin').json['programs'][0]

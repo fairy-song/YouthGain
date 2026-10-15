@@ -41,6 +41,7 @@ def transaction(write=True):
         schema_sql = schema.read_text(encoding='utf-8')
         connection.executescript(schema_sql)
         connection.executescript(schema.with_name('finance_funds.sql').read_text(encoding='utf-8'))
+        connection.executescript(schema.with_name('podcast_pipeline.sql').read_text(encoding='utf-8'))
         connection.execute('BEGIN IMMEDIATE')
         _migrate_event_types(connection, schema_sql)
         columns = {row['name'] for row in connection.execute('PRAGMA table_info(daily_picks)')}
@@ -92,6 +93,13 @@ def program(connection, program_id):
 
 
 def save_program(connection, record):
+    # Normalize all legacy/manual episodes into shows while retaining their public IDs and picks.
+    row = connection.execute('SELECT id FROM podcast_shows WHERE canonical_url=?', (record['canonical_url'],)).fetchone()
+    from uuid import uuid4
+    record['show_id'] = row['id'] if row else str(uuid4())
+    show = {key: record.get(key) for key in ('name', 'publisher', 'description', 'canonical_url', 'language')}
+    connection.execute('INSERT INTO podcast_shows VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload',
+                       (record['show_id'], record['canonical_url'], json.dumps(show, ensure_ascii=False)))
     connection.execute('''INSERT INTO programs(id,payload,updated_at) VALUES(?,?,?)
         ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at''',
         (record['id'], json.dumps(record, ensure_ascii=False, allow_nan=False), record['updated_at']))

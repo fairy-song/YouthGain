@@ -5,6 +5,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from app.services.auth_service import require_auth, require_admin
 from app.services import podcast_service as service
+from app.services import podcast_pipeline as pipeline, podcast_discovery as discovery
 
 podcast_bp = Blueprint('podcasts', __name__)
 
@@ -92,3 +93,74 @@ def sync(program_id, user_info):
 @require_admin
 def sync_due(user_info):
     return jsonify(service.sync_due_sources())
+
+
+@podcast_bp.get('/admin/pipeline')
+@require_admin
+def pipeline_status(user_info):
+    return jsonify(pipeline.dashboard())
+
+
+@podcast_bp.post('/admin/sources')
+@require_admin
+def add_source(user_info):
+    return jsonify(source=pipeline.register_source(payload(), user_info['uid'])), 201
+
+
+@podcast_bp.put('/admin/sources/<source_id>')
+@require_admin
+def edit_source(source_id, user_info):
+    from app.services import podcast_store
+    with podcast_store.transaction() as conn:
+        value = pipeline.source(conn, source_id)
+    if not value:
+        raise service.PodcastError('来源不存在', 404)
+    return jsonify(source=pipeline.register_source({**payload(), 'url': value['url']}, user_info['uid']))
+
+
+@podcast_bp.post('/admin/sources/<source_id>/sync')
+@require_admin
+def queue_source(source_id, user_info):
+    return jsonify(pipeline.queue_source(source_id)), 202
+
+
+@podcast_bp.post('/admin/jobs/<job_id>/retry')
+@require_admin
+def retry_job(job_id, user_info):
+    return jsonify(pipeline.retry_job(job_id)), 202
+
+
+@podcast_bp.post('/admin/discover')
+@require_admin
+def discover(user_info):
+    from app.services import podcast_store
+    provider = payload().get('provider')
+    if provider not in ('podcastindex', 'listennotes'):
+        raise service.PodcastError('请选择目录来源')
+    config = 'PODCAST_INDEX_KEY' if provider == 'podcastindex' else 'PODCAST_LISTENNOTES_KEY'
+    if not current_app.config.get(config):
+        raise service.PodcastError('该目录服务尚未配置密钥', 503)
+    with podcast_store.transaction() as conn:
+        return jsonify(job_id=pipeline.enqueue(conn, 'discover', provider), state='queued'), 202
+
+
+@podcast_bp.post('/admin/discoveries')
+@require_admin
+def submit_discovery(user_info):
+    return jsonify(discovery=discovery.submit(payload(), user_info['uid'])), 201
+
+
+@podcast_bp.post('/admin/discoveries/<discovery_id>/review')
+@require_admin
+def review_discovery(discovery_id, user_info):
+    return jsonify(result=discovery.accept(discovery_id, payload(), user_info['uid']))
+
+
+@podcast_bp.route('/websub/<source_id>/<token>', methods=['GET', 'POST'])
+def websub(source_id, token):
+    if request.method == 'GET':
+        challenge = discovery.verify_subscription(source_id, token, request.args)
+        return current_app.response_class(challenge, mimetype='text/plain', headers={'X-Content-Type-Options': 'nosniff'})
+    body = request.stream.read(1024 * 1024 + 1)
+    return jsonify(discovery.notification(source_id, token, body,
+        request.headers.get('X-Hub-Signature-256') or request.headers.get('X-Hub-Signature'))), 202

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="920" viewBox="0 0 1500 920">
+<rect width="100%" height="100%" fill="white"/>
+<text x="50" y="34" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="39" font-weight="700" fill="#183B44">青盈系统总体架构</text>
+<text x="50" y="94" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="23" font-weight="400" fill="#586D73">真实财务数据、实践学习与个性化内容在同一应用中协同运行</text>
+<rect x="50" y="156" width="1400" height="132" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="178" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">用户交互层  React</text>
+<text x="750.0" y="224" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">今天 · 账本 · 学习 · 我的 · AI 教练</text>
+<polyline points="750,288 750,338" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="750,338 756.0,326.0 744.0,326.0" fill="#168575"/>
+<text x="770" y="301" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="21" font-weight="400" fill="#586D73">身份认证与 API 请求</text>
+<rect x="50" y="338" width="1400" height="125" rx="17" fill="#FFFFFF" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="360" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">业务服务层  Flask</text>
+<text x="750.0" y="406" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">数据校验 · 账户权限 · 收支与目标管理 · 学习与推荐编排</text>
+<polyline points="750,463 750,487 267,487" fill="none" stroke="#168575" stroke-width="3"/>
+<polyline points="750,487 1233,487" fill="none" stroke="#168575" stroke-width="3"/>
+<polyline points="267,487 267,517" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="267,517 273.0,505.0 261.0,505.0" fill="#168575"/>
+<polyline points="750,487 750,517" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="750,517 756.0,505.0 744.0,505.0" fill="#168575"/>
+<polyline points="1233,487 1233,517" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="1233,517 1239.0,505.0 1227.0,505.0" fill="#168575"/>
+<rect x="50" y="517" width="435" height="174" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="267.5" y="539" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">确定性财务计算</text>
+<text x="267.5" y="585" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">机会成本与资金规划</text>
+<text x="267.5" y="623" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">规则检测与可复核结果</text>
+<rect x="532" y="517" width="436" height="174" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="539" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">AI 金融素养教练</text>
+<text x="750.0" y="585" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">知识检索与语义精排</text>
+<text x="750.0" y="623" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">工具依据与解释引导</text>
+<rect x="1015" y="517" width="435" height="174" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="1232.5" y="539" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">个性化内容推荐</text>
+<text x="1232.5" y="585" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">候选筛选与 HSTU 精排</text>
+<text x="1232.5" y="623" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">基线回退与反馈记录</text>
+<polyline points="267,691 267,739" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="267,739 273.0,727.0 261.0,727.0" fill="#168575"/>
+<polyline points="750,691 750,739" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="750,739 756.0,727.0 744.0,727.0" fill="#168575"/>
+<polyline points="1233,691 1233,739" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="1233,739 1239.0,727.0 1227.0,727.0" fill="#168575"/>
+<rect x="50" y="739" width="1400" height="128" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="761" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">数据与证据层</text>
+<text x="750.0" y="807" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">收支与资料按部署配置存储；资金账目、推荐快照及事件采用 SQLite 持久化</text>
+</svg>

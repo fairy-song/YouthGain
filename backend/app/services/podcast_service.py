@@ -190,8 +190,8 @@ def _check_duplicate(connection, record):
         if other['id'] == record['id']:
             continue
         other_urls = {other.get('episode_url'), *(link['url'] for link in other['platform_links'])}
-        if urls & other_urls or (record['rss_url'] and record['rss_url'] == other.get('rss_url')):
-            raise PodcastError('该单集或 RSS 已存在，请在同一条单集下维护多个平台链接', 409)
+        if urls & other_urls:
+            raise PodcastError('该单集已存在，请在同一条单集下维护多个平台链接', 409)
 
 
 def list_programs():
@@ -206,6 +206,16 @@ def save_program(data, program_id=None):
             raise PodcastError('节目不存在', 404)
         record = _validate_program(data, previous)
         _check_duplicate(connection, record)
+        if previous and previous.get('source_id'):
+            # Saving the editorial form explicitly confirms corrected fields. Retain AI trace as provenance.
+            record.update(review_blockers=[], editor_verified=True, updated_at=now().isoformat())
+            record['content_hash'] = hashlib.sha256(json.dumps({k: record[k] for k in (
+                'episode_title', 'episode_summary', 'episode_url', 'topics', 'difficulty', 'quality_score')},
+                sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+            if record.get('processing'):
+                record['processing'] = dict(record['processing'], superseded_by_editor=True)
+        from . import podcast_pipeline as pipeline
+        pipeline.audit(connection, record['id'], 'editorial_saved')
         podcast_store.save_program(connection, record)
         return record
 
@@ -217,12 +227,17 @@ def review(program_id, admin_uid, approved):
         record = podcast_store.program(connection, program_id)
         if not record:
             raise PodcastError('节目不存在', 404)
+        if approved and record.get('review_blockers'):
+            raise PodcastError('请先核对并编辑补充资料：' + '；'.join(record['review_blockers']))
         if approved and (record['quality_score'] < MIN_QUALITY or record['promotion_flag'] or
                          record['product_pitch'] or not record.get('episode_url')):
             raise PodcastError('单集未达到质量门槛、缺少直达链接或包含商业推广')
         record.update(status='approved' if approved else 'withdrawn', reviewed_by=admin_uid,
                       reviewed_at=now().isoformat(), updated_at=now().isoformat())
         podcast_store.save_program(connection, record)
+        from . import podcast_pipeline as pipeline
+        pipeline.audit(connection, record['id'], 'episode_reviewed', actor=admin_uid,
+                       status=record['status'], content_hash=record.get('content_hash'))
         return record
 
 
@@ -294,8 +309,8 @@ def parse_rss(body):
     if len(body) > 1024 * 1024 or b'<!DOCTYPE' in body.upper() or b'<!ENTITY' in body.upper():
         raise PodcastError('RSS 内容过大或包含不允许的声明')
     try:
-        root = ElementTree.fromstring(body)
-    except ElementTree.ParseError:
+        root = ElementTree.fromstring(body.decode('utf-8-sig'))
+    except (ElementTree.ParseError, UnicodeError):
         raise PodcastError('RSS 格式无效')
     channel = root.find('channel')
     if channel is not None:
@@ -330,17 +345,18 @@ def sync_source(program_id):
     if not record['rss_url'] or record['source_permission'] not in ('public_rss', 'licensed'):
         raise PodcastError('该节目没有已确认可同步的 RSS 来源')
     try:
-        _rss_allowed(record['rss_url'])
-        response = requests.get(record['rss_url'], stream=True, timeout=(3, 10), allow_redirects=False,
-                                headers={'User-Agent': 'YouthGainPodcastMetadata/1.0'})
-        if response.status_code != 200:
+        from .podcast_ingestion import public_request
+        status, _, body = public_request(record['rss_url'])
+        if status != 200:
             raise PodcastError('RSS 来源暂时无法读取', 502)
-        body = bytearray()
-        for chunk in response.iter_content(65536):
-            body.extend(chunk)
-            if len(body) > 1024 * 1024:
-                raise PodcastError('RSS 内容超过 1 MB')
         parsed = parse_rss(bytes(body))
+        # Legacy explicit sync also discovers every new episode; normal student requests never fetch RSS.
+        from . import podcast_pipeline as pipeline
+        from .podcast_ingestion import parse_feed, ingest
+        with podcast_store.transaction() as connection:
+            source_record = pipeline.register_source({'url': record['rss_url'], 'name': record['name'],
+                'permission': record['source_permission']}, conn=connection)
+            ingest(connection, source_record, parse_feed(bytes(body), record['rss_url']))
     except (requests.RequestException, PodcastError) as error:
         with podcast_store.transaction() as connection:
             latest = podcast_store.program(connection, program_id)
@@ -351,9 +367,6 @@ def sync_source(program_id):
         if isinstance(error, PodcastError):
             raise
         raise PodcastError('RSS 来源暂时无法读取', 502)
-    finally:
-        if 'response' in locals():
-            response.close()
     with podcast_store.transaction() as connection:
         latest = podcast_store.program(connection, program_id)
         if not latest or latest['rss_url'] != record['rss_url']:
@@ -374,18 +387,8 @@ def sync_source(program_id):
 
 
 def sync_due_sources():
-    cutoff = now() - timedelta(hours=24)
-    due = [program['id'] for program in list_programs() if program['status'] == 'approved' and
-           program['rss_url'] and (not program.get('source_synced_at') or
-                                   datetime.fromisoformat(program['source_synced_at']) < cutoff)]
-    results = {'synced': [], 'failed': []}
-    for program_id in due:
-        try:
-            sync_source(program_id)
-            results['synced'].append(program_id)
-        except PodcastError:
-            results['failed'].append(program_id)
-    return results
+    from .podcast_pipeline import schedule_due
+    return schedule_due()
 
 
 def _interest(user_id, entries=None):
@@ -427,6 +430,8 @@ def _interest(user_id, entries=None):
 
 
 def _eligible(program, today, max_difficulty):
+    if program.get('source_enabled') is False:
+        return False
     if program.get('link_status') == 'invalid':
         return False
     if program['status'] != 'approved' or program['quality_score'] < MIN_QUALITY:

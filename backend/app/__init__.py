@@ -78,11 +78,10 @@ def create_app():
 
     @app.cli.command('podcasts-sync')
     def podcasts_sync():
-        """Synchronize due, approved RSS metadata; schedule externally once a day."""
+        """Enqueue due sources. Run podcast_worker.py to consume persistent jobs."""
         from .services.podcast_service import sync_due_sources
         result = sync_due_sources()
-        app.logger.info('Podcast metadata sync: %s synced, %s failed',
-                        len(result['synced']), len(result['failed']))
+        app.logger.info('Podcast metadata sync: %s queued', len(result['queued']))
 
     from .routes.knowledge_routes import knowledge_bp
     app.register_blueprint(knowledge_bp, url_prefix='/api/knowledge')

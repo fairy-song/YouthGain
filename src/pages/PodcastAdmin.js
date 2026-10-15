@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Card, Col, Form, Row, Spinner } from 'react-bootstrap';
 import { listPodcastPrograms, reviewPodcastProgram, savePodcastProgram, syncPodcastProgram, syncDuePodcasts } from '../services/podcasts';
+import PodcastPipelineAdmin from '../components/PodcastPipelineAdmin';
 
 const TOPICS = [['budget', '安排收支'], ['choice', '理解取舍'], ['buffer', '留有余地'], ['risk', '理解风险']];
 const blank = { name: '', publisher: '', description: '', canonical_url: '', episode_title: '', episode_url: '',
@@ -47,6 +48,7 @@ export default function PodcastAdmin() {
     <p>每条目录记录对应一期音频。先核对单集内容、发布日期和直达链接，再发布给学生；同一节目可收录多期。</p>
     {error && <Alert variant="danger" role="alert">{error}</Alert>}
     {notice && <Alert variant="success" role="status">{notice}</Alert>}
+    <PodcastPipelineAdmin onCatalogueChange={load} />
     <Card className="mb-4"><Card.Body>
       <h2 className="h5">{editing ? '编辑单集' : '添加单集'}</h2>
       <Form onSubmit={save}>
@@ -71,13 +73,22 @@ export default function PodcastAdmin() {
         {editing && <Button type="button" variant="link" onClick={() => { setEditing(null); setForm(blank); }}>取消编辑</Button>}
       </Form>
     </Card.Body></Card>
-    <div className="d-flex justify-content-between align-items-center mb-3"><h2 className="h5 mb-0">单集目录</h2><Button variant="outline-secondary" size="sm" disabled={busy} onClick={() => operate(syncDuePodcasts, '已尝试同步到期的来源。')}>同步到期来源</Button></div>
+    <div className="d-flex justify-content-between align-items-center mb-3"><h2 className="h5 mb-0">单集目录</h2><Button variant="outline-secondary" size="sm" disabled={busy} onClick={() => operate(syncDuePodcasts, '到期来源已加入后台采集队列。')}>同步到期来源</Button></div>
     {!programs ? <Spinner role="status" /> : programs.length === 0 ? <p>目录还没有单集。请先添加并审核。</p> : programs.map(program => <Card key={program.id} className="mb-3"><Card.Body>
       <div className="d-flex justify-content-between gap-3 flex-wrap"><div><h3 className="h6 mb-1">{program.episode_title || '待补充单集'} · {program.name}</h3><p className="small text-muted mb-1">{program.publisher} · {program.topics.map(topic => TOPICS.find(([id]) => id === topic)?.[1]).join('、')}</p><p className="small mb-1">状态：{({ draft: '待审核', approved: '已发布', withdrawn: '已撤回' })[program.status]} · 发布日期：{program.episode_published_at || '待填写'}</p>{program.source_synced_at && <p className="small text-muted mb-1">RSS 更新：{program.source_synced_at.slice(0, 16)}</p>}{program.source_error && <p className="small text-danger mb-1">同步失败：{program.source_error}</p>}</div>
       <div className="d-flex gap-2 flex-wrap align-content-start"><Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => { setEditing(program.id); setForm(formValue(program)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>编辑</Button>
         {program.rss_url && <Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => operate(() => syncPodcastProgram(program.id), '来源简介已更新。')}>同步 RSS</Button>}
         {program.status !== 'approved' ? <Button size="sm" disabled={busy} onClick={() => operate(() => reviewPodcastProgram(program.id, true), '单集已审核发布。')}>审核发布</Button>
           : <Button size="sm" variant="outline-danger" disabled={busy} onClick={() => operate(() => reviewPodcastProgram(program.id, false), '单集已撤回。')}>撤回</Button>}</div></div>
+      {program.processing && <details className="mt-2"><summary>内容整理依据与学习要点</summary>
+        {program.processing.superseded_by_editor && <p className="small mt-2 mb-1">资料已由编辑修订，以下保留原始整理参考。</p>}
+        <p className="small mt-2 mb-1">仅基于发布者标题与简介，未审听完整音频。{program.processing.ai_used ? '已生成 AI 整理建议，需人工核对。' : '使用可追溯的文字摘录。'}</p>
+        <p className="small mb-1">{program.processing.suggestions.summary}</p>
+        <ul className="small">{program.processing.suggestions.knowledge_points.map((point, index) => <li key={index}>{point.text}<span className="text-muted">（原文依据：{point.quote}）</span></li>)}</ul>
+        <p className="small text-muted mb-1">主题识别：{program.processing.semantic_used ? '关键词与语义模型' : '关键词规则'} · 整理版本 {program.processing.version}</p>
+        {!!program.processing.fallback_reasons?.length && <p className="small text-muted">回退记录：{program.processing.fallback_reasons.join('、')}</p>}
+      </details>}
+      {!!program.review_blockers?.length && <Alert variant="warning" className="small mt-2 mb-0">{program.review_blockers.join('；')}。请编辑核对后再审核发布。</Alert>}
     </Card.Body></Card>)}
   </div>;
 }

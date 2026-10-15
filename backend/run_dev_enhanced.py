@@ -122,6 +122,8 @@ try:
     
     # 应用路由补丁
     app = patch_app_routes(app)
+    from podcast_worker import start_local_worker
+    start_local_worker(app)
 
     print("[OK] 应用实例创建成功")
     logger.info("应用实例创建成功")
@@ -156,6 +158,8 @@ except ImportError as e:
         
         # 应用路由补丁
         app = patch_app_routes(app)
+        from podcast_worker import start_local_worker
+        start_local_worker(app)
         
         print("[OK] 备用导入成功")
         logger.info("备用导入成功")

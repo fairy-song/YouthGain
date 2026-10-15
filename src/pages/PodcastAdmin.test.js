@@ -7,6 +7,7 @@ import { listPodcastPrograms, reviewPodcastProgram, savePodcastProgram, syncDueP
 jest.mock('../services/podcasts', () => ({
   listPodcastPrograms: jest.fn(), reviewPodcastProgram: jest.fn(), savePodcastProgram: jest.fn(),
   syncPodcastProgram: jest.fn(), syncDuePodcasts: jest.fn(),
+  getPodcastPipeline: jest.fn().mockResolvedValue({ counts: { sources: 0, healthy_sources: 0, episodes: 0, pending_review: 0 }, sources: [], discoveries: [], jobs: [], integrations: {} }),
 }));
 
 beforeEach(() => {
@@ -41,4 +42,5 @@ test('administrator can create a draft and explicitly approve it', async () => {
   }), null));
   fireEvent.click(await screen.findByRole('button', { name: '审核发布' }));
   await waitFor(() => expect(reviewPodcastProgram).toHaveBeenCalledWith('one', true));
+  expect(await screen.findByText('单集已审核发布。')).toBeInTheDocument();
 });

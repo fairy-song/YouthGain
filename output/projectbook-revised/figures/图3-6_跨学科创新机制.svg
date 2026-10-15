@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="565" viewBox="0 0 1500 565">
+<rect width="100%" height="100%" fill="white"/>
+<text x="50" y="34" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="39" font-weight="700" fill="#183B44">青盈跨学科创新机制</text>
+<text x="50" y="94" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="23" font-weight="400" fill="#586D73">将金融学问题、AI 方法与独立验证对应起来</text>
+<rect x="50" y="155" width="430" height="153" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="265.0" y="177" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">理解预算与资金取舍</text>
+<text x="265.0" y="223" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">个人财务管理与行为经济学</text>
+<text x="265.0" y="261" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">确定性工具与情境实践</text>
+<polyline points="265,308 265,345" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="265,345 271.0,333.0 259.0,333.0" fill="#168575"/>
+<rect x="50" y="345" width="430" height="100" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="265.0" y="367" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">对应验证</text>
+<rect x="535" y="155" width="430" height="153" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="177" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">形成有依据的判断</text>
+<text x="750.0" y="223" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">知识证据与个人财务事实</text>
+<text x="750.0" y="261" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">混合检索与 AI 教练</text>
+<polyline points="750,308 750,345" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="750,345 756.0,333.0 744.0,333.0" fill="#168575"/>
+<rect x="535" y="345" width="430" height="100" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="367" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">对应验证</text>
+<rect x="1020" y="155" width="430" height="153" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="1235.0" y="177" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">获得持续的学习内容</text>
+<text x="1235.0" y="223" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">历史行为与当前资金需求</text>
+<text x="1235.0" y="261" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">HSTU 序列推荐</text>
+<polyline points="1235,308 1235,345" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="1235,345 1241.0,333.0 1229.0,333.0" fill="#168575"/>
+<rect x="1020" y="345" width="430" height="100" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="1235.0" y="367" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">对应验证</text>
+<text x="265" y="398" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#586D73">计算真值与新情境任务</text>
+<text x="750" y="398" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#586D73">依据支持与独立问答</text>
+<text x="1235" y="398" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#586D73">排序对照与机制消融</text>
+<text x="750" y="497" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">总体目标  知识理解、财务规划意识与独立运用能力</text>
+</svg>

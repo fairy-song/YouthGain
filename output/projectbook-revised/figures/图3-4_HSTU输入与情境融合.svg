@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="930" viewBox="0 0 1500 930">
+<rect width="100%" height="100%" fill="white"/>
+<text x="50" y="34" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="39" font-weight="700" fill="#183B44">青盈 HSTU 输入编码与候选预测</text>
+<text x="50" y="94" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="23" font-weight="400" fill="#586D73">同一历史前缀与不同候选配对，财务条件保留来源、时点和缺失标记</text>
+<rect x="45" y="160" width="440" height="170" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="265.0" y="182" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">历史交互序列</text>
+<text x="265.0" y="228" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">单集内容 ＋ 行为类型</text>
+<text x="265.0" y="266" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">事件时间，按正序编码</text>
+<rect x="530" y="160" width="440" height="170" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="182" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">当前财务与学习条件</text>
+<text x="750.0" y="228" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">程序计算的资金状态</text>
+<text x="750.0" y="266" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">目标、主题与未知标记</text>
+<rect x="1015" y="160" width="440" height="170" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="1235.0" y="182" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">已审核候选单集</text>
+<text x="1235.0" y="228" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">主题、难度与内容向量</text>
+<text x="1235.0" y="266" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">排除拒绝与近期重复</text>
+<polyline points="265,330 265,395" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="265,395 271.0,383.0 259.0,383.0" fill="#168575"/>
+<rect x="45" y="395" width="440" height="170" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="265.0" y="417" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">HSTU 序列编码</text>
+<text x="265.0" y="463" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">因果掩码 ＋ 时间位置偏置</text>
+<text x="265.0" y="501" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">编码历史中的顺序与间隔</text>
+<polyline points="750,330 750,395" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="750,395 756.0,383.0 744.0,383.0" fill="#168575"/>
+<rect x="530" y="395" width="440" height="170" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="417" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">财务条件映射</text>
+<text x="750.0" y="463" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">数值缩放与缺失编码</text>
+<text x="750.0" y="501" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">不改写真实金额和预算</text>
+<polyline points="1235,330 1235,395" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="1235,395 1241.0,383.0 1229.0,383.0" fill="#168575"/>
+<rect x="1015" y="395" width="440" height="170" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="1235.0" y="417" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">候选表示</text>
+<text x="1235.0" y="463" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">当前候选参与预测</text>
+<text x="1235.0" y="501" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">不读取未来反馈标签</text>
+<polyline points="265,565 265,615 750,615" fill="none" stroke="#168575" stroke-width="3"/>
+<polyline points="750,565 750,615 750,615" fill="none" stroke="#168575" stroke-width="3"/>
+<polyline points="1235,565 1235,615 750,615" fill="none" stroke="#168575" stroke-width="3"/>
+<polyline points="750,615 750,660" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="750,660 756.0,648.0 744.0,648.0" fill="#168575"/>
+<rect x="260" y="660" width="980" height="135" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="682" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">条件融合与候选任务评分</text>
+<text x="750.0" y="728" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">分别预测点击与明确的有帮助反馈；业务层决定每日推荐</text>
+<text x="750" y="855" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="23" font-weight="400" fill="#586D73">来源：依据 Zhai 等（2024）第 2 节自绘；财务条件分支为青盈场景适配。</text>
+</svg>

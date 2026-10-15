@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="960" viewBox="0 0 1500 960">
+<rect width="100%" height="100%" fill="white"/>
+<text x="50" y="34" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="39" font-weight="700" fill="#183B44">财务计算与 AI 教练协同流程</text>
+<text x="50" y="94" dominant-baseline="hanging" text-anchor="start" font-family="Microsoft YaHei, sans-serif" font-size="23" font-weight="400" fill="#586D73">程序提供数值事实，检索提供知识依据，模型组织解释与思考引导</text>
+<rect x="520" y="150" width="460" height="112" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="172" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">用户问题与相关对话</text>
+<text x="750.0" y="218" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">识别本轮任务与已明确条件</text>
+<polyline points="750,262 750,296 265,296" fill="none" stroke="#168575" stroke-width="3"/>
+<polyline points="750,296 1235,296" fill="none" stroke="#168575" stroke-width="3"/>
+<polyline points="265,296 265,327" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="265,327 271.0,315.0 259.0,315.0" fill="#168575"/>
+<polyline points="750,296 750,327" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="750,327 756.0,315.0 744.0,315.0" fill="#168575"/>
+<polyline points="1235,296 1235,327" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="1235,327 1241.0,315.0 1229.0,315.0" fill="#168575"/>
+<rect x="50" y="327" width="430" height="191" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="265.0" y="349" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">知识检索链路</text>
+<text x="265.0" y="395" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">BM25 ＋ 语义向量召回</text>
+<text x="265.0" y="433" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">RRF 融合 ＋ Cross-Encoder</text>
+<text x="265.0" y="471" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">核对片段来源与适用条件</text>
+<rect x="535" y="327" width="430" height="191" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="349" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">确定性财务工具</text>
+<text x="750.0" y="395" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">允许引用记录后读取个人数据</text>
+<text x="750.0" y="433" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">计算结余、机会成本与目标</text>
+<text x="750.0" y="471" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">返回输入、结果与假设</text>
+<rect x="1020" y="327" width="430" height="191" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="1235.0" y="349" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">对话与引导策略</text>
+<text x="1235.0" y="395" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">承接追问与用户更正</text>
+<text x="1235.0" y="433" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">按需要解释或比较方案</text>
+<text x="1235.0" y="471" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">用户需要时提供分级提示</text>
+<polyline points="265,518 265,555 750,555" fill="none" stroke="#168575" stroke-width="3"/>
+<polyline points="750,518 750,555 750,555" fill="none" stroke="#168575" stroke-width="3"/>
+<polyline points="1235,518 1235,555 750,555" fill="none" stroke="#168575" stroke-width="3"/>
+<polyline points="750,555 750,586" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="750,586 756.0,574.0 744.0,574.0" fill="#168575"/>
+<rect x="300" y="586" width="900" height="116" rx="17" fill="#EFF4FA" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="608" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">大模型生成</text>
+<text x="750.0" y="654" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">结合问题、知识片段和程序计算，形成通俗解释</text>
+<polyline points="750,702 750,746" fill="none" stroke="#168575" stroke-width="3"/>
+<polygon points="750,746 756.0,734.0 744.0,734.0" fill="#168575"/>
+<rect x="300" y="746" width="900" height="118" rx="17" fill="#ECF6F3" stroke="#B6CACB" stroke-width="2"/>
+<text x="750.0" y="768" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#183B44">回复校验与用户展示</text>
+<text x="750.0" y="814" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="400" fill="#586D73">检查数值引用、财务口径及资料依据；正文与计算卡片一起展示</text>
+<text x="750" y="900" dominant-baseline="hanging" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="23" font-weight="400" fill="#586D73">生成模型不承担账本修改；关键个人数值依据来自程序计算</text>
+</svg>

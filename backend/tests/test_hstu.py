@@ -80,6 +80,18 @@ def test_candidate_order_and_baseline_scores_do_not_change_neural_predictions(ch
     assert predict(payload, checkpoint, allow_demo=True)['cold_start'] is True
 
 
+def test_newly_ingested_episode_can_be_scored_without_retraining(checkpoint):
+    payload = copy.deepcopy(demo_data()[2][0]['payload'])
+    payload['history'] = []
+    payload['candidates'] = [{'program_id': 'new-rss-episode-never-in-training',
+        'title': '大学生预算与生活费安排', 'summary': '先列必要支出，再预留应急资金。',
+        'topics': ['budget', 'buffer'], 'baseline_score': .8}]
+    result = predict(payload, checkpoint, allow_demo=True)
+    assert result['cold_start'] is True
+    assert result['scores'][0]['program_id'] == payload['candidates'][0]['program_id']
+    assert 0 <= result['scores'][0]['score'] <= 1
+
+
 def test_future_feedback_cannot_cross_validation_cutoff():
     parts = demo_data()
     parts[0][-1]['feedback_observed_at'] = parts[1][0]['payload']['as_of']
