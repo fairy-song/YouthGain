@@ -67,7 +67,7 @@ def list_goals(user_id, data_service, limit=10000):
 
 
 def mutate_goal(user_id, data_service, updates, goal_id=None, *, delete=False, create=False):
-    if set(updates) - {'id', 'title', 'description', 'target_amount', 'current_amount', 'progress', 'deadline', 'status'}:
+    if set(updates) - {'id', 'title', 'description', 'target_amount', 'current_amount', 'progress', 'deadline', 'status', 'category'}:
         raise ValueError('目标更新含不支持的字段')
     ensure_goals(user_id, data_service)
     zone = _zone(user_id)
@@ -178,10 +178,11 @@ def context_at(user_id, rows, as_of, zone, *, complete=True):
             carry += signed
     if carry is not None:
         carry -= sum(t['locked_delta_cents'] for t in transfers if opening['month'] <= t['local_date'][:7] < month)
-    available = (carry + income - expense - transfer_month) / 100 if carry is not None and goals_known else None
+    base = carry if carry is not None else 0
+    available = (base + income - expense - transfer_month) / 100 if goals_known else None
     return {'carryover_month': None if carry is None else carry / 100,
             'available_remaining_month': available, 'savings_locked_total': locked,
             'savings_net_transfer_month': transfer_month / 100 if goals_known else None,
             'goals': goals, 'goals_complete': goals_known,
-            'available_complete': available is not None,
-            'available_reason': None if available is not None else 'carryover_or_sources_missing'}
+            'available_complete': carry is not None,
+            'available_reason': None if carry is not None else 'carryover_not_confirmed'}

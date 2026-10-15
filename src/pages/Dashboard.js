@@ -513,7 +513,7 @@ const Dashboard = () => {
           <CoachHelp prompt="我正在查看账本，请帮我理解已记录的收支与未来安排。先问我想了解哪一部分。" />
         </div>
         </>}
-        {tab === 'goals' && <LedgerGoals {...{ goals, goalForm, setGoalForm, goalError, savingGoal, handleGoalCreate, handleGoalDelete, handleGoalPaid, handleGoalEdit, goalPlanResult, setGoalPlanResult, currentUser }} />}
+        {tab === 'goals' && <LedgerGoals {...{ goals, goalForm, setGoalForm, goalError, savingGoal, handleGoalCreate, handleGoalDelete, handleGoalPaid, handleGoalEdit, goalPlanResult, setGoalPlanResult, currentUser, onRefresh: refreshLedger }} />}
         {tab === 'overview' && <Row className="mb-5">
           <Col md={12}>
             <Card className="border-0 rounded-4 shadow-sm dashboard-card">
