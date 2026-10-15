@@ -173,6 +173,15 @@ def from_records(rows, goals, entries, as_of, *, transactions_complete=True,
     features['savings_locked_total'] = locked / 100 if goals_complete else None
     for key in ('carryover_month', 'available_remaining_month', 'savings_net_transfer_month'):
         features[key] = (funds or {}).get(key)
+    funds_complete = bool(funds and funds.get('available_complete', funds.get('carryover_month') is not None))
+    funds_sources_known = bool(funds and transactions_complete and goals_complete and not invalid_count)
+    funds_status = {'available_complete': funds_complete and funds_sources_known,
+                    'available_estimate': funds.get('available_remaining_month') if funds_sources_known else None,
+                    'reason': (funds or {}).get('available_reason') or 'carryover_or_sources_missing'}
+    # The UI may show a labelled monthly estimate; the coach and HSTU must not
+    # treat an unconfirmed opening balance as an observed spendable balance.
+    if not funds_status['available_complete']:
+        features['available_remaining_month'] = None
     if funds is not None:
         features['savings_locked_total'] = funds['savings_locked_total']
     features.update(goal_plan_shortfall=None, planned_free_now=None)
@@ -193,7 +202,7 @@ def from_records(rows, goals, entries, as_of, *, transactions_complete=True,
               for key, value in features.items()}
     return {'snapshot_id': str(uuid4()), 'feature_version': FEATURE_VERSION,
             'as_of': as_of.isoformat(), 'timezone': str(zone), 'features': features,
-            'missing_mask': masks, 'scaled_features': scaled,
+            'missing_mask': masks, 'scaled_features': scaled, 'funds_status': funds_status,
             'category_net_30d': {k: v / 100 for k, v in categories.items()} if transaction_known else {},
             'coverage': {'transactions_complete': transactions_complete, 'goals_complete': goals_complete,
                          'entries_complete': entries_complete, 'invalid_transactions': invalid_count},

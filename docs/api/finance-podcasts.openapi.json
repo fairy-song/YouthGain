@@ -64,7 +64,7 @@
         "month": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$"}, "as_of": {"type": "string", "format": "date-time"},
         "carryover_month": {"$ref": "#/components/schemas/MoneyOrUnknown"}, "available_remaining_month": {"$ref": "#/components/schemas/MoneyOrUnknown"},
         "savings_locked_total": {"$ref": "#/components/schemas/MoneyOrUnknown"}, "savings_net_transfer_month": {"$ref": "#/components/schemas/MoneyOrUnknown"},
-        "complete": {"type": "boolean"}, "reason": {"type": ["string", "null"]}
+        "complete": {"type": "boolean"}, "available_complete": {"type": "boolean", "description": "false 时 available_remaining_month 若为数值，仅为未确认结转的本月估算；AI 快照仍将确认资金标记为未知"}, "reason": {"type": ["string", "null"]}
       }},
       "Carryover": {"type": "object", "required": ["month", "amount"], "properties": {
         "month": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$"}, "amount": {"type": "number", "minimum": -100000000, "maximum": 100000000},

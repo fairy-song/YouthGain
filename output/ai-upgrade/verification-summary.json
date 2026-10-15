@@ -18,6 +18,12 @@
   "build": "passed_with_existing_warnings_in_other_pages",
   "local_startup_check": "passed",
   "local_project_restart": "frontend_backend_and_api_proxy_ready",
+  "post_remote_merge": {
+    "remote_base": "a00da87",
+    "backend_full_run": {"passed": 316, "failed": 0},
+    "frontend_affected_scope": {"passed": 31, "failed": 0},
+    "compatibility": "Keep labelled UI estimates while masking unconfirmed balances in coach/HSTU snapshots. Preserve remote savings category and profile updates."
+  },
   "real_model_smoke": {
     "knowledge_retrieval": "bm25+dense+rrf+cross_encoder",
     "synthetic_query_hits_at_3": 4,

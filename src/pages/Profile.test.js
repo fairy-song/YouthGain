@@ -5,8 +5,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import Profile from './Profile';
 import { getLearning, getQuestionnaires } from '../services/learning';
 import { useAuth } from '../contexts/AuthContext';
+import { authenticatedApi } from '../services/api';
 
 jest.mock('../contexts/AuthContext', () => ({ useAuth: jest.fn() }));
+jest.mock('../services/api', () => ({ authenticatedApi: { get: jest.fn() } }));
 jest.mock('../services/learning', () => ({
   getLearning: jest.fn(), getQuestionnaires: jest.fn(), saveLearningProfile: jest.fn(), learningError: error => error.message,
 }));
@@ -22,6 +24,7 @@ beforeEach(() => {
   useAuth.mockReturnValue({ currentUser: { uid: 'student-1', email: 'student@example.com', displayName: '小青' }, logout });
   getLearning.mockResolvedValue({ profile: {}, topics: [] });
   getQuestionnaires.mockResolvedValue({ latest: null });
+  authenticatedApi.get.mockResolvedValue({ data: { data: {}, goals: [] } });
 });
 
 test('the My page signs out and returns to login', async () => {

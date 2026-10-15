@@ -93,7 +93,14 @@ def test_unknown_carryover_is_missing_and_actual_income_does_not_use_expected_in
         {'date': '2026-10-10', 'amount': 9000, 'transaction_type': 'transfer'},
         {'date': '2026-10-13T14:00:00+08:00', 'amount': 10000, 'transaction_type': 'income'}]
     call(client, 'put', '/api/learning/profile', {'monthly_income': 3000, 'income_day': 15})
-    assert context(client)['available_remaining_month'] is None
+    estimate = context(client)
+    assert estimate['available_remaining_month'] == 190
+    assert estimate['available_complete'] is False and estimate['complete'] is False
+    with client.application.app_context():
+        unconfirmed = finance.build_snapshot('alice')
+    assert unconfirmed['features']['available_remaining_month'] is None
+    assert unconfirmed['missing_mask']['available_remaining_month'] == 1
+    assert unconfirmed['features']['planned_free_now'] is None
     opening(client, 100)
     assert context(client)['available_remaining_month'] == 290
     with client.application.app_context():
@@ -139,7 +146,8 @@ def test_carryover_retry_validation_and_user_isolation(client):
     for amount in (True, 'NaN', 'Infinity'):
         assert call(client, 'post', '/api/decision/funds/carryover', {'month': '2026-10', 'amount': amount}).status_code == 400
     assert call(client, 'post', '/api/decision/funds/carryover', {'month': '2026-11', 'amount': 1}).status_code == 400
-    assert call(client, 'get', '/api/decision/funds', user='bob').json['data']['available_remaining_month'] is None
+    other = call(client, 'get', '/api/decision/funds', user='bob').json['data']
+    assert other['available_remaining_month'] == 0 and other['available_complete'] is False
 
 
 def test_concurrent_absolute_goal_updates_create_one_funds_delta(client):

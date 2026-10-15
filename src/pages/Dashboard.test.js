@@ -245,15 +245,15 @@ test('leaving the page open across midnight reloads monthly spending', async () 
 test('ledger opens with records only and navigation exposes one section at a time', async () => {
   render(<MemoryRouter initialEntries={['/dashboard']}><Dashboard /></MemoryRouter>);
   expect(await screen.findByRole('heading', { name: '记一笔收支' })).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: '设定储蓄目标' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: '设定其他储蓄目标' })).not.toBeInTheDocument();
   expect(screen.queryByText('这笔钱花了会怎样？')).not.toBeInTheDocument();
   expect(screen.getByRole('link', { name: '买之前，比较选择' })).toHaveAttribute('href', '/learning?tab=decision');
   fireEvent.click(screen.getByRole('link', { name: '储蓄目标' }));
-  expect(await screen.findByRole('heading', { name: '设定储蓄目标' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: '设定其他储蓄目标' })).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: '记一笔收支' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('link', { name: '详细分析' }));
   expect(await screen.findByRole('heading', { name: '支出结构' })).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: '设定储蓄目标' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: '设定其他储蓄目标' })).not.toBeInTheDocument();
 });
 test('future expense deep links open the relocated feature', async () => {
   render(<MemoryRouter initialEntries={['/dashboard?tab=upcoming']}><Dashboard /></MemoryRouter>);

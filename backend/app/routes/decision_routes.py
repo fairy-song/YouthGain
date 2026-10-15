@@ -574,10 +574,14 @@ def _funds(user_id):
     try:
         snapshot = finance_context_service.build_snapshot(user_id)
         keys = ('carryover_month', 'available_remaining_month', 'savings_locked_total', 'savings_net_transfer_month')
+        funds_status = snapshot.get('funds_status', {})
+        confirmed = snapshot['features']['available_remaining_month'] is not None
+        available = snapshot['features']['available_remaining_month'] if confirmed else funds_status.get('available_estimate')
         return {**{k: snapshot['features'][k] for k in keys},
+                'available_remaining_month': available, 'available_complete': confirmed,
                 'month': snapshot['as_of'][:7], 'as_of': snapshot['as_of'],
-                'complete': snapshot['features']['available_remaining_month'] is not None,
-                'reason': None if snapshot['features']['available_remaining_month'] is not None else 'carryover_or_sources_missing'}
+                'complete': confirmed,
+                'reason': None if confirmed else funds_status.get('reason', 'carryover_or_sources_missing')}
     except Exception:
         logger.exception('Funds context unavailable')
         return {'complete': False, 'available_remaining_month': None, 'reason': 'finance_source_unavailable'}
