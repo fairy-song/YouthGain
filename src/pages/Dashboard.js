@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Container, Row, Col, Card, Button, Badge, Form, Spinner, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Badge, Form, Spinner, Alert, Modal } from 'react-bootstrap';
 import { Link, useSearchParams } from 'react-router-dom';
 import { FaPiggyBank, FaExchangeAlt, FaLightbulb, FaExclamationTriangle, FaMicrophone } from 'react-icons/fa';
-import { getDecisionReport, listTransactions, getOpportunityCost, createTransaction, getUserGoals, createGoal, deleteGoal, updateGoal } from '../services/api';
+import { getDecisionReport, listTransactions, getOpportunityCost, createTransaction, deleteTransaction, deleteBillImportRow, getUserGoals, createGoal, deleteGoal, updateGoal } from '../services/api';
 import FinanceVisuals, { dateKey } from '../components/FinanceVisuals';
 import MonthlyAvailableFunds from '../components/MonthlyAvailableFunds';
 import BackfillBillModal from '../components/ledger/BackfillBillModal';
@@ -37,6 +37,10 @@ const Dashboard = () => {
   const [reflections, setReflections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteMessage, setDeleteMessage] = useState('');
 
   const [monthlyIncome, setMonthlyIncome] = useState(undefined);
   const [reload, setReload] = useState(0);
@@ -166,8 +170,35 @@ const Dashboard = () => {
     setGoals([]);
     setReflections([]);
     setRecordResult(null);
+    setPendingDelete(null);
+    setDeleteError('');
+    setDeleteMessage('');
     return () => { feedbackVersion.current += 1; };
   }, [currentUser?.uid]);
+
+  const handleDeleteTransaction = async () => {
+    if (!pendingDelete || deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    setDeleteMessage('');
+    try {
+      if (pendingDelete.batch_id) {
+        await deleteBillImportRow(String(pendingDelete.batch_id).replace(/^import:/, ''), pendingDelete.row_id);
+      } else {
+        await deleteTransaction(pendingDelete.id);
+      }
+      setTransactions(rows => rows.filter(row => row.id !== pendingDelete.id));
+      feedbackVersion.current += 1;
+      setRecordResult(null);
+      setPendingDelete(null);
+      setDeleteMessage('账单已删除。');
+      await refreshLedger();
+    } catch (err) {
+      setDeleteError(err?.response?.data?.message || err?.message || '删除失败，请重试');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // 保存收支后刷新；只有支出才请求机会成本反馈。
   const handleRecordTransaction = async (event) => {
@@ -219,7 +250,7 @@ const Dashboard = () => {
         // 入不敷出时后端返回 409：记账已成功，只提示机会成本暂无法计算
         if (feedback === feedbackVersion.current) setRecordResult({
           unavailable: true,
-          message: '账目已保存。' + (costErr?.response?.data?.message || '机会成本暂时无法计算'),
+          message: '账目已保存。' + (costErr?.response?.data?.message || '暂无法换算这笔消费对应的结余积累天数。'),
         });
       });
 
@@ -526,6 +557,7 @@ const Dashboard = () => {
                     <h5 className="card-title mb-0">最近账单</h5><span className="small text-muted ms-2">最多显示 50 笔；上方统计包含本月全部已记录交易</span>{categoryFilter && <Button variant="link" onClick={() => setCategoryFilter('')}>{categoryFilter} · 清除筛选</Button>}
                   </div>
                 </div>
+                {deleteMessage && <Alert variant="success" className="small" dismissible onClose={() => setDeleteMessage('')}>{deleteMessage}</Alert>}
                 <div className="table-responsive">
                   <table className="table table-hover recent-transactions">
                     <thead className="table-light">
@@ -537,12 +569,13 @@ const Dashboard = () => {
                         <th scope="col">备注</th>
                         <th scope="col" className="text-end">金额</th>
                         <th scope="col">回访</th>
+                        <th scope="col" className="transaction-actions">操作</th>
               </tr>
             </thead>
             <tbody>
               {transactions.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center text-muted py-4">
+                  <td colSpan="8" className="text-center text-muted py-4">
                     还没有收支记录
                   </td>
                 </tr>
@@ -577,6 +610,11 @@ const Dashboard = () => {
                     <td>
                       {t.source === 'manual' ? (!t.transaction_type || t.transaction_type === 'expense' ? <TransactionReflection transactionId={t.id} saved={reflections.find(r => r.transaction_id === String(t.id))} /> : '—') : <Button size="sm" variant="link" onClick={() => setImportMode(t.transaction_type && t.transaction_type !== 'expense' ? 'receipt' : 'expense')}>修改导入记录</Button>}
                     </td>
+                    <td className="text-nowrap transaction-actions">
+                      <Button size="sm" variant="outline-danger" disabled={deleting || t.id == null}
+                        aria-label={`删除账单 ${t.items || t.category || ''} ${t.id}`}
+                        onClick={() => { setDeleteError(''); setPendingDelete(t); }}>删除</Button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -589,6 +627,18 @@ const Dashboard = () => {
         </Row>}
         
       </Container>
+      <Modal show={Boolean(pendingDelete)} onHide={() => { if (!deleting) { setPendingDelete(null); setDeleteError(''); } }}
+        centered backdrop={deleting ? 'static' : true} keyboard={!deleting} aria-labelledby="delete-transaction-title">
+        <Modal.Header closeButton={!deleting}><Modal.Title id="delete-transaction-title">删除账单</Modal.Title></Modal.Header>
+        <Modal.Body>
+          <p>确认删除这笔账单？删除后将重新计算收支统计。</p>
+          {pendingDelete && <p className="fw-semibold">{pendingDelete.date} · {pendingDelete.items || pendingDelete.category} · ¥{Number(pendingDelete.amount).toLocaleString()}</p>}
+          {pendingDelete?.batch_id && <p className="small text-muted">只移除此笔记录，不影响同批导入的其他账单。</p>}
+          {deleteError && <Alert variant="danger" className="mb-0">{deleteError}</Alert>}
+        </Modal.Body>
+        <Modal.Footer><Button variant="secondary" disabled={deleting} onClick={() => { setPendingDelete(null); setDeleteError(''); }}>取消</Button>
+          <Button variant="danger" disabled={deleting} onClick={handleDeleteTransaction}>{deleting ? '删除中…' : '确认删除'}</Button></Modal.Footer>
+      </Modal>
       
       {/* 语音记账 + AI 消费评估弹窗 */}
       {showBackfillModal && <BackfillBillModal onClose={() => setShowBackfillModal(false)} onSaved={async () => {
@@ -613,6 +663,17 @@ const Dashboard = () => {
         }
         .recent-transactions th {
           white-space: nowrap;
+        }
+        .recent-transactions .transaction-actions {
+          position: sticky;
+          right: 0;
+          z-index: 1;
+          background: #fff;
+          box-shadow: -1px 0 0 #e5ebe7;
+        }
+        .recent-transactions thead .transaction-actions {
+          z-index: 2;
+          background: #f8f9fa;
         }
         .dashboard-page {
           position: relative;

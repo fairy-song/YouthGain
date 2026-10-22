@@ -348,6 +348,12 @@ export const editBillImportRow = async (sha256, rowId, changes) => {
   window.dispatchEvent(new Event('transaction-saved'));
   return result;
 };
+
+export const deleteBillImportRow = async (sha256, rowId) => {
+  const result = (await api.delete(`/decision/imports/${encodeURIComponent(sha256)}/rows/${encodeURIComponent(rowId)}`)).data;
+  window.dispatchEvent(new Event('transaction-saved'));
+  return result;
+};
 export const revertBillImportEdit = async sha256 => {
   const result = (await api.post(`/decision/imports/${sha256}/revert-edit`)).data.data;
   window.dispatchEvent(new Event('transaction-saved'));

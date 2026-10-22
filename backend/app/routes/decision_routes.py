@@ -348,8 +348,8 @@ def get_opportunity_cost(user_info):
     if monthly_surplus <= 0:
         return jsonify({
             'status': 'unavailable',
-            'message': '你目前每月支出不低于收入，机会成本暂时无法计算。'
-                       '建议先看看支出结构，找出可以调整的部分。',
+            'message': '按当前收入与支出记录估算，月结余为零或负数，暂无法换算这笔消费对应的结余积累天数。'
+                       '请先核对收支记录，再结合预算调整资金安排。',
             'data': {'monthly_surplus': monthly_surplus},
         }), 409
 
@@ -494,13 +494,16 @@ def import_detail(user_info, digest):
         return jsonify(status='error', message='导入明细暂时无法读取'), 503
 
 
-@decision_bp.route('/imports/<digest>/rows/<int:row_id>', methods=['PUT'])
+@decision_bp.route('/imports/<digest>/rows/<int:row_id>', methods=['PUT', 'DELETE'])
 @require_auth
 def edit_import_row(user_info, digest, row_id):
     if not re.fullmatch(r'[0-9a-f]{64}', digest):
         return jsonify(status='error', message='导入批次编号无效'), 400
     try:
-        bill_import.update_row(user_info['uid'], digest, row_id, request.get_json(silent=True))
+        if request.method == 'DELETE':
+            bill_import.remove_row(user_info['uid'], digest, row_id)
+        else:
+            bill_import.update_row(user_info['uid'], digest, row_id, request.get_json(silent=True))
         return jsonify(status='success', data=bill_import.batch_detail(user_info['uid'], digest)), 200
     except ValueError as error:
         return jsonify(status='error', message=str(error)), 400
@@ -718,7 +721,7 @@ def delete_transaction(user_info, transaction_id):
     """删除一笔收支记录。"""
     try:
         if bill_import.manual_has_refunds(user_info['uid'], transaction_id):
-            return jsonify(status='error', message='退款仍关联这笔支出，请先修改退款关联或撤销退款批次'), 400
+            return jsonify(status='error', message='退款仍关联这笔支出，请先删除退款记录或修改退款关联'), 400
     except Exception:
         return jsonify(status='error', message='暂时无法核对退款关联，未删除支出'), 503
     success, message = user_data_service.delete_user_data(

@@ -4,6 +4,65 @@ import re
 
 VERSION = 'coach-tools-v2'
 
+_PRICE = r'(?P<price>(?P<amount>(?<![\d.])(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?(?![\d.]))\s*(?:元|块(?:钱)?))'
+_PURCHASE_PATTERNS = [
+    r'(?:想|打算|准备|计划|考虑|预计|要|只)\s*(?:花|用|拿出|支付)\s*' + _PRICE,
+    r'(?:买|购买|购入|换购)[^，。！？；\n\d]{0,12}' + _PRICE,
+    r'(?:这笔消费|本次消费|消费预算|购物预算|预算金额|(?<!月)(?<!总)预算)\s*(?:是|为|约|大约|:|：)?\s*' + _PRICE,
+]
+_CORRECTION = r'(?:改成|改为|改买|换成|换为|降到|降至)\s*(?:花|预算|价格|金额)?\s*' + _PRICE
+
+
+def _purchase_candidates(message):
+    matches = []
+    for pattern in _PURCHASE_PATTERNS:
+        for match in re.finditer(pattern, message):
+            prefix = message[max(0, match.start()-8):match.start()]
+            if re.search(r'(?:不|没|没有|不是|并非|取消|别)\s*$', prefix):
+                continue
+            if match[0].startswith('预算') and re.search(r'月|年度|生活|家庭|开支|收入|总', prefix):
+                continue
+            value = Decimal(match['amount'].replace(',', ''))
+            if Decimal('0.01') <= value <= Decimal('100000000'):
+                matches.append((float(value), *match.span('price')))
+    return matches
+
+
+def extract_purchase_amount(message, history=(), *, reuse_previous=True):
+    """Read explicit shopping amounts, never assistant estimates or unrelated totals."""
+    users = [m['content'] for m in history[-10:] if m.get('role') == 'user']
+    purchase_context = bool(re.search(r'买|消费|购物|耳机|预算', message) or
+                            any(_purchase_candidates(t) for t in users[-2:]))
+    corrections = list(re.finditer(_CORRECTION, message)) if purchase_context else []
+    if corrections:
+        value = Decimal(corrections[-1]['amount'].replace(',', ''))
+        return float(value) if Decimal('0.01') <= value <= Decimal('100000000') else None
+    if re.search(r'取消|不买了|预算不确定|金额不确定|还没定', message):
+        return None
+    candidates = _purchase_candidates(message)
+    values = {c[0] for c in candidates}
+    alternatives = re.search(r'\d+(?:\.\d+)?\s*元[^，。！？；\n]{0,12}(?:还是|或者|或|和|与|、)[^，。！？；\n\d]{0,12}\d+(?:\.\d+)?\s*元', message)
+    if len(values) == 1 and not alternatives:
+        return candidates[0][0]
+    if candidates or re.search(r'不买|取消|预算不确定|金额不确定|还没定', message):
+        return None
+    if reuse_previous and re.search(r'这笔|这次|刚才|这个|那个|^那|^为什么|怎么算|计算依据|等价结余天数', message):
+        # A follow-up may reuse only the immediately preceding user turn.
+        return extract_purchase_amount(users[-1], [{'role': 'user', 'content': t} for t in users[:-1]]) if users else None
+    return None
+
+
+def bind_purchase_input(message, fact):
+    """Bind only the explicit purchase span; equal income/expense amounts stay distinct."""
+    matches = _purchase_candidates(message)
+    matches += [(float(Decimal(m['amount'].replace(',', ''))), *m.span('price'))
+                for m in re.finditer(_CORRECTION, message)]
+    spans = {(start, end) for value, start, end in matches
+             if Decimal(str(value)) == Decimal(str(fact['value']))}
+    for start, end in sorted(spans, reverse=True):
+        message = message[:start] + '{{F:purchase_amount}}' + message[end:]
+    return message
+
 
 def understand(message, history):
     previous = [m['content'][:600] for m in history[-6:] if m.get('role') == 'user']
@@ -50,7 +109,7 @@ def _extract_scenario(message, history):
     return inputs
 
 
-def fact_catalog(calculation=None, snapshot=None, *, message='', history=()):
+def fact_catalog(calculation=None, snapshot=None, *, message='', history=(), purchase_amount=None):
     facts = []
 
     def add(identifier, label, value, unit='元', source='system_calculation', assumptions=None):
@@ -72,6 +131,9 @@ def fact_catalog(calculation=None, snapshot=None, *, message='', history=()):
         ('equivalent_surplus_days', '消费等价结余天数', '天')]:
         if key in calculation:
             add('F:'+key, label, calculation[key], unit, assumptions=(condition + [calculation.get('delay_assumption', '')]) if key == 'equivalent_surplus_days' else condition)
+    if purchase_amount is not None and 'purchase_amount' not in calculation:
+        add('F:purchase_amount', '本次明确的试算金额', purchase_amount, source='user_message',
+            assumptions=['用户本次消费设想，不代表已发生交易。'])
     if snapshot:
         features = snapshot['features']
         for key, label in [
@@ -105,7 +167,7 @@ def safe_reply(evidence):
     """A labelled, fully server-rendered fallback, never an unverified model reply."""
     facts = evidence.get('facts', [])
     selected = [f for f in facts if f['id'] in {
-        'F:spent_this_month', 'F:available_remaining_month', 'F:planned_free_now',
+        'F:purchase_amount', 'F:spent_this_month', 'F:available_remaining_month', 'F:planned_free_now',
         'F:equivalent_surplus_days', 'F:scenario_surplus'}]
     if selected:
         parts = ['本轮先按已经核实的输入看资金安排：']

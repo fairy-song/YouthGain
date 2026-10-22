@@ -88,6 +88,22 @@ def validate_reply(raw, evidence):
     if structured and isinstance(fact_ids, list) and all(isinstance(f, str) for f in fact_ids):
         explanation, literal_bindings = _bind_literal_scenario(explanation, facts, fact_ids)
     slots = set(SLOT.findall(explanation))
+    if 'F:purchase_amount' in facts and re.search(
+            r'(?:预算金额|购买金额|消费金额|试算金额|本次金额).{0,12}(?:未提供|没有提供|未知|缺失)|'
+            r'(?:未提供|没有提供|缺少).{0,12}(?:预算金额|购买金额|消费金额|试算金额)', explanation):
+        errors.append('known_purchase_amount_claimed_missing')
+    if 'F:purchase_amount' in facts and re.search(
+            r'(?:无法|不能|没办法|未能)(?:直接|准确|具体)?(?:计算|确定|获取|读取|识别)'
+            r'[^。！？\n]{0,24}(?:购买|消费|耳机|预算)[^。！？\n]{0,12}(?:具体金额|价格|预算金额|购买金额)|'
+            r'(?:不知道|不清楚|尚不明确)[^。！？\n]{0,16}(?:购买金额|消费金额|预算金额)', explanation):
+        errors.append('known_purchase_amount_claimed_missing')
+    # The input is already established, even when downstream calculations lack
+    # income or coverage. Require acknowledgement before accepting an analysis.
+    if 'F:purchase_amount' in facts and 'F:purchase_amount' not in slots:
+        errors.append('known_purchase_amount_not_acknowledged')
+    if any(facts[k]['value'] < 0 for k in slots & {'F:remaining_estimate', 'F:after_purchase_estimate'}):
+        if re.search(r'(?:可用于|可以用于|用于)额外支出|可自由支配', explanation) and not re.search(r'不能|不可|无法|不等于|不是', explanation):
+            errors.append('negative_surplus_is_not_spendable')
     if not isinstance(fact_ids, list) or any(not isinstance(f, str) or f not in facts for f in fact_ids):
         errors.append('unknown_fact')
     elif structured and slots != set(fact_ids):

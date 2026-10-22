@@ -12,6 +12,17 @@ jest.mock('../../services/api', () => ({
 }));
 beforeEach(() => { jest.clearAllMocks(); listBillCategories.mockResolvedValue([]); });
 
+test('deleted imported rows remain visible as history without editable accounting controls', async () => {
+  listBillImports.mockResolvedValue([{ sha256: 'deleted-batch', source: 'wechat', count: 1, status: 'committed' }]);
+  getBillImport.mockResolvedValue({ sha256: 'deleted-batch', source: 'wechat', status: 'committed', can_revert_edit: true,
+    rows: [{ row_id: 9, date: '2026-10-01', transaction_type: 'refund', amount: '10.00', category: '餐饮', decision: 'deleted', related_source_id: 'P-1' }] });
+  render(<CsvImportModal onClose={() => {}} onSaved={async () => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: '查看并修改' }));
+  expect(await screen.findByText('已删除，不参与统计')).toBeInTheDocument();
+  expect(screen.queryByRole('combobox', { name: '修改第 9 行退款关联' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '撤销上次修改' })).toBeEnabled();
+});
+
 async function openCategory(label) {
   fireEvent.click(await screen.findByRole('combobox', { name: label }));
   return screen.findByRole('listbox', { name: `${label}选项` });

@@ -89,6 +89,8 @@ def compute_facts(transactions, income, amount=None, today=None, skipped=0, limi
     # Only summarized evidence enters the already-authorized coach facts flow.
     facts['pca'] = {**pca, 'components': [{k: v for k, v in c.items() if k != 'scores'}
                                        for c in pca['components']]}
+    if amount is not None:
+        facts['purchase_amount'] = amount
     if income is None or not transactions:
         facts['message'] = '资料或消费记录不足，暂不估算结余和目标影响。'
         return facts

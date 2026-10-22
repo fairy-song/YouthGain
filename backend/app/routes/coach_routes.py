@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify
 from app.services.auth_service import require_auth
 from app.services.coach_evidence import compute_facts, VERSION
 from app.services.knowledge_retriever import retrieve_knowledge
-from app.services.coach_tools import understand, fact_catalog
+from app.services.coach_tools import understand, fact_catalog, extract_purchase_amount
 from app.services.learning_service import number
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,12 @@ def chat(user_info):
     if sum(len(m['content']) for m in history) > 32000:
         return jsonify(status='error', message='对话历史过长，请开始新对话'), 400
     task = understand(data['message'].strip(), history)
+    # A clear amount in this turn supersedes a stale optional form value.
+    current_amount = extract_purchase_amount(data['message'].strip(), history, reuse_previous=False)
+    if current_amount is not None:
+        amount = current_amount
+    elif amount is None:
+        amount = extract_purchase_amount(data['message'].strip(), history)
     snapshot = None
     evidence = {'version': VERSION, 'sources': [], 'calculation': None, 'knowledge_status': 'available',
                 'task': task, 'financial_context_authorized': data.get('use_learning_context') is True}
@@ -86,7 +92,8 @@ def chat(user_info):
                 evidence['snapshot_status'] = 'unavailable'
         except Exception:
             return jsonify(status='error', message='成长记录读取失败。请重试，或关闭引用记录后继续对话。'), 503
-    evidence['facts'] = fact_catalog(evidence['calculation'], snapshot, message=data['message'], history=history)
+    evidence['facts'] = fact_catalog(evidence['calculation'], snapshot, message=data['message'], history=history,
+                                     purchase_amount=amount)
     response = zhipuai_service.get_chat_response({'message': data['message'].strip(), 'user_id': user_info['uid'],
                                                   'chat_history': history[-10:], 'learning_context': context,
                                                   'evidence': evidence})

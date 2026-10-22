@@ -637,8 +637,10 @@ class UserDataService:
                     return False, "数据不存在"
                 
                 data_list = _dev_db["users"][user_id][data_type]
+                if not any(str(data.get('id')) == str(data_id) for data in data_list):
+                    return False, "数据不存在"
                 _dev_db["users"][user_id][data_type] = [
-                    data for data in data_list if data.get('id') != data_id
+                    data for data in data_list if str(data.get('id')) != str(data_id)
                 ]
                 persist_dev_db()
                 return True, "数据删除成功"

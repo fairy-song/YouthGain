@@ -362,6 +362,8 @@ def _finish_rows(uid, source, rows, prior):
                  for row in chain(prior, rows, manual) if row.get('transaction_type') == 'expense'
                  and row.get('decision', 'import') == 'import' and row.get('source_transaction_id')}
     for row in rows:
+        if row.get('decision') == 'deleted':
+            continue
         if row['transaction_type'] == 'review':
             row.update(decision='review', reason='自定义待核对，不参与统计')
         elif row['transaction_type'] == 'refund':
@@ -549,6 +551,28 @@ def _write_revised(uid, batch, rows, history):
     return learning_store.write_entry(uid, batch['id'], record)
 
 
+def remove_row(uid, digest, row_id):
+    """Remove one imported ledger entry, keeping its source and undo history."""
+    batch = learning_store.read_entry(uid, f'import:{digest}')
+    if not batch or batch.get('kind') != 'import_batch' or batch.get('status') != 'committed':
+        raise ValueError('导入批次不存在或已撤销')
+    rows = [dict(row) for row in batch['rows']]
+    target = next((row for row in rows if row['row_id'] == row_id), None)
+    if target is None:
+        raise ValueError('交易不存在')
+    if target.get('decision') == 'deleted':
+        return batch
+    if target.get('transaction_type') == 'expense':
+        key = (batch['source'], target.get('source_transaction_id'))
+        if any(row.get('transaction_type') == 'refund' and _related_key(row) == key
+               for row in active_rows(uid)):
+            raise ValueError('退款仍关联这笔支出，请先删除退款或修改退款关联')
+    previous = {key: target.get(key) for key in ('decision', 'reason')}
+    target.update(decision='deleted', reason='用户删除，不参与统计')
+    history = (batch.get('edit_history') or [])[-19:] + [{'row_id': row_id, 'previous': previous}]
+    return _write_revised(uid, batch, rows, history)
+
+
 def update_row(uid, digest, row_id, changes):
     batch = learning_store.read_entry(uid, f'import:{digest}')
     if not batch or batch.get('kind') != 'import_batch' or batch.get('status') != 'committed':
@@ -559,6 +583,8 @@ def update_row(uid, digest, row_id, changes):
     target = next((row for row in rows if row['row_id'] == row_id), None)
     if target is None:
         raise ValueError('交易不存在')
+    if target.get('decision') == 'deleted':
+        raise ValueError('交易已删除，请先撤销上次修改后再编辑')
     previous = {key: target.get(key) for key in ('category', 'category_id', 'receipt_kind',
                 'related_source_id', 'related_source', 'transaction_type', 'original_transaction_type',
                 'custom_category_name', 'original_category', 'original_receipt_kind', 'decision', 'reason')}

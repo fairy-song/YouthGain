@@ -247,19 +247,19 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
       {batches.some(batch => batch.status === 'committed') && <div className="mt-4"><h6>已导入批次</h6>{batches.filter(batch => batch.status === 'committed').map(batch => <div className="d-flex gap-2 align-items-center mb-2" key={batch.sha256}><span className="small">{batch.created_at?.slice(0, 16)} · {batch.source === 'wechat' ? '微信支付' : '青盈标准账单'} · {batch.count} 行</span><Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => openBatch(batch.sha256)}>查看并修改</Button><Button size="sm" variant="outline-danger" disabled={busy} onClick={() => undo(batch.sha256)}>撤销整批</Button></div>)}</div>}
       {activeBatch?.status === 'committed' && <div className="mt-3 border rounded p-3">
         <div className="d-flex flex-wrap gap-2 align-items-center mb-2"><h6 className="mb-0">逐笔修改</h6><Button size="sm" variant="outline-secondary" disabled={busy || !activeBatch.can_revert_edit} onClick={revertEdit}>撤销上次修改</Button>{!preview && <Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => setShowCategoryCreate(true)}>自定义分类</Button>}</div>
-        <p className="small text-muted">可改分类、收款类型和退款关联；待核对记录确认类型并补齐关联后才计入统计。每次保存后可撤销，整批也可撤销。金额或日期有误时，撤销整批后重新导入。</p>
+        <p className="small text-muted">可改分类、收款类型和退款关联；待核对记录确认类型并补齐关联后才计入统计。可在最近账单删除单笔记录，通过“撤销上次修改”恢复。金额或日期有误时，也可撤销整批后重新导入。</p>
         <div className="table-responsive" style={{ maxHeight: '30vh' }}><Table size="sm"><thead><tr><th>日期</th><th>类型</th><th>金额</th><th>当前分类</th><th>修改</th></tr></thead><tbody>{activeBatch.rows.map(row => {
           const change = rowDrafts[row.row_id] || {};
           const kind = effectiveKind(row, change);
           const link = change.related_source_id ?? row.related_source_id ?? '';
           return <tr key={row.row_id}>
-            <td>{row.date}</td><td>{typeLabel[kind]}{row.decision === 'review' && <small className="d-block">尚未计入统计</small>}</td><td>¥{row.amount}</td>
+            <td>{row.date}</td><td>{typeLabel[kind]}{row.decision === 'review' && <small className="d-block">尚未计入统计</small>}{row.decision === 'deleted' && <small className="d-block text-muted">已删除，不参与统计</small>}</td><td>¥{row.amount}</td>
             <td>{row.custom_category_name || (row.transaction_type === 'refund' ? `关联 ${row.related_source_id || '尚未选择'}` : receiptLabel[row.receipt_kind] || row.category)}</td>
-            <td>{kind === 'expense' ? <Form.Select size="sm" aria-label={`修改第 ${row.row_id} 行类别`} value={change.category || row.category} disabled={busy} onChange={e => setRowDraft(row.row_id, 'category', e.target.value)}>{[...new Set([row.category, ...categories])].filter(Boolean).map(value => <option key={value}>{value}</option>)}</Form.Select>
+            <td>{row.decision === 'deleted' ? <span className="small text-muted">删除记录保留在导入历史中</span> : <>{kind === 'expense' ? <Form.Select size="sm" aria-label={`修改第 ${row.row_id} 行类别`} value={change.category || row.category} disabled={busy} onChange={e => setRowDraft(row.row_id, 'category', e.target.value)}>{[...new Set([row.category, ...categories])].filter(Boolean).map(value => <option key={value}>{value}</option>)}</Form.Select>
               : kind === 'refund' ? <ImportPurchaseEditor label={`修改第 ${row.row_id} 行退款关联`} source={activeBatch.source} value={purchaseValue({ source_transaction_id: link, source: change.related_source || row.related_source || activeBatch.source }, activeBatch.source)} purchases={importedPurchases} disabled={busy} onChange={(id, from) => choosePurchase(row, id, from, true)} onAdded={purchase => addedPurchase(purchase, true)} onError={setError} onBusyChange={setChildBusy} />
                 : ['income', 'transfer'].includes(kind) && (kind === 'income' || ['income', '收入', 'neutral'].includes(row.direction)) ? <Form.Select size="sm" aria-label={`修改第 ${row.row_id} 行收款类型`} value={change.receipt_kind || row.receipt_kind || 'internal_transfer'} disabled={busy} onChange={e => setRowDraft(row.row_id, 'receipt_kind', e.target.value)}>{Object.entries(receiptLabel).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Form.Select> : null}
               <CustomBillCategorySelect label={`修改第 ${row.row_id} 行自定义分类`} row={row} change={change} options={customOptions} disabled={busy} onChange={id => chooseCustom(row.row_id, id, true)} />
-              <Button size="sm" variant="outline-success" disabled={busy || !rowDrafts[row.row_id]} onClick={() => saveRow(row)}>保存</Button>
+              <Button size="sm" variant="outline-success" disabled={busy || !rowDrafts[row.row_id]} onClick={() => saveRow(row)}>保存</Button></>}
             </td>
           </tr>;
         })}</tbody></Table></div>

@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, act, within } from '@testing-librar
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import Dashboard from './Dashboard';
-import { getDecisionReport, listTransactions, getUserGoals, createTransaction, getOpportunityCost } from '../services/api';
+import { getDecisionReport, listTransactions, getUserGoals, createTransaction, getOpportunityCost, deleteTransaction, deleteBillImportRow } from '../services/api';
 import { getLearning, getLearningProfile } from '../services/learning';
 import { dateKey } from '../components/FinanceVisuals';
 const funds = available => ({ month: dateKey().slice(0, 7), complete: true, available_remaining_month: available,
@@ -16,7 +16,7 @@ const cashflow = (spent, category = '餐饮') => ({
   has_expense_records: spent > 0, has_income_records: false,
 });
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'u1' } }) }));
-jest.mock('../services/api', () => ({ getDecisionReport: jest.fn(), listTransactions: jest.fn(), getUserGoals: jest.fn(), createTransaction: jest.fn(), getOpportunityCost: jest.fn() }));
+jest.mock('../services/api', () => ({ getDecisionReport: jest.fn(), listTransactions: jest.fn(), getUserGoals: jest.fn(), createTransaction: jest.fn(), getOpportunityCost: jest.fn(), deleteTransaction: jest.fn(), deleteBillImportRow: jest.fn() }));
 jest.mock('../services/learning', () => ({ getLearning: jest.fn(), getLearningProfile: jest.fn() }));
 jest.mock('../components/VoiceBillModal', () => () => null);
 jest.mock('../components/GoalCashflow', () => ({ __esModule: true, default: () => null, GoalReserveHint: () => null }));
@@ -125,7 +125,8 @@ test('income entry updates funds without consumption feedback or reflection', as
   expect(await screen.findByText('¥2,200.00')).toBeInTheDocument();
   const row = screen.getByText('节日红包').closest('tr');
   expect(within(row).getByText('+¥200')).toHaveClass('text-success');
-  expect(within(row).queryByRole('button')).not.toBeInTheDocument();
+  expect(within(row).getAllByRole('button')).toHaveLength(1);
+  expect(within(row).getByRole('button', { name: '删除账单 节日红包 income-1' })).toBeInTheDocument();
   expect(screen.getByLabelText('收入说明（可选）')).toHaveValue('');
 });
 
@@ -259,4 +260,48 @@ test('future expense deep links open the relocated feature', async () => {
   render(<MemoryRouter initialEntries={['/dashboard?tab=upcoming']}><Dashboard /></MemoryRouter>);
   expect(await screen.findByRole('heading', { name: '未来开支' })).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: '记一笔收支' })).not.toBeInTheDocument();
+});
+
+test('deleting a mistaken manual bill requires confirmation and refreshes the totals', async () => {
+  const bill = { id: 'wrong-1', source: 'manual', date: dateKey(), amount: 80, category: '餐饮', items: '误记午餐' };
+  listTransactions.mockResolvedValue({ transactions: [bill], monthly_cashflow: cashflow(80) });
+  render(<MemoryRouter><Dashboard /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: '删除账单 误记午餐 wrong-1' }));
+  const dialog = screen.getByRole('dialog', { name: '删除账单' });
+  expect(deleteTransaction).not.toHaveBeenCalled();
+  deleteTransaction.mockResolvedValue({ status: 'success' });
+  listTransactions.mockResolvedValue({ transactions: [], monthly_cashflow: cashflow(0) });
+  fireEvent.click(within(dialog).getByRole('button', { name: '确认删除' }));
+  await waitFor(() => expect(deleteTransaction).toHaveBeenCalledWith('wrong-1'));
+  expect(await screen.findByText('还没有收支记录')).toBeInTheDocument();
+  expect(screen.queryByText('误记午餐')).not.toBeInTheDocument();
+  expect(within(screen.getByRole('region', { name: '本月收支摘要' })).getAllByText('¥0.00').length).toBeGreaterThan(0);
+});
+
+test('cancel and failed deletion preserve the bill and show a recoverable error', async () => {
+  listTransactions.mockResolvedValue({ transactions: [{ id: 'keep', source: 'manual', date: dateKey(), amount: 10, category: '餐饮', items: '保留午餐' }] });
+  render(<MemoryRouter><Dashboard /></MemoryRouter>);
+  const button = await screen.findByRole('button', { name: '删除账单 保留午餐 keep' });
+  fireEvent.click(button);
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '取消' }));
+  expect(deleteTransaction).not.toHaveBeenCalled();
+  fireEvent.click(button);
+  deleteTransaction.mockRejectedValue({ response: { data: { message: '退款仍关联这笔支出' } } });
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '确认删除' }));
+  expect(await screen.findByText('退款仍关联这笔支出')).toBeInTheDocument();
+  expect(screen.getByText('保留午餐')).toBeInTheDocument();
+});
+
+test('an imported bill deletes only its batch row instead of the manual transaction endpoint', async () => {
+  const digest = 'a'.repeat(64);
+  listTransactions.mockResolvedValue({ transactions: [{ id: `import:${digest}:7`, batch_id: `import:${digest}`, row_id: 7,
+    source: 'wechat', date: dateKey(), amount: 15, category: '餐饮', items: '误导入' }] });
+  render(<MemoryRouter><Dashboard /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: `删除账单 误导入 import:${digest}:7` }));
+  deleteBillImportRow.mockResolvedValue({ status: 'success' });
+  listTransactions.mockResolvedValue({ transactions: [] });
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '确认删除' }));
+  await waitFor(() => expect(deleteBillImportRow).toHaveBeenCalledWith(digest, 7));
+  expect(deleteTransaction).not.toHaveBeenCalled();
+  expect(await screen.findByText('还没有收支记录')).toBeInTheDocument();
 });
