@@ -1,66 +1,63 @@
 <div align="center">
 
-<h1>青盈 · YouthGain</h1>
+# 青盈 · YouthGain
 
-<p><strong>把收支记清楚，把未来安排好。</strong></p>
+**把收支记清楚，把未来安排好。**
 
-<p>面向大学生的收支记录与财商学习应用<br />从真实消费出发，练习理解预算、储蓄与日常选择。</p>
+面向大学生的收支记录与财商学习应用。<br />
+从一笔真实消费开始，练习理解预算、储蓄与日常选择。
 
-<p>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-168575?style=flat-square" alt="MIT License" /></a>
-  <img src="https://img.shields.io/badge/React-18-149eca?style=flat-square&logo=react&logoColor=white" alt="React 18" />
-  <img src="https://img.shields.io/badge/Flask-3-333333?style=flat-square&logo=flask&logoColor=white" alt="Flask 3" />
-  <img src="https://img.shields.io/badge/SQLite-资金与推荐-4169e1?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite 资金与推荐存储" />
-</p>
+[![License: MIT](https://img.shields.io/badge/License-MIT-168575?style=flat-square)](LICENSE)
+[![React 18](https://img.shields.io/badge/React-18-149eca?style=flat-square&logo=react&logoColor=white)](package.json)
+[![Flask](https://img.shields.io/badge/Backend-Flask-333333?style=flat-square&logo=flask&logoColor=white)](backend/requirements.txt)
+[![Project status](https://img.shields.io/badge/Status-Active%20Development-d99b36?style=flat-square)](#project-status)
 
-<p>
-  <a href="#快速开始">快速开始</a> ·
-  <a href="#核心功能">核心功能</a> ·
-  <a href="#开发与验证">开发与验证</a> ·
-  <a href="#文档导航">文档导航</a> ·
-  <a href="https://github.com/fairy-song/YouthGain/issues">反馈问题</a>
-</p>
+[快速开始](#quick-start) · [功能概览](#features) · [系统设计](#architecture) · [文档](#documentation) · [参与贡献](#contributing)
 
 </div>
 
----
+## 为什么做青盈
 
-青盈把**记账、资金安排和财商练习**放在同一个应用中：记录今天的钱花在哪里，为未来开支和储蓄目标留出位置，再通过情境练习与复盘理解自己的选择。
+记下“花了多少钱”只是开始。青盈希望把消费记录进一步连接到三个问题：**钱去了哪里、接下来要留多少钱、这次选择是否符合自己的需要。**
 
-> [!NOTE]
-> 项目正在持续迭代。本说明对应当前源码；公开部署状态需单独核对。AI 教练已接入混合检索与财务事实核验，项目内提供可训练、可推理的 HSTU 网络。合成数据演示权重不能证明真实校园推荐效果。
+项目将记账、目标规划、情境练习与 AI 教练放在同一条使用路径里，让金融知识可以回到日常生活中实践。应用不会代用户支付、自动转账或执行投资交易。
 
-## 核心功能
+```text
+了解自己的情况 → 记录收支 → 安排目标与未来开支 → 比较消费选择 → 练习与复盘
+```
 
-| 入口 | 功能 |
+<a id="features"></a>
+## 功能概览
+
+| 模块 | 可以做什么 |
 | --- | --- |
-| **今天** | 当前情境练习、收支摘要、近期安排，以及每天至多一期的个性化音频推荐 |
-| **账本** | 手动与语音记账、CSV / 微信 XLSX 导入、退款关联、分类图表、储蓄目标与未来开支 |
-| **学习** | 多步情境练习、消费方案比较、反馈与复盘，根据问卷和本人记录选择学习内容 |
-| **我的** | 个人财务资料、问卷、学习主题、时区、登录与退出 |
-| **AI 教练与后台** | 独立教练对话；管理员维护用户、知识资料和已审核音频目录 |
+| 今天 | 查看本月收支、近期安排、当前情境练习与每日音频推荐 |
+| 收支账本 | 手动记账、语音转文字录入、CSV / 微信 XLSX 导入、退款关联与分类图表 |
+| 资金安排 | 区分实际收入、上月结转和储蓄锁定，管理目标金额、截止日与未来开支 |
+| 学习与复盘 | 完成多步情境练习，比较消费方案，记录选择理由并回看实际体验 |
+| AI 教练 | 围绕具体问题交流；主动授权后结合个人资料与消费汇总，展示可核对的回答依据 |
+| 知识与音频 | 阅读金融教育资料，从已审核目录推荐具体音频单集，支持收藏和反馈 |
+| 管理与研究 | 管理用户、知识与音频内容；研究参与单独授权，学校端按权限查看群体统计 |
 
-### 资金有清楚的口径
+### 财务计算与 AI 解释分开
 
 ```text
 本月可用剩余 = 上月结转结余 + 本月实际收入 − 本月净支出 − 本月净储蓄划拨
 ```
 
-储蓄目标的锁定总资金独立保存。划入储蓄会减少日常可用资金，释放则反向调整，二者都不记作收入或支出；锁定总额不会被重复扣减。预计收入与实际到账分开，缺少结转确认时显示未知。详细规则见 [财务推荐 v2 模块定义](docs/财务推荐v2模块定义.md)。
+- **实际到账才计入收入**：预计兼职收入或生活费不直接当成可用资金。
+- **储蓄独立记账**：内部划拨不算收入或消费；已锁定资金不会重复扣减。
+- **缺失数据明确提示**：没有确认结转、漏记账单或资料过期时，结果可能不完整。
+- **试算有各自口径**：收支结余、账户估算余额和本月可用剩余不能混用。详见[资金模块定义](docs/财务推荐v2模块定义.md)。
 
-### 推荐可以核对依据
-
-每日播客从审核目录中选择具体单集，结合财务快照、学习主题与历史反馈排序。当天结果固定，最近 30 日推荐过的单集会被排除；没有合适候选时显示空状态。用户可以查看推荐时点与依据，提交收藏、不感兴趣或“对我有帮助”反馈。
-
-`local_hstu` 直接应用项目内训练权重精排，`local_shadow` 仅记录模型得分；保留 `baseline / shadow / hstu` 模式及外部服务协议。权重缺失、特征不匹配或服务异常时回退规则排序。模型的因果行为序列融合资金特征、缺失掩码与学习主题，分别预测点击和有帮助反馈。训练、部署及验证见 [AI 升级实现说明](docs/AI教练与HSTU实现说明.md)。
-
-AI 教练采用 BM25、语义向量、RRF 和 Cross-Encoder 检索知识，程序独立计算收支与目标规划事实。模型解释经过数值绑定、来源编号和片段关联检查后展示，未通过时重试一次或返回明确标注的程序事实。用户可展开每轮依据；使用个人记录须在聊天页明确授权。
-
+<a id="quick-start"></a>
 ## 快速开始
 
-统一启动器面向 **Windows**，需要 **Git、Node.js 18+、Python 3.10+**。首次安装依赖需要联网。
+### 环境要求
 
-**1. 获取代码并创建本地配置**
+统一启动器面向 **Windows**，需要 **Git、Node.js 18+、Python 3.10+**。首次安装依赖需要联网。其他操作系统未通过此启动器验证。
+
+### 1. 获取源码
 
 ```powershell
 git clone https://github.com/fairy-song/YouthGain.git
@@ -68,11 +65,11 @@ cd YouthGain
 Copy-Item .env.example .env.local
 ```
 
-已有工作区请直接使用原来的配置，不要覆盖 `.env.local`。
+已有工作区请保留原配置，**不要覆盖 `.env.local`**。
 
-**2. 选择本机演示模式**
+### 2. 配置本机演示模式
 
-在 `.env.local` 中设置以下值；本机演示无需填写 Firebase 前端配置或 AI 密钥：
+在 `.env.local` 中设置：
 
 ```dotenv
 APP_ENV=development
@@ -82,108 +79,161 @@ RESEARCH_LIVE_ENABLED=false
 PODCAST_RANKER_MODE=baseline
 ```
 
-此模式使用模拟登录，不验证真实密码，只用于本机体验；不同模拟邮箱对应不同开发账户。开发数据会持久化，`DB_TYPE=memory` 不表示重启后清空。
+> [!IMPORTANT]
+> `DEV_MODE=true` 会使用模拟身份登录，不验证真实密码，仅用于可信的本机开发环境。不要填入常用真实密码，不要将开发服务暴露到公网。`DB_TYPE=memory` 的开发数据会持久化到本地文件，并非重启即清空。
 
-**3. 启动应用**
+不填写 Firebase 前端配置与 AI 密钥也可先体验记账和基础学习。语音识别、完整模型回答等能力需要另外配置服务。
+
+### 3. 启动
 
 ```powershell
 .\快速启动.cmd
 ```
 
-也可以双击根目录的 `快速启动.cmd`。启动器会准备虚拟环境和依赖，启动前后端，并检查服务是否就绪。
+也可以双击根目录的 `快速启动.cmd`。启动器会检查环境、准备虚拟环境与依赖，然后启动前后端并检查就绪状态。
 
-| 入口 | 地址 |
+| 服务 | 本地地址 |
 | --- | --- |
 | 应用 | [http://127.0.0.1:3000/#/](http://127.0.0.1:3000/#/) |
 | 后端健康检查 | [http://127.0.0.1:5001/api/health](http://127.0.0.1:5001/api/health) |
 
+本地模拟登录可使用自己的测试邮箱与任意非空密码。管理后台默认示例邮箱为 `admin@youthgain.com`，实际权限由后端 `ADMIN_EMAILS` 判定。
+
 <details>
-<summary>启动检查、重启与日志</summary>
+<summary>环境检查、重启与常见问题</summary>
 
 ```powershell
-.\快速启动.cmd -CheckOnly   # 检查本地环境
+.\快速启动.cmd -CheckOnly   # 只检查环境
 .\快速启动.cmd -Restart     # 重启本项目服务
 .\快速启动.cmd -NoBrowser   # 启动但不打开浏览器
 ```
 
-后端代码或配置更新后需要重启。服务日志位于 `logs/`；关闭启动窗口不等于停止后台服务。更多操作见 [启动与配置](docs/使用说明.md#1-启动与配置)。
+- **页面无法连接**：先检查健康接口与 `logs/` 中的前后端日志，确认端口 3000 / 5001 未被其他程序占用。
+- **修改配置没有生效**：重启后端；修改 `REACT_APP_*` 后还需重新启动或构建前端。
+- **语音不可用**：检查讯飞配置、浏览器权限和麦克风，也可使用文本录入。
+- **教练或推荐降级**：检查对应密钥、模型文件与来源目录；降级结果不代表完整模型分析成功。
+- **更新前备份**：保留开发数据、SQLite 文件和本地配置。关闭启动窗口不等于停止后台服务。
+
+详见[完整使用说明](docs/使用说明.md)。
 
 </details>
 
-## 配置与部署
+## 配置说明
 
-按需在后端配置服务；完整配置模板见 [.env.example](.env.example)。
+完整变量见 [.env.example](.env.example)。只为要启用的能力填写配置，密钥不应出现在前端源码或 Git 提交中。
 
-| 能力 | 主要配置 | 使用条件 |
+| 能力 | 主要配置 | 说明 |
 | --- | --- | --- |
-| 真实登录 | `FIREBASE_ADMIN_SDK_PATH`、前端 `REACT_APP_FIREBASE_*` | 配置 Firebase 认证，关闭 `DEV_MODE` |
-| AI 教练 | `ZHIPUAI_API_KEY`；可选 `ZHIPUAI_MODEL` | 使用已配置的外部模型服务 |
-| 语音记账 | `XFYUN_APP_ID`、`XFYUN_API_KEY`、`XFYUN_API_SECRET` | 配置讯飞服务与麦克风权限 |
-| 业务数据 | `DB_TYPE`、`MYSQL_*` 或 Firestore 配置 | 选择开发存储、MySQL 或 Firestore |
-| 资金与推荐 | `PODCAST_DB_PATH` | 储蓄目标、内部划拨、推荐、快照与事件共用持久化 SQLite |
-| HSTU 排序 | `PODCAST_RANKER_MODE`、`PODCAST_HSTU_MODEL_PATH` | 本地真实训练权重；演示权重仅限 development 且明确启用 |
-| 音频 RSS | `PODCAST_RSS_ALLOWED_HOSTS` | 仅同步已核准来源；定时任务由部署端配置 |
-| 管理后台 | `ADMIN_EMAILS` | 登录邮箱匹配管理员名单 |
+| 真实认证 | `FIREBASE_ADMIN_SDK_PATH`、`REACT_APP_FIREBASE_*` | 配置 Firebase，关闭模拟登录 |
+| AI 教练 | `ZHIPUAI_API_KEY` | 模型与检索设置见 AI 实现文档 |
+| 语音识别 | `XFYUN_APP_ID`、`XFYUN_API_KEY`、`XFYUN_API_SECRET` | 需要讯飞服务与浏览器麦克风权限 |
+| 业务存储 | `DB_TYPE`、`MYSQL_*` 或 Firestore 配置 | 开发文件存储、MySQL 或 Firestore |
+| 资金与推荐账本 | `PODCAST_DB_PATH` | 推荐、快照、储蓄目标与内部资金账目使用持久化 SQLite |
+| 推荐排序 | `PODCAST_RANKER_MODE`、`PODCAST_HSTU_MODEL_PATH` | 无有效权重时使用规则回退；演示权重不作为真实效果证据 |
+| RSS 采集 | `PODCAST_RSS_ALLOWED_HOSTS` | 仅采集经过核准的来源 |
+| 管理权限 | `ADMIN_EMAILS` | 按登录邮箱核验角色 |
+| 学校研究 | `RESEARCH_LIVE_ENABLED`、`RESEARCH_DB_PATH` | 默认不启用真实研究；需单独配置、授权与验收 |
 
-公开部署需配置认证、数据库、随机 `SECRET_KEY`、HTTPS 后端与允许的跨域来源，并关闭模拟登录。GitHub Pages 只托管前端；前端通过 `REACT_APP_API_URL` 连接实际后端。部署步骤见 [数据、部署与回退](docs/使用说明.md#9-数据部署与回退)。
+<a id="architecture"></a>
+## 系统设计
 
-## 技术与目录
+```mermaid
+flowchart LR
+    UI[React 前端] --> API[Flask API 与权限校验]
+    API --> Finance[确定性财务计算与目标规划]
+    API --> Learning[学习记录与情境练习]
+    API --> Coach[知识检索与 AI 解释校验]
+    API --> Podcast[内容审核与推荐排序]
+    Finance --> SQLite[(SQLite 资金与事件账本)]
+    Podcast --> SQLite
+    Learning --> Store[(开发存储 / MySQL / Firestore)]
+    Coach --> Knowledge[知识资料与本地检索模型]
+    Coach --> Provider[已配置的外部 AI 服务]
+```
 
-前端采用 **React 18、React Router、React Bootstrap 与 Three.js**；后端采用 **Flask**。收支计算、资金划拨与目标规划由确定性程序完成；推荐使用不可变财务快照、追加事件和独立排序适配器。
+- **前端**：React 18、React Router、React Bootstrap，部分视觉交互使用 Three.js。
+- **教练检索**：BM25 与语义向量召回，经 RRF 融合和 Cross-Encoder 重排；模型回答检查数值绑定、来源编号与引用片段，校验失败时重试或返回可核对的回退内容。
+- **内容推荐**：审核目录、财务快照、学习主题与历史反馈共同参与排序；支持规则排序、本地 HSTU 推理及影子比较模式。
+- **数据边界**：财务事实由程序计算，模型负责解释；个人记录引用与研究参与分别授权。
+
+模型准备、训练与验证步骤见 [AI 教练与 HSTU 实现说明](docs/AI教练与HSTU实现说明.md)。合成训练指标不能证明真实校园推荐效果或金融素养提升。
+
+### 仓库结构
 
 ```text
 YouthGain/
-├── src/                 # 页面、组件、认证与前端 API
-├── public/              # 静态资源与账单模板
+├── src/                  # React 页面、组件、认证与 API 客户端
+├── public/               # 静态资源与账单导入模板
 ├── backend/
-│   ├── app/routes/      # HTTP 接口与权限校验
-│   ├── app/services/    # 财务、学习、教练与推荐服务
-│   ├── app/sql/         # SQLite 表结构与迁移
-│   └── tests/           # 后端回归测试
-├── scripts/             # 启动、检查与本地维护工具
-├── docs/                # 使用说明、模块定义与接口 schema
-├── output/              # 方案文档的 Markdown / PDF / Word 版本
-└── 快速启动.cmd          # Windows 统一启动入口
+│   ├── app/routes/       # API 路由与权限入口
+│   ├── app/services/     # 财务、学习、教练、推荐与研究服务
+│   ├── app/sql/          # SQLite 表结构与迁移
+│   ├── content/          # 初始知识资料与导入工具
+│   └── tests/            # 后端测试
+├── scripts/              # 启动、环境检查与维护脚本
+├── docs/                 # 项目文档及已生成的前端站点文件
+└── 快速启动.cmd           # Windows 统一启动入口
 ```
 
-## 开发与验证
+## 开发与测试
 
-在项目根目录执行。启动器安装业务依赖；后端测试另需 `pytest`。
+在项目根目录执行，先按快速开始准备依赖。后端测试另需安装 `pytest`。
 
 ```powershell
-# 后端回归
+# 后端
 .\.venv\Scripts\python.exe -m pip install pytest
 .\.venv\Scripts\python.exe -m pytest backend/tests -q
 
-# 前端测试与生产构建
+# 前端
 npm test -- --watchAll=false --runInBand
 npm run build
 ```
 
-此前本地验证为后端 260 项、相关前端 29 项通过。此次 AI 升级另有真实 CPU 训练、因果掩码、训练切分、模型推理与来源/数值核验测试；最新结果见 [AI 升级实现说明](docs/AI教练与HSTU实现说明.md)。合成数据指标和工程测试不能作为线上推荐质量或金融素养提升的证据。
+测试应使用合成账户与账单，不连接个人真实财务数据。测试数量会随分支变化，以本次运行结果为准；本 README 不使用固定测试数量或未经配置的 CI 徽章作为质量承诺。
 
-后续重点包括试用情境题内容审核、真实服务联调，以及个性化推荐的离线评价与受控线上验证。产品演进见 [长期迭代思路](docs/青盈长期迭代里程思路.md)。
+## 部署说明
 
+公开部署与本机演示使用不同的安全配置：关闭 `DEV_MODE`，配置真实认证、持久化数据库、随机 `SECRET_KEY`、HTTPS 与允许的跨域来源；不要把开发启动器直接作为公网生产服务。
+
+GitHub Pages 只能托管静态前端，完整功能需要单独部署后端，并在构建时配置 `REACT_APP_API_URL`。存在静态站点文件不代表在线 API 已经可用。详细步骤见[使用说明](docs/使用说明.md)。
+
+<a id="project-status"></a>
+## 项目状态与演进
+
+项目处于持续开发阶段，适合本地体验、课程研究与功能验证。知识内容审核、真实服务联调和推荐效果评价仍需持续完善。
+
+**待合并增强**：工作区正在验证花销钱币可视化、知识来源增量更新及全站交互修复。此次 README 同步不包含这些尚未提交的功能代码；克隆后的能力以当前分支源码为准。
+
+后续方向见[长期迭代思路](docs/青盈长期迭代里程思路.md)。
+
+<a id="documentation"></a>
 ## 文档导航
 
-| 文档 | 内容 |
+| 文档 | 适合什么时候阅读 |
 | --- | --- |
-| [完整使用说明](docs/使用说明.md) | 配置、登录、账单导入、功能操作与故障排查 |
-| [功能与技术](docs/目前版本实现的功能及其对应的技术.md) | 功能概览与对应实现 |
-| [财务推荐 v2 模块定义](docs/财务推荐v2模块定义.md) | 资金口径、快照约束、服务职责与 HSTU 协议 |
-| [OpenAPI schema](docs/api/finance-podcasts.openapi.json) | 资金、每日推荐、反馈与外部推理接口 |
-| [每日推荐接口与实施说明](docs/每日推荐接口与实施说明.md) | 推荐编排、事件语义、兼容规则与验证 |
-| [播客三阶段升级与运行说明](docs/播客三阶段升级与运行说明.md) | 多源发现、后台增量采集、AI 整理、审核及 HSTU 推荐接入 |
-| [个性化推荐修改方案](output/pdf/青盈每日内容个性化推荐修改方案.md) | 原始算法与工程设计；另有 [PDF](output/pdf/青盈每日内容个性化推荐修改方案.pdf) / [Word](output/docx/青盈每日内容个性化推荐修改方案.docx) |
+| [完整使用说明](docs/使用说明.md) | 配置、启动、账单导入与排查问题 |
+| [功能与技术](docs/目前版本实现的功能及其对应的技术.md) | 了解功能范围与对应实现 |
+| [资金与推荐模块定义](docs/财务推荐v2模块定义.md) | 核对资金口径、不可变快照与服务边界 |
+| [AI 教练与 HSTU](docs/AI教练与HSTU实现说明.md) | 准备模型、训练推理与验证机制 |
+| [每日推荐接口](docs/每日推荐接口与实施说明.md) | 理解推荐流程、反馈与兼容规则 |
+| [播客采集与审核](docs/播客三阶段升级与运行说明.md) | 配置内容发现、增量采集与人工审核 |
+| [OpenAPI schema](docs/api/finance-podcasts.openapi.json) | 对接资金、推荐、反馈与推理接口 |
+| [手动收支接口](docs/api/手动收支接口.md) | 对接账单创建与收支记录 |
 
+<a id="contributing"></a>
 ## 参与贡献
 
-欢迎通过 [Issues](https://github.com/fairy-song/YouthGain/issues) 提交问题或建议，通过 [Pull Requests](https://github.com/fairy-song/YouthGain/pulls) 贡献改进。
+欢迎提交 [Issue](https://github.com/fairy-song/YouthGain/issues) 或 [Pull Request](https://github.com/fairy-song/YouthGain/pulls)。
 
-- 报告问题时提供系统环境、复现步骤与预期结果，日志中移除密钥和个人财务信息。
-- 修改业务逻辑时说明计算口径，补充能验证行为的测试，使用合成账户和账单。
-- 提交源码与必要文档；保留 `.env.local`、服务账号、开发数据库、原始账单及本地备份的忽略规则。
+1. 先说明问题场景、复现步骤与预期行为；功能改动说明要解决的实际问题。
+2. 从自己的分支提交范围清晰的修改，涉及金额时写清计算口径与边界。
+3. 运行受影响的测试，修改前端后检查构建，同步更新文档。
+4. 提交前检查差异，不上传密钥、服务账号、原始账单、开发数据库或本地备份。
+
+涉及潜在安全漏洞时，请勿在公开 Issue 中附上可利用细节、凭据或个人信息；先通过仓库维护者明确提供的非公开渠道沟通。当前未声明独立的安全响应邮箱。
 
 ## 许可与致谢
 
-项目采用 [MIT License](LICENSE)。青盈由 [XiaoCow666 / 财赋思](https://github.com/XiaoCow666/Caifusi) 演进而来，当前由 [fairy-song](https://github.com/fairy-song) 重构与维护，原始作者与维护者的版权声明保留在许可证中。
+项目采用 [MIT License](LICENSE)。本项目由 [XiaoCow666 / 财赋思](https://github.com/XiaoCow666/Caifusi) 演进而来，当前由 [fairy-song](https://github.com/fairy-song) 重构与维护；保留原始作者与维护者的版权声明。
+
+青盈用于财商教育、记录与试算，不提供确定收益承诺，也不替代专业金融决策。
