@@ -95,6 +95,7 @@ const HistoryPage = () => {
       />
       
       <div className="container mx-auto px-4">
+        <p role="note" className="alert alert-info">以下为历史页面设计示例，融资、合作及业务规模等内容尚未核实，不作为本项目真实发展记录。</p>
         {/* 简介 */}
         <div className="bg-white rounded-lg shadow-md p-8 mb-16">
           <h2 className="text-3xl font-bold text-center mb-8 text-neutral-800">我们的发展历程</h2>

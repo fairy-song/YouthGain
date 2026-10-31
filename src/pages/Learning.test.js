@@ -5,10 +5,10 @@ import { MemoryRouter } from 'react-router-dom';
 import Learning from './Learning';
 import Profile from './Profile';
 import { getAdaptiveLearning, getLearning, getQuestionnaires, getWeeklyFacts, saveLearningEntry, saveLearningProfile } from '../services/learning';
-import { assessPurchase } from '../services/api';
+import { assessPurchase, authenticatedApi } from '../services/api';
 
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'alice' } }) }));
-jest.mock('../services/api', () => ({ assessPurchase: jest.fn() }));
+jest.mock('../services/api', () => ({ assessPurchase: jest.fn(), authenticatedApi: { get: jest.fn().mockResolvedValue({ data: { goals: [] } }) } }));
 jest.mock('../services/learning', () => ({
   getAdaptiveLearning: jest.fn(), submitAdaptiveAnswer: jest.fn(),
   getLearning: jest.fn(), getQuestionnaires: jest.fn(), getWeeklyFacts: jest.fn(), saveLearningEntry: jest.fn(),
@@ -25,6 +25,7 @@ const renderPage = (tab = 'practice') => render(<MemoryRouter initialEntries={[`
 
 beforeEach(() => {
   jest.clearAllMocks();
+  authenticatedApi.get.mockResolvedValue({ data: {} });
   getLearning.mockResolvedValue(state);
   getQuestionnaires.mockResolvedValue({ latest: null, history: [] });
   getAdaptiveLearning.mockResolvedValue({ items: [], next_item: null, reason: '', limitation: '' });
@@ -41,6 +42,7 @@ test('learning entry opens the single-task practice before secondary tools', asy
 
 test('missing income invites setup without inventing a default and profile saves to account', async () => {
   renderPage('profile');
+  fireEvent.click(await screen.findByRole('button', { name: '编辑资料' }));
   const income = await screen.findByLabelText('月收入或生活费（元，可暂不填写）');
   expect(income).toHaveValue(null);
   fireEvent.change(income, { target: { value: '2800' } });

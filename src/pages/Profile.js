@@ -36,7 +36,6 @@ export default function Profile() {
   const [retry, setRetry] = useState(0);
   const [showEdit, setShowEdit] = useState(false);
   const [funds, setFunds] = useState(null);
-  const [goals, setGoals] = useState([]);
   useEffect(() => {
     const refresh = () => setRetry(v => v + 1);
     window.addEventListener('transaction-saved', refresh);
@@ -60,16 +59,12 @@ export default function Profile() {
   }, [currentUser?.uid, retry]);
   useEffect(() => {
     let active = true;
-    Promise.all([
-      authenticatedApi.get('/decision/funds'),
-      authenticatedApi.get('/dashboard/goals'),
-    ]).then(([f, g]) => {
+    authenticatedApi.get('/decision/funds').then(f => {
       if (!active) return;
       setFunds(f.data?.data || f.data);
-      setGoals(g.data?.goals || g.data || []);
     }).catch(() => {});
     return () => { active = false; };
-  }, [currentUser?.uid, retry]);
+  }, [currentUser?.uid, retry, data?.profile]);
   const run = async (action, message) => {
     setBusy(true); setError(''); setNotice('');
     try { await action(); setNotice(message); window.dispatchEvent(new Event('learning-saved')); }

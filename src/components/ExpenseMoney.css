@@ -1,0 +1,22 @@
+.expense-money { --expense-note-fill: #dcece0; --expense-note-line: #76a58a; --expense-note-medallion: #c1ddca; --expense-note-ink: #28583d; --expense-coin-fill: #efd79e; --expense-coin-edge: #ba9551; --expense-coin-ink: #62481f; background: #fafbf7; border: 1px solid var(--yg-primary-border, #c1e3d5); border-radius: 18px; padding: 1.1rem; margin: 1rem 0; text-align: left; white-space: normal; color: var(--yg-ink, #333); max-width: 660px; }
+.expense-money-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1rem; }
+.expense-money-heading > span { font-size: .95rem; font-weight: 650; }
+.expense-money-heading > strong { font-size: clamp(1.5rem, 5vw, 2rem); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.expense-money .expense-money-caption { color: var(--yg-muted, #6b6b6b); font-size: .85rem; margin: .3rem 0 .8rem; }
+.expense-money-pieces { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: .7rem; list-style: none; margin: 0; padding: 0; }
+.expense-money-pieces > li { min-width: 0; padding: .5rem .3rem .7rem; border: 1px solid #e4e9df; background: #fff; border-radius: 12px; text-align: center; }
+.expense-money-art { display: block; width: 100%; max-width: 146px; height: 86px; margin: 0 auto; }
+.expense-money-denomination { display: block; font-size: .85rem; font-variant-numeric: tabular-nums; }
+.expense-money-denomination > b { font-weight: 700; }
+.expense-money-pieces small { display: block; color: var(--yg-muted, #6b6b6b); font-size: .76rem; margin-top: .2rem; }
+.expense-money .expense-money-total { margin: .9rem 0 .4rem; border-top: 1px dashed #c8d6c9; padding-top: .7rem; font-size: .9rem; font-weight: 650; }
+.expense-money .expense-money-note { color: var(--yg-muted, #6b6b6b); font-weight: 400; font-size: .75rem; line-height: 1.6; margin: 0; }
+.expense-money-moving .expense-money-art { animation: expense-money-out var(--expense-money-duration) ease-in-out both; }
+.expense-money-spent .expense-money-art { transform: translate(12px, 10px) scale(.9); opacity: .35; }
+@keyframes expense-money-out { 0%, 25% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(12px, 10px) scale(.9); opacity: .35; } }
+.expense-money-amount-button { border: 0; background: transparent; color: inherit; padding: .2rem 0; font: inherit; cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 4px; min-height: 36px; }
+.expense-money-amount-button:focus-visible { outline: 3px solid var(--yg-secondary-text, #456fa3); outline-offset: 3px; border-radius: 4px; }
+.expense-money-history { width: min(660px, calc(100vw - 5rem)); min-width: 220px; }
+.expense-money-history > .expense-money { margin: .25rem 0; }
+@media (max-width: 420px) { .expense-money { padding: .8rem; } .expense-money-pieces { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; } }
+@media (prefers-reduced-motion: reduce) { .expense-money-moving .expense-money-art, .expense-money-spent .expense-money-art { animation: none; transform: none; opacity: 1; } }

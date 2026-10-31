@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import InfoPageHeader from './InfoPageHeader';
 import { FaChevronDown, FaChevronUp, FaSearch } from 'react-icons/fa';
 
@@ -17,95 +18,95 @@ const FAQPage = () => {
     { id: 'technical', name: '技术支持' },
     { id: 'security', name: '账户安全' }
   ];
-  
+
   // FAQ数据
   const faqData = [
-    {
-      id: 'q1',
-      category: 'account',
-      question: '如何注册青盈账户？',
-      answer: '注册青盈账户非常简单：1) 在首页点击"注册"按钮; 2) 输入您的手机号码并获取验证码; 3) 设置账户密码; 4) 完成基本信息填写，包括姓名、邮箱等; 5) 阅读并同意用户协议和隐私政策; 6) 点击"完成注册"。注册完成后，您可以立即开始使用青盈的核心功能。'
-    },
-    {
-      id: 'q2',
-      category: 'account',
-      question: '忘记密码怎么办？',
-      answer: '如果您忘记了密码，可以通过以下步骤重置：1) 在登录页点击"忘记密码"; 2) 输入您注册时使用的手机号码; 3) 获取并输入验证码; 4) 设置新密码; 5) 点击"确认"完成密码重置。如果您遇到任何问题，请联系我们的客服团队获取帮助。'
-    },
-    {
-      id: 'q3',
-      category: 'account',
-      question: '如何修改个人信息？',
-      answer: '登录账户后，点击页面右上角的头像图标，选择"个人设置"，您可以在这里修改个人资料、联系方式、密码等信息。修改完成后，点击"保存更改"即可。'
-    },
-    {
-      id: 'q4',
-      category: 'features',
-      question: '财务健康评估是如何计算的？',
-      answer: '财务健康评估基于多维度指标，包括收支比例、储蓄率、债务比例、应急资金充足率、投资多样性等。系统会根据您提供的财务信息和行为数据，结合AI算法，生成一个综合的财务健康分数（满分100分）以及各维度的详细分析。评估结果每周更新一次，您可以通过改善财务行为来提高分数。'
-    },
-    {
-      id: 'q5',
-      category: 'features',
-      question: 'AI教练如何为我提供个性化建议？',
-      answer: 'AI教练基于您的财务数据、行为模式和目标，通过机器学习算法提供个性化的建议。系统会分析您的收入、支出、储蓄、债务和投资情况，识别改进空间，并根据您的财务目标提出具体的行动建议。随着您使用的时间增长，AI教练会不断学习和适应您的需求，提供越来越精准的指导。'
-    },
-    {
-      id: 'q6',
-      category: 'features',
-      question: '如何设置和跟踪财务目标？',
-      answer: '在应用的"目标"页面，您可以添加新的财务目标，如应急基金、买房、旅行、教育金等。设置目标时，需要输入目标金额和预期完成日期。系统会自动计算所需的储蓄计划，并在仪表板中显示进度。您可以随时调整目标，也可以设置提醒和自动转账来保持进度。'
-    },
-    {
-      id: 'q7',
-      category: 'payment',
-      question: '青盈支持哪些支付方式？',
-      answer: '青盈支持多种支付方式，包括信用卡/借记卡支付（支持Visa、MasterCard、银联等）、支付宝、微信支付以及银行转账。在升级至高级会员或购买课程时，您可以选择适合自己的支付方式。'
-    },
-    {
-      id: 'q8',
-      category: 'payment',
-      question: '订阅费用如何计算？如何取消订阅？',
-      answer: '青盈提供月度和年度两种订阅模式，年度订阅可享受优惠价格。订阅费用将在每个付费周期开始时自动扣除。如需取消订阅，请在"账户设置">"订阅管理"中点击"取消订阅"，并按照指引完成操作。取消后，您仍可使用当前付费周期内的服务，直到周期结束。'
-    },
-    {
-      id: 'q9',
-      category: 'payment',
-      question: '如何获取发票？',
-      answer: '完成付费后，您可以在"账户设置">"消费记录"中找到相应的交易记录，点击"申请发票"并填写发票信息。我们会在1-3个工作日内通过邮件发送电子发票。如需纸质发票，请联系客服说明情况。'
-    },
-    {
-      id: 'q10',
-      category: 'technical',
-      question: '使用过程中遇到卡顿怎么办？',
-      answer: '如果遇到应用卡顿，可以尝试以下解决方法：1) 检查网络连接是否稳定; 2) 清除浏览器缓存或应用缓存; 3) 更新应用至最新版本; 4) 重新启动设备; 5) 如问题持续存在，请收集问题发生的具体情况和截图，联系技术支持团队。'
-    },
-    {
-      id: 'q11',
-      category: 'technical',
-      question: '为什么数据同步失败？',
-      answer: '数据同步失败可能由以下原因导致：1) 网络连接不稳定; 2) 账户授权过期; 3) 第三方银行或金融服务的API变更; 4) 系统维护。建议检查网络连接，重新授权账户，如问题持续存在，请联系客服获取支持。'
-    },
-    {
-      id: 'q12',
-      category: 'security',
-      question: '青盈如何保障用户数据安全？',
-      answer: '青盈采取多重措施保障用户数据安全：1) 全程数据加密，包括传输和存储加密; 2) 严格的访问控制和权限管理; 3) 定期安全审计和漏洞扫描; 4) 合规的数据处理流程，符合相关法律法规要求; 5) 不会在未经授权的情况下分享用户个人信息给第三方。'
-    },
-    {
-      id: 'q13',
-      category: 'security',
-      question: '如何开启双因素认证？',
-      answer: '为提高账户安全性，我们强烈建议开启双因素认证(2FA)：1) 进入"账户设置">"安全中心"; 2) 点击"双因素认证"旁边的"开启"; 3) 选择认证方式（手机验证码、认证应用等）; 4) 按照指引完成设置; 5) 设置完成后，每次登录都需要输入密码和验证码，为账户提供双重保障。'
-    }
-  ];
-  
+  {
+    "id": "q1",
+    "category": "account",
+    "question": "如何注册青盈账户？",
+    "answer": "当前使用邮箱和密码注册。登录页会说明是否处于本地模拟模式；本地模式不会验证真实密码。注册后可填写入门问卷，并在“我的”完善财务资料。"
+  },
+  {
+    "id": "q2",
+    "category": "account",
+    "question": "忘记密码怎么办？",
+    "answer": "当前界面没有密码重置入口。真实登录由项目配置的认证服务处理，请联系项目维护者；本地模拟模式可使用任意非空密码，不要输入真实密码。"
+  },
+  {
+    "id": "q3",
+    "category": "account",
+    "question": "如何修改个人信息？",
+    "answer": "进入“我的”，点击“编辑资料”，修改收入、必要开支、时区或自定规则，点击“保存资料”。这里不能更改登录邮箱和密码。"
+  },
+  {
+    "id": "q4",
+    "category": "features",
+    "question": "自我探索结果是什么意思？",
+    "answer": "结果根据本次自述回答汇总，反映你的习惯自评。它不是投资评级、能力诊断或账户余额，也不会因分数变化而自动处理你的钱。"
+  },
+  {
+    "id": "q5",
+    "category": "features",
+    "question": "AI教练如何引用我的资料？",
+    "answer": "默认只围绕你输入的问题交流。主动开启资料引用后，系统才会结合已记录账本及学习信息。回答可查看证据；记录不完整时试算也可能不完整。"
+  },
+  {
+    "id": "q6",
+    "category": "features",
+    "question": "如何设置和跟踪财务目标？",
+    "answer": "在“账本 → 储蓄目标”设置金额与截止日，保存后查看进度和留钱建议。锁定金额是系统内的规划记录，不会触发银行卡转账。"
+  },
+  {
+    "id": "q7",
+    "category": "payment",
+    "question": "青盈会自动扣款或转账吗？",
+    "answer": "当前版本没有购买、支付、自动转账或银行卡扣款功能。账本中的收入、支出和锁定储蓄都是记录与规划。"
+  },
+  {
+    "id": "q8",
+    "category": "payment",
+    "question": "如何取消订阅？",
+    "answer": "当前青盈没有付费订阅功能。知识库中的“自动续费”讲解的是外部平台的消费场景；外部会员需要到相应平台取消。"
+  },
+  {
+    "id": "q9",
+    "category": "payment",
+    "question": "如何获取发票？",
+    "answer": "当前系统不销售课程或会员，也没有开票入口。外部消费的发票请向实际商户申请。"
+  },
+  {
+    "id": "q10",
+    "category": "technical",
+    "question": "使用过程中遇到卡顿怎么办？",
+    "answer": "先等待当前保存完成，避免重复提交。检查本地前后端是否已启动，查看页面连接提示。仍有问题可到“联系与反馈”生成反馈草稿，记录操作和错误信息。"
+  },
+  {
+    "id": "q11",
+    "category": "technical",
+    "question": "为什么数据同步失败？",
+    "answer": "先检查连接和登录状态，再点击页面中的重试。当前支持手动记账、CSV/XLSX导入和语音转文字，不会自动同步银行账户。出现“已保存但刷新失败”时先刷新核对，不要再次记同一笔。"
+  },
+  {
+    "id": "q12",
+    "category": "security",
+    "question": "如何控制资料使用？",
+    "answer": "教练资料引用由你主动勾选，学校研究参与也需单独同意。退出研究会停止之后的新发布贡献；已经发布的群体统计无法追回。共用设备使用后请退出登录。"
+  },
+  {
+    "id": "q13",
+    "category": "security",
+    "question": "如何开启双因素认证（2FA）？",
+    "answer": "当前产品界面没有双因素认证（2FA）设置入口，也没有手机验证码注册功能。不要根据旧版占位说明寻找不存在的“安全中心”。"
+  }
+];
+
   // 处理搜索
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
     setExpandedQuestions({});
   };
-  
+
   // 切换问题展开状态
   const toggleQuestion = (questionId) => {
     setExpandedQuestions(prev => ({
@@ -113,33 +114,34 @@ const FAQPage = () => {
       [questionId]: !prev[questionId]
     }));
   };
-  
+
   // 根据分类和搜索筛选FAQ
   const filteredFAQs = faqData.filter(faq => {
     const matchesCategory = activeCategory === 'all' || faq.category === activeCategory;
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
       faq.answer.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     return matchesCategory && matchesSearch;
   });
-  
+
   return (
     <div className="faq-page bg-neutral-50 min-h-screen pb-20">
       {/* 页面标题 */}
-      <InfoPageHeader 
-        title="常见问题" 
+      <InfoPageHeader
+        title="常见问题"
         subtitle="查找关于使用青盈的常见问题解答"
         category="resources"
       />
-      
+
       <div className="container mx-auto px-4">
         {/* 搜索栏 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <div className="max-w-2xl mx-auto">
             <div className="relative">
               <input
-                type="text"
+                aria-label="搜索常见问题"
+                type="search"
                 placeholder="搜索常见问题..."
                 value={searchQuery}
                 onChange={handleSearchChange}
@@ -149,7 +151,7 @@ const FAQPage = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* 分类侧边栏 */}
           <div className="lg:col-span-1">
@@ -164,6 +166,7 @@ const FAQPage = () => {
                           ? 'bg-success-50 text-success-600 font-medium'
                           : 'text-neutral-600 hover:bg-neutral-50'
                       }`}
+                      aria-pressed={activeCategory === category.id}
                       onClick={() => {
                         setActiveCategory(category.id);
                         setExpandedQuestions({});
@@ -176,25 +179,26 @@ const FAQPage = () => {
               </ul>
             </div>
           </div>
-          
+
           {/* FAQ内容区 */}
           <div className="lg:col-span-3">
             {filteredFAQs.length > 0 ? (
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h2 className="text-2xl font-bold text-neutral-800 mb-6">
-                  {activeCategory === 'all' 
-                    ? '所有常见问题' 
+                  {activeCategory === 'all'
+                    ? '所有常见问题'
                     : categories.find(c => c.id === activeCategory)?.name}
                 </h2>
-                
+
                 <div className="space-y-4">
                   {filteredFAQs.map(faq => (
-                    <div 
-                      key={faq.id} 
+                    <div
+                      key={faq.id}
                       className="border border-neutral-200 rounded-lg overflow-hidden"
                     >
                       <button
                         className="w-full flex justify-between items-center p-5 bg-neutral-50 hover:bg-neutral-100 text-left transition-colors"
+                        aria-expanded={Boolean(expandedQuestions[faq.id])}
                         onClick={() => toggleQuestion(faq.id)}
                       >
                         <span className="font-medium text-lg text-neutral-800">
@@ -210,7 +214,7 @@ const FAQPage = () => {
                           <FaChevronDown className="text-neutral-500" />
                         )}
                       </button>
-                      
+
                       {expandedQuestions[faq.id] && (
                         <div className="p-5 bg-white border-t border-neutral-200">
                           <p className="text-neutral-700 whitespace-pre-line">
@@ -247,26 +251,16 @@ const FAQPage = () => {
                 </div>
               </div>
             )}
-            
+
             {/* 未解决问题反馈 */}
             <div className="mt-8 bg-neutral-50 border border-neutral-200 rounded-lg p-6 text-center">
               <h3 className="text-xl font-bold text-neutral-800 mb-3">没有找到你要的答案？</h3>
               <p className="text-neutral-600 mb-4">
-                如果上述内容没有解答您的疑问，欢迎联系我们的客服团队
+                你可以整理反馈草稿，交给项目维护者。
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
-                <a
-                  href="mailto:support@youthgain.com"
-                  className="bg-white border border-success-600 text-success-600 hover:bg-success-50 px-6 py-3 rounded-md transition-colors inline-block"
-                >
-                  发送邮件
-                </a>
-                <a
-                  href="tel:4001234567"
-                  className="bg-success-600 hover:bg-success-700 text-white px-6 py-3 rounded-md transition-colors inline-block"
-                >
-                  电话咨询
-                </a>
+                <Link to="/info/contact" className="btn btn-outline-primary">整理使用反馈</Link>
+                <Link to="/info/tutorial" className="btn btn-primary">查看使用教程</Link>
               </div>
             </div>
           </div>
@@ -277,16 +271,16 @@ const FAQPage = () => {
 };
 
 // 高亮搜索文本
-const highlightText = (text, query) => {
+export const highlightText = (text, query) => {
   if (!query) return text;
-  
-  const parts = text.split(new RegExp(`(${query})`, 'gi'));
-  
-  return parts.map((part, index) => 
-    part.toLowerCase() === query.toLowerCase() 
+
+  const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+
+  return parts.map((part, index) =>
+    part.toLowerCase() === query.toLowerCase()
       ? <span key={index} className="bg-accent-200 font-medium">{part}</span>
       : part
   );
 };
 
-export default FAQPage; 
+export default FAQPage;

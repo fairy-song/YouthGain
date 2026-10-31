@@ -24,6 +24,20 @@ def call(client, method, path, data=None, user='alice'):
     return getattr(client, method)(path, json=data, headers={'Authorization': f'Bearer {user}'})
 
 
+def test_upcoming_missing_date_reports_the_date_instead_of_exercise_text(client):
+    response = call(client, 'post', '/api/learning/entries/upcoming',
+                    {'title': '教材费', 'amount': 12, 'due_date': ''})
+    assert response.status_code == 400
+    assert '预计日期' in response.json['message']
+    assert '思考内容' not in response.json['message']
+
+
+def test_small_expense_never_claims_zero_days_of_surplus(client):
+    response = call(client, 'post', '/api/decision/opportunity-cost', {'amount': 0.66, 'monthly_income': 3000})
+    assert response.status_code == 200
+    assert '不到 1 天' in response.json['data']['message']
+
+
 def test_auth_required_and_account_isolation(client):
     assert client.get('/api/learning').status_code == 401
     assert call(client, 'put', '/api/learning/profile', {'monthly_income': 3500, 'topic': 'risk'}).status_code == 200

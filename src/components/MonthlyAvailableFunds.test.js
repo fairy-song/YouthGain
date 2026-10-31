@@ -11,6 +11,7 @@ test('missing opening is unknown rather than zero; confirming carryover preserve
   const onSaved = jest.fn();
   render(<MonthlyAvailableFunds funds={{ month: '2026-09', complete: false, savings_locked_total: 200 }} editable onSaved={onSaved} />);
   expect(screen.getByText('本月可用剩余')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /查看每日均分/ })).not.toBeInTheDocument();
   expect(screen.getAllByText('尚未确认').length).toBeGreaterThan(0);
   expect(screen.queryByText('¥0.00')).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('确认本月期初日常结转（已排除锁定资金）'), { target: { value: '1000' } });

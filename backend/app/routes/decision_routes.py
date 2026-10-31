@@ -361,7 +361,8 @@ def get_opportunity_cost(user_info):
             **cost.to_dict(),
             'monthly_surplus': monthly_surplus,
             'basis': _basis(transactions, monthly_income),
-            'message': f'这笔消费相当于你 {cost.delay_days:.0f} 天的结余',
+            'message': ('这笔消费相当于你不到 1 天的结余。' if cost.delay_days < 1
+                        else f'这笔消费相当于你 {cost.delay_days:.1f} 天的结余'),
         }
     }), 200
 
@@ -582,7 +583,7 @@ def _funds(user_id):
         available = snapshot['features']['available_remaining_month'] if confirmed else funds_status.get('available_estimate')
         return {**{k: snapshot['features'][k] for k in keys},
                 'available_remaining_month': available, 'available_complete': confirmed,
-                'month': snapshot['as_of'][:7], 'as_of': snapshot['as_of'],
+                'month': snapshot['as_of'][:7], 'as_of': snapshot['as_of'], 'timezone': snapshot['timezone'],
                 'complete': confirmed,
                 'reason': None if confirmed else funds_status.get('reason', 'carryover_or_sources_missing')}
     except Exception:

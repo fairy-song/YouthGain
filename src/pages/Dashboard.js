@@ -16,6 +16,9 @@ import LedgerGoals from '../components/ledger/LedgerGoals';
 import LedgerAnalysis from '../components/ledger/LedgerAnalysis';
 import TransactionReflection from '../components/TransactionReflection';
 import TransactionIntent from '../components/TransactionIntent';
+import ExpenseMoney from '../components/ExpenseMoney';
+import { expenseMoney } from '../utils/expenseMoney';
+import { SPENDING_MONEY_VISUAL_ENABLED } from '../config/features';
 import { getLearningProfile, getLearning } from '../services/learning';
 import './DashboardUI.css';
 
@@ -47,6 +50,8 @@ const Dashboard = () => {
   const budgetDay = useRef(dateKey());
   const refreshVersion = useRef(0);
   const feedbackVersion = useRef(0);
+  const activeUserId = useRef(currentUser?.uid);
+  activeUserId.current = currentUser?.uid;
   useEffect(() => {
     const refresh = () => setReload(v => v + 1);
     window.addEventListener('transaction-saved', refresh);
@@ -98,6 +103,8 @@ const Dashboard = () => {
     planned: '', purpose: '',
   });
   const [recordResult, setRecordResult] = useState(null); // 记账成功后的机会成本即时反馈
+  const [savedExpense, setSavedExpense] = useState(null);
+  const [expandedExpense, setExpandedExpense] = useState(null);
   const [recordError, setRecordError] = useState('');
   const [savingRecord, setSavingRecord] = useState(false);
   const isIncome = recordForm.transaction_type === 'income';
@@ -105,6 +112,7 @@ const Dashboard = () => {
     const transaction_type = event.target.value;
     feedbackVersion.current += 1;
     setRecordResult(null);
+    setSavedExpense(null);
     setRecordError('');
     setRecordForm(f => ({ ...f, transaction_type,
       category: transaction_type === 'income' ? '生活费' : '餐饮', planned: '', purpose: '' }));
@@ -170,6 +178,8 @@ const Dashboard = () => {
     setGoals([]);
     setReflections([]);
     setRecordResult(null);
+    setSavedExpense(null);
+    setExpandedExpense(null);
     setPendingDelete(null);
     setDeleteError('');
     setDeleteMessage('');
@@ -190,6 +200,8 @@ const Dashboard = () => {
       setTransactions(rows => rows.filter(row => row.id !== pendingDelete.id));
       feedbackVersion.current += 1;
       setRecordResult(null);
+      setSavedExpense(null);
+      setExpandedExpense(null);
       setPendingDelete(null);
       setDeleteMessage('账单已删除。');
       await refreshLedger();
@@ -205,6 +217,7 @@ const Dashboard = () => {
     event.preventDefault();
     setRecordError('');
     setRecordResult(null);
+    setSavedExpense(null);
     const feedback = ++feedbackVersion.current;
 
     const amount = parseFloat(recordForm.amount);
@@ -235,8 +248,10 @@ const Dashboard = () => {
       };
       // 小时字段可选，填写后才传给后端（用于深夜消费模式识别）
       if (recordForm.hour !== '') payload.hour = parseInt(recordForm.hour, 10);
-      await createTransaction(payload);
+      const savedRecord = await createTransaction(payload);
       saved = true;
+      if (feedback !== feedbackVersion.current) return;
+      if (!isIncome && SPENDING_MONEY_VISUAL_ENABLED) setSavedExpense({ amount: savedRecord?.amount ?? amount, key: feedback });
       setRecordForm((f) => ({ ...f, amount: '', merchant: '', items: '', note: '', hour: '', planned: '', purpose: '' }));
       // Refresh immediately after saving; optional feedback runs independently.
       refreshLedger();
@@ -423,7 +438,7 @@ const Dashboard = () => {
                     <FaMicrophone className="me-1" />语音记支出
                   </Button>
                 </div>
-                <Form onSubmit={handleRecordTransaction}>
+                <Form onSubmit={handleRecordTransaction}><fieldset disabled={savingRecord}>
                   <Form.Group controlId="record-type" className="mb-3">
                     <Form.Label>收支类型</Form.Label>
                     <Form.Select value={recordForm.transaction_type} onChange={handleRecordType} disabled={savingRecord} style={{ maxWidth: 180 }}>
@@ -434,6 +449,7 @@ const Dashboard = () => {
                   <Row className="g-3">
                     <Col md={2}>
                       <Form.Control
+                        aria-label={isIncome ? '收入金额（元）' : '支出金额（元）'}
                         type="number"
                         min="0"
                         step="0.01"
@@ -475,6 +491,7 @@ const Dashboard = () => {
                     <Col md={2}>
                       <Form.Select
                         value={recordForm.hour}
+                        aria-label="收支时段（可选）"
                         onChange={(e) => setRecordForm({ ...recordForm, hour: e.target.value })}
                       >
                         <option value="">时段（可选）</option>
@@ -514,9 +531,10 @@ const Dashboard = () => {
                     </Col>
                   </Row>
                   {!isIncome && <TransactionIntent value={recordForm} onChange={setRecordForm} />}
-                </Form>
+                </fieldset></Form>
 
                 {recordError && <Alert variant="danger" className="mt-3 mb-0 small">{recordError}</Alert>}
+                {SPENDING_MONEY_VISUAL_ENABLED && savedExpense && <ExpenseMoney key={savedExpense.key} amount={savedExpense.amount} animate />}
 
                 {recordResult?.income && <Alert variant="success" className="mt-3 mb-0 small">{recordResult.message}</Alert>}
                 {recordResult && !recordResult.unavailable && !recordResult.income && (
@@ -524,7 +542,7 @@ const Dashboard = () => {
                     <div className="d-flex align-items-baseline gap-2 flex-wrap">
                       <span className="display-6 fw-bold text-success">¥{recordResult.amount}</span>
                       <span className="fw-medium">
-                        相当于你 <b className="fs-4">{Math.round(recordResult.delay_days)} 天</b> 的结余
+                        相当于你 <b className="fs-4">{recordResult.delay_days < 1 ? '不到 1' : Number(recordResult.delay_days).toFixed(1)} 天</b> 的结余
                       </span>
                     </div>
                     <p className="text-muted small mb-0">{recordResult.message}</p>
@@ -581,7 +599,7 @@ const Dashboard = () => {
                 </tr>
               ) : (
                 transactions.filter(t => !categoryFilter || (t.category || '未分类') === categoryFilter).map((t) => (
-                  <tr key={t.id}>
+                  <React.Fragment key={t.id}><tr>
                     <td className="text-nowrap">
                       {t.date}
                       {t.hour !== null && t.hour !== undefined && t.hour !== '' && (
@@ -601,7 +619,11 @@ const Dashboard = () => {
                     <td className="transaction-detail">{t.items || '—'}</td>
                     <td className="transaction-detail">{t.note || '—'}{t.purpose && <div className="small text-muted">当时的需要：{t.purpose}</div>}{t.planned && <div className="small text-muted">{{ planned: '提前计划', spontaneous: '临时决定', necessary: '临时必要开支' }[t.planned]}</div>}</td>
                     <td className={`text-end fw-medium text-nowrap ${['refund', 'income'].includes(t.transaction_type) ? 'text-success' : t.transaction_type === 'transfer' ? 'text-muted' : 'text-danger'}`}>
-                      {t.transaction_type === 'refund' || t.transaction_type === 'income' ? '+' : t.transaction_type === 'transfer' ? '' : '-'}¥{Number(t.amount).toLocaleString()}
+                      {SPENDING_MONEY_VISUAL_ENABLED && t.id != null && (!t.transaction_type || t.transaction_type === 'expense') && expenseMoney(t.amount) ? <button type="button" className="expense-money-amount-button"
+                        aria-label={`查看支出钱币 ${t.items || t.category || ''} ${t.id}`}
+                        aria-expanded={expandedExpense === t.id} aria-controls={`expense-money-${encodeURIComponent(t.id)}`}
+                        onClick={() => setExpandedExpense(value => value === t.id ? null : t.id)}>-¥{Number(t.amount).toLocaleString()}</button>
+                        : <>{t.transaction_type === 'refund' || t.transaction_type === 'income' ? '+' : t.transaction_type === 'transfer' ? '' : '-'}¥{Number(t.amount).toLocaleString()}</>}
                       {t.transaction_type && t.transaction_type !== 'expense' && <div className="small text-muted">{t.transaction_type === 'income' ? ({ red_packet: '红包', external_transfer: '他人转入', other_income: '其他收入' }[t.receipt_kind] || '收入') : { refund: '退款', transfer: '本人转账' }[t.transaction_type]}</div>}
                       {t.custom_category_name && <div className="small text-muted">{t.custom_category_name}</div>}
                       {t.transaction_type === 'expense' && Number(t.refunded_amount) > 0 && <div className="small text-muted">原支付 ¥{t.original_amount} · 已退 ¥{t.refunded_amount} · 实际支出 ¥{t.net_amount}</div>}
@@ -615,7 +637,7 @@ const Dashboard = () => {
                         aria-label={`删除账单 ${t.items || t.category || ''} ${t.id}`}
                         onClick={() => { setDeleteError(''); setPendingDelete(t); }}>删除</Button>
                     </td>
-                  </tr>
+                  </tr>{SPENDING_MONEY_VISUAL_ENABLED && t.id != null && expandedExpense === t.id && (!t.transaction_type || t.transaction_type === 'expense') && <tr id={`expense-money-${encodeURIComponent(t.id)}`}><td colSpan="8"><div className="expense-money-history"><ExpenseMoney amount={t.amount} title={Number(t.refunded_amount) > 0 ? '这笔原支付' : '这笔花了'} note={Number(t.refunded_amount) > 0 ? `展示原支付金额；已退 ¥${Number(t.refunded_amount).toFixed(2)}，实际净支出以账单标注为准。` : ''} /></div></td></tr>}</React.Fragment>
                 ))
               )}
             </tbody>
@@ -647,9 +669,18 @@ const Dashboard = () => {
       }} />}
       {importMode && <CsvImportModal entryMode={importMode} onClose={() => setImportMode(null)} onSaved={async () => { await refreshLedger(); setCategoryFilter(''); }} />}
       <VoiceBillModal
+        key={currentUser?.uid}
         show={showVoiceModal}
         onClose={() => setShowVoiceModal(false)}
-        onSaved={reloadAll}
+        onSaved={record => {
+          if (activeUserId.current !== currentUser?.uid) return;
+          if (SPENDING_MONEY_VISUAL_ENABLED && record && (!record.transaction_type || record.transaction_type === 'expense')) {
+            feedbackVersion.current += 1;
+            setRecordResult(null);
+            setSavedExpense({ amount: record.amount, key: `voice-${feedbackVersion.current}` });
+          }
+          reloadAll();
+        }}
         monthlyIncome={monthlyIncome}
       />
 

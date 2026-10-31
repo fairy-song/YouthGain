@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Particles, { ParticlesProvider } from '@tsparticles/react';
 import { loadSlim } from '@tsparticles/slim';
 import './AdminLayout.css';
+import { focusContent } from '../utils/focusContent';
 
 const sections = [
   { path: '/admin/stats', title: '平台概览', description: '了解平台使用情况与内容规模', icon: FaChartBar },
@@ -62,7 +63,7 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [leaving, setLeaving] = useState(false);
-  const section = sections.find(item => item.path === location.pathname) || sections[0];
+  const section = sections.find(item => item.path === location.pathname) || { title: '管理中枢', description: '选择一个管理功能，或通过下方球体进入。' };
   async function handleLogout() {
     setLeaving(true);
     setError('');
@@ -71,7 +72,7 @@ export default function AdminLayout() {
   }
   return (
     <div className="admin-workspace admin-workspace-nosidebar">
-      <a className="admin-skip" href="#admin-content">跳转到管理内容</a>
+      <a className="admin-skip" href="#admin-content" onClick={event => focusContent(event, 'admin-content')}>跳转到管理内容</a>
       <div className="admin-body">
         <ParticlesProvider init={particlesInit}>
           <Particles id="admin-particles" className="admin-particles-bg" options={particlesOptions} />
@@ -91,6 +92,7 @@ export default function AdminLayout() {
         </header>
         <main id="admin-content" className="admin-content" tabIndex={-1}>
           <div className="admin-page-heading"><span>YOUTHGAIN · 管理后台</span><h1>{section.title}</h1><p>{section.description}</p></div>
+          <nav className="d-flex flex-wrap gap-2 mb-4" aria-label="后台功能导航">{sections.map(item => <NavLink key={item.path} to={item.path} className={({ isActive }) => `btn btn-sm ${isActive ? 'btn-primary' : 'btn-outline-secondary'}`}>{item.title}</NavLink>)}</nav>
           {error && <div role="alert" className="alert alert-danger">{error}</div>}
           <section className="admin-panel" aria-label={section.title}><Outlet /></section>
         </main>

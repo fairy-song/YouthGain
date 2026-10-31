@@ -1,5 +1,7 @@
 import { knowledgeCategories, legacyCategories } from '../services/knowledgeCategories';
 import React, { useState, useEffect, useCallback } from 'react';
+import KnowledgeUpdatesAdmin from '../components/KnowledgeUpdatesAdmin';
+import { Modal } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
 
@@ -11,7 +13,7 @@ import {
 import {
   FaChartBar, FaUsers, FaBook, FaSearch, FaTrashAlt,
   FaPlus, FaEdit, FaBan, FaCheckCircle, FaSyncAlt,
-  FaUserShield, FaClipboardCheck, FaComments, FaCreditCard, FaBullseye, FaFileAlt,
+  FaClipboardCheck, FaComments, FaCreditCard, FaBullseye, FaFileAlt,
 } from 'react-icons/fa';
 
 // 统计卡片配置：icon / 标题 / 字段名 / 色值
@@ -37,7 +39,7 @@ const AdminDashboard = ({ section = 'stats' }) => (
   <>
     {section === 'stats' && <StatsTab />}
     {section === 'users' && <UsersTab />}
-    {section === 'kb' && <KbTab />}
+    {section === 'kb' && <><KnowledgeUpdatesAdmin /><KbTab /></>}
     {section === 'coach' && <CoachConfigTab />}
   </>
 );
@@ -248,7 +250,7 @@ const StatsTab = () => {
             </div>
             <div className="col-12 col-lg-6">
               <div className="admin-subcard">
-                <div className="admin-subcard-title">消费分类分布 <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--yg-muted)' }}>全站金额</span></div>
+                <div className="admin-subcard-title">消费分类分布 <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--yg-muted)' }}>全站原支付支出，未扣退款</span></div>
                 <CategoryBars data={stats.category_breakdown || []} />
               </div>
             </div>
@@ -408,9 +410,7 @@ const UsersTab = () => {
 
       {/* 用户详情弹窗：概览 + 消费/目标/成长明细 */}
       {detail && (
-        <div className="modal d-block" tabIndex="-1" style={{ background: 'rgba(20,35,30,0.5)' }} onClick={() => setDetail(null)}>
-          <div className="modal-dialog modal-xl modal-dialog-centered" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-content" style={{ borderRadius: '20px', overflow: 'hidden', border: 'none' }}>
+        <Modal show size="xl" centered onHide={() => setDetail(null)} aria-label="用户详情">
               <div style={{ background: 'linear-gradient(135deg,#63B995,#1F4A38)', padding: '22px 26px', color: '#fff' }}>
                 <div className="d-flex align-items-center justify-content-between">
                   <div className="d-flex align-items-center gap-3">
@@ -422,7 +422,7 @@ const UsersTab = () => {
                       <div style={{ fontSize: 13, opacity: 0.85 }}>{detail.profile?.email || detail.uid}</div>
                     </div>
                   </div>
-                  <button type="button" className="btn-close btn-close-white" onClick={() => setDetail(null)} />
+                  <button type="button" aria-label="关闭用户详情" className="btn-close btn-close-white" onClick={() => setDetail(null)} />
                 </div>
               </div>
 
@@ -446,7 +446,7 @@ const UsersTab = () => {
                 {detailTab === 'overview' && (
                   <>
                     <div className="insight-card">
-                      <div className="insight-title">🤖 AI 用户画像</div>
+                      <div className="insight-title">记录摘要</div>
                       <div className="insight-body">{buildUserInsight(detail)}</div>
                     </div>
                     <div className="row mb-3 mt-3" style={{ fontSize: '0.9rem' }}>
@@ -477,7 +477,7 @@ const UsersTab = () => {
                             <div style={{ fontWeight: 600 }}>{t.merchant || t.category || '未命名消费'}</div>
                             <div className="text-muted" style={{ fontSize: 12 }}>{t.category} · {t.date || formatDate(t.timestamp)}</div>
                           </div>
-                          <div style={{ fontWeight: 700, color: 'var(--yg-danger-text)' }}>-¥{t.amount}</div>
+                          <div style={{ fontWeight: 700, color: t.transaction_type && t.transaction_type !== 'expense' ? 'var(--yg-primary-text)' : 'var(--yg-danger-text)' }}>{t.transaction_type && t.transaction_type !== 'expense' ? '+' : '-'}¥{t.amount}</div>
                         </div>
                         {t.note && <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>备注：{t.note}</div>}
                         {t.regret && <span className="badge rounded-pill" style={{ background: 'var(--yg-accent-subtle)', color: 'var(--yg-accent-text)', fontSize: 11 }}>后悔消费</span>}
@@ -526,9 +526,7 @@ const UsersTab = () => {
                   </>
                 )}
               </div>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
@@ -586,7 +584,9 @@ const KbTab = () => {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) return alert('请填写文章标题');
+    if (saving) return;
+    if (!form.title.trim()) return setError('请填写文章标题');
+    setError('');
     setSaving(true);
     try {
       if (editing === false) {
@@ -597,7 +597,7 @@ const KbTab = () => {
       setEditing(null);
       await load();
     } catch (e) {
-      alert(e.response?.data?.message || '保存失败');
+      setError(e.response?.data?.message || '保存失败');
     } finally {
       setSaving(false);
     }
@@ -662,8 +662,8 @@ const KbTab = () => {
                   </td>
                   <td className="text-muted">{a.date || formatDate(a.createdAt)}</td>
                   <td className="text-end">
-                    <button type="button" className="btn btn-sm btn-outline-secondary me-1" onClick={() => openEdit(a)}><FaEdit /> 编辑</button>
-                    <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(a)}><FaTrashAlt /> 删除</button>
+                    {a.version ? <span className="small text-muted">动态版本请在上方审核、撤回或恢复</span> : <><button type="button" className="btn btn-sm btn-outline-secondary me-1" onClick={() => openEdit(a)}><FaEdit /> 编辑</button>
+                    <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(a)}><FaTrashAlt /> 删除</button></>}
                   </td>
                 </tr>
               ))}
@@ -674,62 +674,63 @@ const KbTab = () => {
 
       {/* 新增/编辑弹窗 */}
       {editing !== null && (
-        <div className="modal d-block" tabIndex="-1" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setEditing(null)}>
-          <div className="modal-dialog modal-lg modal-dialog-centered" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-content" style={{ borderRadius: '14px' }}>
+        <Modal show size="lg" centered onHide={() => { if (!saving) setEditing(null); }} aria-labelledby="kb-edit-heading">
+          <form onSubmit={event => { event.preventDefault(); handleSave(); }}>
               <div className="modal-header">
-                <h5 className="modal-title">{editing === false ? '新增文章' : '编辑文章'}</h5>
-                <button type="button" className="btn-close" onClick={() => setEditing(null)} />
+                <h5 id="kb-edit-heading" className="modal-title">{editing === false ? '新增文章' : '编辑文章'}</h5>
+                <button type="button" aria-label="关闭文章编辑" disabled={saving} className="btn-close" onClick={() => setEditing(null)} />
               </div>
               <div className="modal-body">
+                {error && <div role="alert" className="alert alert-danger">{error}</div>}
+                <fieldset disabled={saving}>
                 <div className="mb-3">
-                  <label className="form-label">标题 <span className="text-danger">*</span></label>
-                  <input type="text" className="form-control" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+                  <label htmlFor="kb-edit-title" className="form-label">标题 <span className="text-danger">*</span></label>
+                  <input id="kb-edit-title" required maxLength={200} type="text" className="form-control" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
                 </div>
                 <div className="row">
                   <div className="col-md-6 mb-3">
-                    <label className="form-label">分类</label>
-                    <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                    <label htmlFor="kb-edit-category" className="form-label">分类</label>
+                    <select id="kb-edit-category" className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
                       {KB_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div className="col-md-6 mb-3">
-                    <label className="form-label">阅读时长（分钟）</label>
-                    <input type="number" min={1} className="form-control" value={form.readTime} onChange={(e) => setForm({ ...form, readTime: parseInt(e.target.value || '5', 10) })} />
+                    <label htmlFor="kb-edit-readTime" className="form-label">阅读时长（分钟）</label>
+                    <input id="kb-edit-readTime" type="number" min={1} className="form-control" value={form.readTime} onChange={(e) => setForm({ ...form, readTime: parseInt(e.target.value || '5', 10) })} />
                   </div>
                 </div>
                 <div className="row">
                   <div className="col-md-6 mb-3">
-                    <label className="form-label">标签（逗号分隔）</label>
-                    <input type="text" className="form-control" placeholder="储蓄, 应急基金" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
+                    <label htmlFor="kb-edit-tags" className="form-label">标签（逗号分隔）</label>
+                    <input id="kb-edit-tags" type="text" className="form-control" placeholder="储蓄, 应急基金" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
                   </div>
                   <div className="col-md-6 mb-3">
-                    <label className="form-label">发布日期</label>
-                    <input type="date" className="form-control" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+                    <label htmlFor="kb-edit-date" className="form-label">发布日期</label>
+                    <input id="kb-edit-date" type="date" className="form-control" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
                   </div>
                 </div>
                 <div className="mb-3">
-                  <label className="form-label">摘要</label>
-                  <input type="text" className="form-control" value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} />
+                  <label htmlFor="kb-edit-summary" className="form-label">摘要</label>
+                  <input id="kb-edit-summary" type="text" className="form-control" value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} />
                 </div>
                 <div className="mb-3">
-                  <label className="form-label">封面图 URL（可选）</label>
-                  <input type="text" className="form-control" placeholder="https://..." value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} />
+                  <label htmlFor="kb-edit-image" className="form-label">封面图 URL（可选）</label>
+                  <input id="kb-edit-image" type="text" className="form-control" placeholder="https://..." value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} />
                 </div>
                 <div className="mb-2">
-                  <label className="form-label">正文（支持 Markdown）</label>
-                  <textarea className="form-control" rows={8} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
+                  <label htmlFor="kb-edit-content" className="form-label">正文（支持 Markdown）</label>
+                  <textarea id="kb-edit-content" className="form-control" rows={8} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
                 </div>
+                </fieldset>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setEditing(null)}>取消</button>
-                <button type="button" className="btn btn-primary" style={{ background: 'var(--yg-primary)', borderColor: 'var(--yg-primary)' }} onClick={handleSave} disabled={saving}>
+                <button type="button" disabled={saving} className="btn btn-secondary" onClick={() => setEditing(null)}>取消</button>
+                <button type="submit" className="btn btn-primary" style={{ background: 'var(--yg-primary)', borderColor: 'var(--yg-primary)' }} disabled={saving}>
                   {saving ? '保存中...' : '保存'}
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
+          </form>
+        </Modal>
       )}
     </div>
   );
@@ -754,8 +755,8 @@ function learningLabel(key) {
   return { type: '记录', text: k };
 }
 
-function buildUserInsight(d) {
-  const txs = d.transactions || [];
+export function buildUserInsight(d) {
+  const txs = (d.transactions || []).filter(t => !t.transaction_type || t.transaction_type === 'expense');
   const goals = d.goals || [];
   const learns = d.learning_entries || [];
   if (txs.length === 0 && goals.length === 0 && learns.length === 0) {
@@ -774,9 +775,9 @@ function buildUserInsight(d) {
   if (txs.length > 0) {
     parts.push(`累计记录 ${txs.length} 笔消费`);
     if (regrets > 0) {
-      parts.push(`其中 ${regrets} 笔（${regretRate}%）标记为后悔消费` + (topRegretCat ? `，「${topRegretCat[0]}」类最易冲动` : ''));
+      parts.push(`其中 ${regrets} 笔（${regretRate}%）标记为后悔消费` + (topRegretCat ? `，标记最多的类别为「${topRegretCat[0]}」` : ''));
     } else {
-      parts.push('暂未标记后悔消费，消费较为理性');
+      parts.push('暂未标记后悔消费，无法据此判断消费是否理性');
     }
   }
   if (activeGoals.length > 0) {
@@ -785,10 +786,7 @@ function buildUserInsight(d) {
   if (learns.length > 0) {
     parts.push(`已完成 ${learns.length} 次学习/反思`);
   }
-  let advice = '建议保持引导，鼓励完成财务评估与首个理财目标。';
-  if (regretRate >= 50) advice = '建议 AI 教练重点推送理性消费、冲动购物干预内容。';
-  else if (activeGoals.length > 0 && avgProgress < 40) advice = '目标进度偏慢，建议推送储蓄习惯养成类内容。';
-  else if (learns.length >= 3) advice = '学习参与度高，可向其推荐进阶理财课程。';
+  const advice = '仅汇总已记录的参与情况，不用于判断财商能力或消费必要性。';
   return parts.join('；') + '。' + advice;
 }
 

@@ -19,6 +19,7 @@ import numpy as np
 VERSION = 'coach-hybrid-v2'
 log = logging.getLogger(__name__)
 _indexes = OrderedDict()
+_vectors = OrderedDict()
 _lock = threading.RLock()
 
 
@@ -85,6 +86,7 @@ def passages(articles):
                 title_terms = Counter(tokens(title + ' ' + str(article.get('summary') or '')))
                 weighted = body_terms + Counter({term: count*2 for term, count in title_terms.items()})
                 result.append({'article_id': str(article['id']), 'passage_id': f"{article['id']}:{offset}:{start}",
+                               **{key: article.get(key) for key in ('source_url', 'source_name', 'checked_at', 'region', 'version')},
                                'title': title, 'excerpt': excerpt, 'date': str(article.get('date') or ''),
                                '_terms': weighted, '_body_terms': body_terms,
                                '_text': title + '\n' + excerpt})
@@ -104,7 +106,21 @@ def _index(articles, models, dense):
             return _indexes[key]
         matrix = None
         if dense and documents:
-            matrix = models.encode([d['_text'] for d in documents])
+            keys = [(models.signature, hashlib.sha256(d['_text'].encode()).hexdigest()) for d in documents]
+            missing = {}
+            for key, doc in zip(keys, documents):
+                if key not in _vectors:
+                    missing[key] = doc['_text']
+            if missing:
+                encoded = models.encode(list(missing.values()))
+                if encoded.ndim != 2 or encoded.shape[0] != len(missing) or not np.isfinite(encoded).all():
+                    raise ValueError('invalid_document_embeddings')
+                _vectors.update(zip(missing, encoded))
+            matrix = np.stack([_vectors[key] for key in keys])
+            for key in keys:
+                _vectors.move_to_end(key)
+            while len(_vectors) > 20000:
+                _vectors.popitem(last=False)
             if matrix.ndim != 2 or matrix.shape[0] != len(documents) or not np.isfinite(matrix).all():
                 raise ValueError('invalid_document_embeddings')
         value = (documents, matrix, fingerprint)

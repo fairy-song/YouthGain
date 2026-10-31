@@ -7,6 +7,7 @@ import { dateKey } from '../components/FinanceVisuals';
 import DailyPodcast from '../components/DailyPodcast';
 import MonthlyAvailableFunds from '../components/MonthlyAvailableFunds';
 import TodayPracticeMascot from '../components/TodayPracticeMascot';
+import { DAILY_FUNDS_BREAKDOWN_ENABLED } from '../config/features';
 import './TodayHome.css';
 
 const yuan = value => `¥${Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -20,6 +21,7 @@ export default function TodayHome() {
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
   const version = useRef(0);
+  const requestRefresh = useCallback(() => setReload(value => value + 1), []);
 
   const refresh = useCallback(async () => {
     const current = ++version.current;
@@ -40,6 +42,9 @@ export default function TodayHome() {
 
   useEffect(() => {
     setPractice(null); setLedger(null); setUpcoming(null); setErrors({});
+  }, [currentUser?.uid]);
+
+  useEffect(() => {
     refresh();
     return () => { version.current += 1; };
   }, [currentUser?.uid, reload, refresh]);
@@ -89,7 +94,7 @@ export default function TodayHome() {
           <h2 id="today-ledger-title">本月收支</h2>
           {errors.ledger ? <p role="status">账本暂时无法读取。<button type="button" className="today-inline-button" onClick={() => setReload(value => value + 1)}>重试</button></p>
             : !budget ? <p role="status">{loading ? '正在读取本月记录…' : '暂无可汇总的账本记录。'}</p>
-              : budget.complete !== false && budget.spent != null ? <><div className="today-cashflow"><div><span>支出</span><strong className="today-amount">{yuan(cashflow?.spent ?? budget.spent)}</strong></div><div><span>收入</span><strong>{cashflow?.complete ? yuan(cashflow.income) : '暂未汇总'}</strong></div></div><MonthlyAvailableFunds funds={ledger?.funds} /><p>仅按已记录收支计算；退款抵减支出。{cashflow?.complete && (cashflow.has_expense_records === false || cashflow.has_income_records === false) && ' 本月有一侧尚无记录，结余可能不完整。'}</p></>
+              : budget.complete !== false && budget.spent != null ? <><div className="today-cashflow"><div><span>支出</span><strong className="today-amount">{yuan(cashflow?.spent ?? budget.spent)}</strong></div><div><span>收入</span><strong>{cashflow?.complete ? yuan(cashflow.income) : '暂未汇总'}</strong></div></div><MonthlyAvailableFunds key={currentUser?.uid} funds={ledger?.funds} enableDailyBreakdown={DAILY_FUNDS_BREAKDOWN_ENABLED} refreshing={loading} onRefresh={requestRefresh} /><p>仅按已记录收支计算；退款抵减支出。{cashflow?.complete && (cashflow.has_expense_records === false || cashflow.has_income_records === false) && ' 本月有一侧尚无记录，结余可能不完整。'}</p></>
                 : <p>部分记录暂时无法汇总，请到账本核对。</p>}
           <div className="today-panel-links"><Link to="/dashboard">记一笔</Link><Link to="/dashboard">查看账本</Link></div>
         </section>

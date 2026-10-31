@@ -429,7 +429,7 @@ def _interest(user_id, entries=None):
             'timezone': str(zone), 'learning_topic': TOPIC_TEXT.get(preferred, TOPIC_TEXT.get(question_topic, ''))}
 
 
-def _eligible(program, today, max_difficulty):
+def _eligible(program, today, max_difficulty, *, evergreen=False):
     if program.get('source_enabled') is False:
         return False
     if program.get('link_status') == 'invalid':
@@ -444,17 +444,17 @@ def _eligible(program, today, max_difficulty):
         return False
     try:
         reviewed = date.fromisoformat(program['reviewed_at'][:10]) if program.get('reviewed_at') else None
-        if not reviewed or not 0 <= (today - reviewed).days <= 90:
+        if not reviewed or (today - reviewed).days < 0 or (not evergreen and (today - reviewed).days > 90):
             return False
         episode_age = (today - date.fromisoformat(program['last_episode_at'])).days
-        if not 0 <= episode_age <= ACTIVE_DAYS:
+        if episode_age < 0 or (not evergreen and episode_age > ACTIVE_DAYS):
             return False
         selected_episode_age = (today - date.fromisoformat(program['episode_published_at'])).days
-        if not 0 <= selected_episode_age <= ACTIVE_DAYS:
+        if selected_episode_age < 0 or (not evergreen and selected_episode_age > ACTIVE_DAYS):
             return False
         if program['rss_url']:
             synced = date.fromisoformat(program['source_synced_at'][:10]) if program.get('source_synced_at') else None
-            if not synced or not 0 <= (today - synced).days <= SOURCE_MAX_AGE_DAYS:
+            if not evergreen and (not synced or not 0 <= (today - synced).days <= SOURCE_MAX_AGE_DAYS):
                 return False
     except (TypeError, ValueError):
         return False
@@ -498,21 +498,33 @@ def _candidates(programmes, history, feedback, today, interest, snapshot):
     user_vector = _vector(user_text)
     candidates = []
     for program in programmes:
-        if program['id'] in disliked or program['id'] in recent_ids or not _eligible(program, today, interest['max_difficulty']):
+        if program['id'] in disliked or not _eligible(program, today, 3, evergreen=True):
             continue
         matching = [topic for topic in program['topics'] if weights[topic] > 0]
-        if not matching:
-            continue
-        baseline = max(weights[topic] for topic in matching) / max(weights.values())
+        recent = program['id'] in recent_ids
+        standard = _eligible(program, today, 3)
+        personal = _eligible(program, today, interest['max_difficulty'])
+        tier = (0 if personal and matching and not recent else
+                1 if standard and not recent else 2 if standard else 3 if not recent else 4)
+        baseline = max((weights[topic] for topic in matching), default=0) / max(weights.values())
         similarity = max(0.0, _cosine(user_vector, program['vector']))
         age = (today - date.fromisoformat(program['episode_published_at'])).days
         freshness = max(0.0, 1 - age / ACTIVE_DAYS)
         repetition = 0.08 * sum(topic in recent_topics for topic in matching)
         score = 0.4 * baseline + 0.25 * similarity + 0.25 * program['quality_score'] + 0.1 * freshness - repetition
-        top_topic = max(matching, key=lambda topic: (weights[topic], topic))
+        if recent:
+            days_since = min((today - date.fromisoformat(row['date'])).days
+                             for row in history if row.get('program_id') == program['id'])
+            score -= 0.2 / (1 + max(0, days_since) / 7)
+        top_topic = max(matching or program['topics'], key=lambda topic: (weights[topic], topic))
         candidates.append({'score': score, 'program': program, 'topic': top_topic,
+                           'selection_tier': tier,
                            'baseline_score': round(baseline, 4), 'similarity': round(similarity, 4)})
-    return sorted(candidates, key=lambda c: (-c['score'], c['program']['id']))[:100]
+    # Keep fallback tiers separate so an inference score cannot promote a repeat
+    # over a fresh matching episode. Reuse the best available tier only.
+    best_tier = min((c['selection_tier'] for c in candidates), default=0)
+    return sorted((c for c in candidates if c['selection_tier'] == best_tier),
+                  key=lambda c: (-c['score'], c['program']['id']))[:100]
 
 
 def _evidence(snapshot, program):
@@ -533,6 +545,7 @@ def _response(connection, record, today, user_id):
     extra = {'recommendation_id': record.get('recommendation_id'),
              'as_of': record.get('as_of') or record.get('created_at'), 'evidence': record.get('evidence', []),
              'timezone': record.get('timezone', 'Asia/Shanghai')}
+    extra['selection_tier'] = record.get('selection_tier', 'personalized')
     extra.update(fallback=record.get('ranking', {}).get('fallback', False),
                  fallback_reason=record.get('ranking', {}).get('fallback_reason'),
                  ranker_used=record.get('ranking', {}).get('used', 'baseline'),
@@ -548,7 +561,7 @@ def _response(connection, record, today, user_id):
         return {**extra, 'evidence': [], 'date': record['date'], 'status': 'dismissed', 'program': None,
                 'program_id': record.get('program_id'),
                 'reason': None, 'message': '今天的节目已收起。点下方按钮可恢复。'}
-    if program and not _eligible(program, today, 3):
+    if program and not _eligible(program, today, 3, evergreen=True):
         return {**extra, 'evidence': [], 'date': record['date'], 'status': 'unavailable', 'program': None,
                 'reason': None, 'message': '今天的节目暂时不可查看。'}
     return {**extra, 'date': record['date'], 'status': record['status'], 'followed': 'follow' in user_feedback,
@@ -584,7 +597,7 @@ def today_for(user_id):
             existing.update(recommendation_id=str(uuid4()), as_of=existing.get('created_at'), evidence=[],
                             model_version='legacy', timezone=interest['timezone'])
             podcast_store.update_pick(connection, user_id, existing)
-        if existing:
+        if existing and existing.get('program_id'):
             return _response(connection, existing, today, user_id)
         programmes = podcast_store.program_rows(connection)
         history = podcast_store.recent_picks(connection, user_id, (today - timedelta(days=COOLDOWN_DAYS)).isoformat())
@@ -604,22 +617,32 @@ def today_for(user_id):
     ranking = podcast_ranker.rank(candidates, snapshot, events)
     with podcast_store.transaction() as connection:
         existing = podcast_store.daily_pick(connection, user_id, date_string)
-        if existing:
+        if existing and existing.get('program_id'):
             return _response(connection, existing, today, user_id)
         rejected = {r['program_id'] for r in podcast_store.feedback_rows(connection, user_id) if r['kind'] == 'dislike'}
         fresh = []
         for candidate in candidates:
             program = podcast_store.program(connection, candidate['program']['id'])
             if (program and program == candidate['program'] and program['id'] not in rejected
-                    and _eligible(program, today, interest['max_difficulty'])):
+                    and _eligible(program, today, 3, evergreen=True)):
                 fresh.append(dict(candidate, program=program))
         chosen = {'program_id': None, 'program_topics': [], 'status': 'none',
-                  'message': '今天没有合适的新单集。', 'reason': None, 'evidence': []}
+                  'message': '当前目录暂无可播放的已审核单集，稍后可重试。', 'reason': None, 'evidence': []}
+        if not fresh and existing:
+            return _response(connection, existing, today, user_id)
         if fresh:
             best = max(fresh, key=lambda c: (ranking['scores'][c['program']['id']], c['program']['id']))
             program, topic = best['program'], best['topic']
+            tier = best['selection_tier']
+            reason = (_reason(interest, topic, _evidence(snapshot, program)) if best['baseline_score'] > 0
+                      else '暂时没有更贴近你当前主题的新单集，先从这期内容拓展一个财商视角。')
+            if tier in (2, 4):
+                reason = '近期的新候选有限，先选这期内容供你重听；推荐过不代表你已经听过。' + reason
+            if tier in (3, 4):
+                reason = '本期已审核内容的发布或来源更新较早，先作为常青内容供你参考。' + reason
             chosen = {'program_id': program['id'], 'program_topics': program['topics'], 'status': 'ready',
-                      'reason': _reason(interest, topic, _evidence(snapshot, program)),
+                      'reason': reason,
+                      'selection_tier': ('personalized', 'explore', 'revisit', 'evergreen', 'evergreen_revisit')[tier],
                       'topic': topic, 'score': ranking['scores'][program['id']],
                       'baseline_score': best['baseline_score'], 'similarity': best['similarity'],
                       'evidence': _evidence(snapshot, program), 'message': None}
@@ -632,7 +655,7 @@ def today_for(user_id):
                       for key, value in interest['weights'].items() if value > 0},
                   'created_at': local_now.isoformat()}
         podcast_store.save_snapshot(connection, user_id, snapshot)
-        podcast_store.save_pick(connection, user_id, date_string, record)
+        podcast_store.save_pick(connection, user_id, date_string, record, replace_empty=bool(existing))
         if chosen['program_id']:
             podcast_store.append_event(connection, user_id, record, str(uuid4()), 'served',
                                        local_now.astimezone(timezone.utc).isoformat())
@@ -666,7 +689,7 @@ def save_feedback(user_id, program_id, kind, recommendation_id=None, event_id=No
         if kind == 'impression':
             program = podcast_store.program(connection, program_id)
             today = now().astimezone(ZoneInfo(record.get('timezone', 'Asia/Shanghai'))).date()
-            if not program or not _eligible(program, today, 3):
+            if not program or not _eligible(program, today, 3, evergreen=True):
                 raise PodcastError('节目暂时不可查看', 404)
         previous = podcast_store.event_by_id(connection, user_id, event_id)
         if previous:

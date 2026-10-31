@@ -22,8 +22,9 @@ export default function Onboarding() {
   const value = form[question.key] ?? '';
   const setValue = v => setForm(f => ({ ...f, [question.key]: v }));
   const next = async () => {
+    if (saving) return;
     setError('');
-    if (question.type === 'number' && (value === '' || Number(value) < (question.min || 0))) { setError('请填一个有效数字，之后也可以修改。'); return; }
+    if (question.type === 'number' && (value === '' || !Number.isFinite(Number(value)) || Number(value) < (question.min || 0) || (question.max != null && Number(value) > question.max))) { setError('请填写范围内的有效数字，之后也可以修改。'); return; }
     if (step < questions.length - 1) { setStep(s => s + 1); return; }
     setSaving(true);
     const timeoutId = setTimeout(() => setError('保存时间较长，请稍候——如果长时间无反应，可以刷新页面后重试。'), 10000);
@@ -39,7 +40,7 @@ export default function Onboarding() {
     <Card className="border-0 shadow-sm rounded-4" style={{ maxWidth: 520, width: '100%' }}><Card.Body className="p-4 p-md-5">
       <div className="small text-muted mb-2">认识你的钱 · {step + 1}/{questions.length}</div><ProgressBar now={(step + 1) / questions.length * 100} className="mb-4" />
       <h1 className="h3 mb-2">{question.title}</h1><p className="text-muted">{question.hint}</p>
-      {question.type === 'choices' ? <div className="d-grid gap-2">{question.choices.map(([label, key]) => <Button key={key} variant={value.includes(key) ? 'primary' : 'outline-secondary'} className="text-start" onClick={() => setValue(value.includes(key) ? value.filter(x => x !== key) : [...value, key])}>{value.includes(key) ? '✓ ' : ''}{label}</Button>)}</div> : <Form.Control autoFocus type="number" min={question.min} max={question.max} step="0.01" placeholder={question.placeholder} value={value} onChange={e => setValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') next(); }} />}
+      {question.type === 'choices' ? <div className="d-grid gap-2">{question.choices.map(([label, key]) => <Button key={key} disabled={saving} aria-pressed={value.includes(key)} variant={value.includes(key) ? 'primary' : 'outline-secondary'} className="text-start" onClick={() => setValue(value.includes(key) ? value.filter(x => x !== key) : [...value, key])}>{value.includes(key) ? '✓ ' : ''}{label}</Button>)}</div> : <Form.Control aria-label={question.title} disabled={saving} autoFocus type="number" min={question.min} max={question.max} step="0.01" placeholder={question.placeholder} value={value} onChange={e => setValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') next(); }} />}
       {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
       <div className="d-flex justify-content-between mt-4"><Button variant="link" disabled={step === 0 || saving} onClick={() => setStep(s => s - 1)}>上一步</Button><Button onClick={next} disabled={saving}>{saving ? '保存中…' : step === questions.length - 1 ? '进入我的主页' : '下一步'}</Button></div>
     </Card.Body></Card>

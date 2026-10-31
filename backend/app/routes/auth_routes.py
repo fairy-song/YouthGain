@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from datetime import datetime, timezone
 from app.services.auth_service import is_dev_bypass_enabled, verify_firebase_token, dev_email, resolve_role, dev_user_info
 # from app.services.firestore_service import get_user_profile # Already handled in verify_firebase_token
 
@@ -12,9 +13,20 @@ def verify_token_route():
     """
     # 开发模式下的模拟认证
     if is_dev_bypass_enabled():
+        from app.services import firestore_service as storage
+        identity = dev_user_info(dev_email())
+        profile = identity.get('profile') or {}
+        if profile.get('disabled'):
+            return jsonify(error='该账户已停用，请联系项目管理者'), 403
+        if storage.is_dev_mode():
+            record = storage._dev_db.setdefault('users', {}).setdefault(identity['uid'], {})
+            profile = record.setdefault('profile', {})
+            profile.update(email=identity['email'], lastLogin=datetime.now(timezone.utc).isoformat())
+            profile.setdefault('displayName', identity['email'].split('@')[0])
+            storage.persist_dev_db()
         return jsonify({
             "message": "Token verified successfully (DEV MODE)",
-            "user": dev_user_info(dev_email())
+            "user": {**identity, 'profile': profile}
         }), 200
 
     data = request.get_json(silent=True) or {}
@@ -39,32 +51,36 @@ def verify_token_route():
 def get_current_user():
     # 开发模式下的模拟用户
     if is_dev_bypass_enabled():
+        from app.services import firestore_service as storage
+        identity = dev_user_info(dev_email())
+        profile = identity.get('profile') or {}
+        if profile.get('disabled'):
+            return jsonify(error='该账户已停用，请联系项目管理者'), 403
+        if storage.is_dev_mode():
+            record = storage._dev_db.setdefault('users', {}).setdefault(identity['uid'], {})
+            profile = record.setdefault('profile', {})
+            profile.update(email=identity['email'], lastLogin=datetime.now(timezone.utc).isoformat())
+            profile.setdefault('displayName', identity['email'].split('@')[0])
+            storage.persist_dev_db()
         return jsonify({
-            "user": {
-                "displayName": "测试用户",
-                "email": dev_email(),
-                "createdAt": "2023-01-01T00:00:00Z",
-                "lastLogin": "2023-01-01T00:00:00Z",
-                "assessmentCompleted": False,
-                "goals": []
-            },
+            "user": profile, "uid": identity['uid'],
             "role": resolve_role(dev_email())  # 开发模式按模拟登录邮箱判定角色
         }), 200
-        
+
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         return jsonify({"error": "Authorization token is required"}), 401
-    
+
     id_token = auth_header.split('Bearer ')[1]
     user_info, error = verify_firebase_token(id_token) # Verifies and fetches profile
 
     if error:
         return jsonify({"error": f"Authentication failed: {error}"}), 401
-    
+
     # user_info already contains the profile from Firestore
     return jsonify({
         "user": user_info.get("profile", {}),
         "role": user_info.get("role", "user"),
         "uid": user_info.get("uid"),
         "email": user_info.get("email")
-    }), 200 
+    }), 200

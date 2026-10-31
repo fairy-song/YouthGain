@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import InfoPageHeader from './InfoPageHeader';
 import { FaFileAlt, FaShieldAlt, FaCookieBite, FaHandshake } from 'react-icons/fa';
 
 const LegalPage = () => {
-  const [activeTab, setActiveTab] = useState('privacy-policy');
+  const [params, setParams] = useSearchParams();
+  const requested = params.get('tab');
+  const activeTab = ['privacy-policy', 'user-agreement', 'cookie-policy', 'data-usage'].includes(requested) ? requested : 'privacy-policy';
+  const setActiveTab = tab => setParams({ tab });
   
   // 标签数据
   const tabs = [
@@ -345,6 +349,7 @@ Cookie是包含少量数据的文件，由网站存储在您的设备上。它�
       />
       
       <div className="container mx-auto px-4">
+        <p role="note" className="alert alert-warning">以下为项目历史示例文稿，尚未完成正式审核，其中联系方式和服务描述不能作为当前功能承诺。当前操作请以使用教程和研究参与说明为准。</p>
         <div className="bg-white rounded-lg shadow-md overflow-hidden mb-10">
           <div className="flex flex-col md:flex-row">
             {/* 侧边栏标签 */}
@@ -360,6 +365,7 @@ Cookie是包含少量数据的文件，由网站存储在您的设备上。它�
                           ? 'bg-neutral-100 text-neutral-800 font-medium'
                           : 'text-neutral-600 hover:bg-neutral-50'
                       }`}
+                      aria-pressed={activeTab === tab.id}
                       onClick={() => setActiveTab(tab.id)}
                     >
                       <span className="mr-3 text-neutral-500">{tab.icon}</span>
@@ -391,18 +397,8 @@ Cookie是包含少量数据的文件，由网站存储在您的设备上。它�
             如果您对我们的法律文件有任何疑问或需要进一步的解释，请联系我们的法务团队：
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <a 
-              href="mailto:legal@youthgain.com" 
-              className="inline-block bg-neutral-800 hover:bg-neutral-900 text-white px-5 py-3 rounded-md transition-colors text-center"
-            >
-              联系法务团队
-            </a>
-            <a 
-              href="/info/contact" 
-              className="inline-block bg-white border border-neutral-300 hover:bg-neutral-50 text-neutral-700 px-5 py-3 rounded-md transition-colors text-center"
-            >
-              联系客服
-            </a>
+            <Link to="/info/contact" className="btn btn-outline-secondary">联系与反馈</Link>
+            <Link to="/info/tutorial" className="btn btn-primary">查看当前使用说明</Link>
           </div>
         </div>
       </div>

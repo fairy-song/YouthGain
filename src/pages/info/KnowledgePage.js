@@ -26,6 +26,12 @@ function Article({ article, back }) {
     <Link to={back} className="btn btn-outline-secondary btn-sm mb-4">← 返回知识库</Link>
     <div className="kb-eyebrow">青盈 · 理财实践指南</div><h1>{article.title}</h1>
     <p className="text-muted">更新于 {article.date || '未标注'} · 约 {article.readTime || 3} 分钟阅读</p>
+    {article.source_url && <aside className="border rounded p-3 mb-3" aria-label="文章来源">
+      <a href={article.source_url} target="_blank" rel="noopener noreferrer">查看原文：{article.source_name || '发布机构'}</a>
+      <div className="small text-muted mt-1">适用地区：{({ CN: '中国内地', HK: '中国香港' })[article.region] || article.region || '未标注'}
+        {article.checked_at && ` · 最近核验：${article.checked_at.slice(0, 10)}`}
+        {article.version && ` · 版本：${article.version.slice(0, 8)}`}</div>
+    </aside>}
     <p className="kb-summary">{article.summary}</p>
     <ReactMarkdown components={markdownComponents}>{hasAnswer ? content.slice(0, answerIndex) : content}</ReactMarkdown>
     {hasAnswer && <><details className="kb-answer"><summary>想好后，查看参考答案</summary><ReactMarkdown components={markdownComponents}>{content.slice(answerIndex + '## 参考答案'.length, sourceIndex)}</ReactMarkdown></details><ReactMarkdown components={markdownComponents}>{content.slice(sourceIndex)}</ReactMarkdown></>}

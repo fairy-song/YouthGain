@@ -461,7 +461,7 @@ const Layout = () => {
                       <ListGroup.Item className="bg-transparent border-0 px-0 py-1">
                         <div className="footer-link-container">
                           <Link
-                            to="/info/legal"
+                            to="/info/legal?tab=privacy-policy"
                             className="text-light opacity-75 text-decoration-none footer-link"
                           >
                             <span className="icon"><FaLock /></span>
@@ -473,7 +473,7 @@ const Layout = () => {
                       <ListGroup.Item className="bg-transparent border-0 px-0 py-1">
                         <div className="footer-link-container">
                           <Link
-                            to="/info/legal"
+                            to="/info/legal?tab=user-agreement"
                             className="text-light opacity-75 text-decoration-none footer-link"
                           >
                             <span className="icon"><FaFileContract /></span>
@@ -485,7 +485,7 @@ const Layout = () => {
                       <ListGroup.Item className="bg-transparent border-0 px-0 py-1">
                         <div className="footer-link-container">
                           <Link
-                            to="/info/legal"
+                            to="/info/legal?tab=data-usage"
                             className="text-light opacity-75 text-decoration-none footer-link"
                           >
                             <span className="icon"><FaShieldAlt /></span>

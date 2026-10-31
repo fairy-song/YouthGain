@@ -91,7 +91,8 @@ def dev_user_info(email=None):
     # Keep the local bypass convenient while preserving account isolation. The
     # old fixed UID made every typed email read the same user's records.
     uid = 'dev-user-' + hashlib.sha256(email.lower().encode('utf-8')).hexdigest()[:24]
-    return {'uid': uid, 'email': email, 'profile': None, 'role': resolve_role(email)}
+    profile, _ = get_user_profile(uid)
+    return {'uid': uid, 'email': email, 'profile': profile, 'role': resolve_role(email)}
 
 
 def dev_email():
@@ -161,6 +162,8 @@ def require_auth(f):
     def wrapper(*args, **kwargs):
         if is_dev_bypass_enabled():
             kwargs['user_info'] = dev_user_info(dev_email())
+            if (kwargs['user_info'].get('profile') or {}).get('disabled'):
+                return jsonify(error='该账户已停用，请联系项目管理者'), 403
             return f(*args, **kwargs)
 
         auth_header = request.headers.get('Authorization', '')
@@ -195,6 +198,8 @@ def require_admin(f):
             if not is_admin_email(email):
                 return jsonify({"error": "无权访问，需要管理员权限"}), 403
             kwargs['user_info'] = dev_user_info(email)
+            if (kwargs['user_info'].get('profile') or {}).get('disabled'):
+                return jsonify(error='该账户已停用，请联系项目管理者'), 403
             return f(*args, **kwargs)
 
         auth_header = request.headers.get('Authorization', '')

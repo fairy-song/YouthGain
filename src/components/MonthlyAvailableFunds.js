@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { authenticatedApi } from '../services/api';
+import DailyFundsBreakdown from './DailyFundsBreakdown';
 
 export const AVAILABLE_NOTE = '上月结转结余 + 本月实际收入 − 本月净支出 − 本月净储蓄划拨；为日常可支配资金，不包含已锁定的储蓄资金。';
 const money = value => value == null ? '尚未确认' : `¥${Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function MonthlyAvailableFunds({ funds, editable = false, onSaved }) {
+export default function MonthlyAvailableFunds({ funds, editable = false, onSaved, enableDailyBreakdown = false, refreshing = false, onRefresh }) {
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -23,10 +24,11 @@ export default function MonthlyAvailableFunds({ funds, editable = false, onSaved
     } catch (err) { setError(err?.response?.data?.message || '结转保存失败，请重试。'); }
     finally { setBusy(false); }
   };
-  return <div className="ledger-metric">
+  return <div className={`ledger-metric${enableDailyBreakdown ? ' funds-breakdown-enabled' : ''}`}>
     <span className="ledger-summary-label">本月可用剩余</span>
     <strong className="ledger-summary-amount">{money(funds?.available_remaining_month)}{!funds?.available_complete && funds?.available_remaining_month != null && <small className="text-muted ms-1" style={{fontWeight:400}}>（估算）</small>}</strong>
     <small>{AVAILABLE_NOTE}</small>
+    {enableDailyBreakdown && <DailyFundsBreakdown funds={funds} refreshing={refreshing} onRefresh={onRefresh} />}
     <details><summary>查看资金口径</summary>
       <p>上月结转：{money(funds?.carryover_month)} · 本月净储蓄划拨：{money(funds?.savings_net_transfer_month)}</p>
       <p>储蓄锁定总资金：{money(funds?.savings_locked_total)}。已从可用剩余中扣除。</p>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Row, Col, Card, Form, Alert, Button, Badge, ProgressBar } from 'react-bootstrap';
 import { FaWallet, FaCoins } from 'react-icons/fa';
 import GoalCashflow, { GoalReserveHint } from '../GoalCashflow';
@@ -13,32 +13,40 @@ const BUCKETS = [
   { key: '长期储蓄', desc: '毕业大额支出', color: '#B7950B' },
 ];
 
-function BucketSwitcher({ goals, onSaved }) {
+export function BucketSwitcher({ goals, onSaved }) {
   const [active, setActive] = useState(0);
   const bucket = BUCKETS[active];
-  const goal = goals.find(g => g.title === bucket.key);
+  const goal = goals.find(g => g.title === bucket.key && (!g.status || g.status === 'active'));
   const [target, setTarget] = useState(goal?.target_amount || '');
   const [current, setCurrent] = useState(goal?.current_amount || '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [notice, setNotice] = useState('');
+  useEffect(() => {
+    setTarget(goal?.target_amount ?? '');
+    setCurrent(goal?.current_amount ?? '');
+  }, [active, goal?.id, goal?.target_amount, goal?.current_amount]);
 
   const switchTo = (i) => {
     const b = BUCKETS[i];
-    const g = goals.find(x => x.title === b.key);
+    const g = goals.find(x => x.title === b.key && (!x.status || x.status === 'active'));
     setActive(i);
     setTarget(g?.target_amount || '');
     setCurrent(g?.current_amount || '');
     setErr('');
+    setNotice('');
   };
 
   const save = async (e) => {
     e.preventDefault();
-    setBusy(true); setErr('');
+    if (busy) return;
+    setBusy(true); setErr(''); setNotice('');
     try {
-      const payload = { title: bucket.key, target_amount: Number(target), current_amount: Number(current || 0), deadline: new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toISOString().slice(0, 10) };
+      const payload = { title: bucket.key, target_amount: Number(target), current_amount: Number(current || 0), deadline: goal?.deadline || new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toISOString().slice(0, 10) };
       if (goal?.id) await updateGoal(goal.id, payload);
       else await createGoal(payload);
-      onSaved();
+      setNotice(`${bucket.key}已保存。`);
+      try { await onSaved(); } catch { setErr('目标已保存，列表刷新失败，请刷新页面，避免重复创建。'); }
     } catch (e) { setErr(e?.response?.data?.message || '保存失败'); }
     finally { setBusy(false); }
   };
@@ -50,18 +58,19 @@ function BucketSwitcher({ goals, onSaved }) {
   return <Card className="border-0 shadow-sm mb-4" style={{ borderTop: `3px solid ${bucket.color}` }}>
     <Card.Body>
       <div className="d-flex flex-wrap gap-1 mb-3">
-        {BUCKETS.map((b, i) => <Button key={b.key} size="sm" variant={i === active ? 'primary' : 'outline-secondary'} onClick={() => switchTo(i)} style={i === active ? { background: b.color, borderColor: b.color } : {}}>{b.key}</Button>)}
+        {BUCKETS.map((b, i) => <Button key={b.key} size="sm" disabled={busy} aria-pressed={i === active} variant={i === active ? 'primary' : 'outline-secondary'} onClick={() => switchTo(i)} style={i === active ? { background: b.color, borderColor: b.color } : {}}>{b.key}</Button>)}
       </div>
       <strong style={{ color: bucket.color }}>{bucket.key}</strong>
       <div className="text-muted small mb-3">{bucket.desc}</div>
       <Form onSubmit={save}>
         <Row className="g-2">
-          <Col md={4}><Form.Label className="small mb-0 text-muted">目标金额</Form.Label><Form.Control size="sm" type="number" min="0" step="0.01" value={target} onChange={e => setTarget(e.target.value)} placeholder="0.00" /></Col>
-          <Col md={4}><Form.Label className="small mb-0 text-muted">已存金额</Form.Label><Form.Control size="sm" type="number" min="0" step="0.01" value={current} onChange={e => setCurrent(e.target.value)} placeholder="0.00" /></Col>
+          <Col md={4}><Form.Label htmlFor="bucket-target" className="small mb-0 text-muted">目标金额</Form.Label><Form.Control id="bucket-target" disabled={busy} required size="sm" type="number" min="0.01" max="100000000" step="0.01" value={target} onChange={e => setTarget(e.target.value)} placeholder="0.00" /></Col>
+          <Col md={4}><Form.Label htmlFor="bucket-current" className="small mb-0 text-muted">已存金额</Form.Label><Form.Control id="bucket-current" disabled={busy} size="sm" type="number" min="0" max="100000000" step="0.01" value={current} onChange={e => setCurrent(e.target.value)} placeholder="0.00" /></Col>
           <Col md={4} className="d-flex align-items-end"><Button size="sm" type="submit" className="w-100" disabled={busy} style={{background: bucket.color, borderColor: bucket.color}}>{busy?'保存中…':'保存'}</Button></Col>
         </Row>
         {t > 0 && <div className="mt-2"><ProgressBar now={pct} style={{height:6}} /><div className="d-flex justify-content-between small text-muted mt-1"><span>已存 ¥{c.toFixed(2)}</span><span>目标 ¥{t.toFixed(2)}</span><span>{pct}%</span></div></div>}
-        {err && <div className="text-danger small mt-1">{err}</div>}
+        {notice && <div role="status" className="text-success small mt-2">{notice}</div>}
+        {err && <div role="alert" className="text-danger small mt-1">{err}</div>}
       </Form>
     </Card.Body>
   </Card>;
@@ -84,25 +93,25 @@ export default function LedgerGoals({ goals, goalForm, setGoalForm, goalError, s
                   <h5 className="card-title mb-0">设定其他储蓄目标</h5>
                 </div>
                 <Form onSubmit={handleGoalCreate}>
-                  <Form.Group className="mb-3">
+                  <Form.Group controlId="goal-title" className="mb-3">
                     <Form.Label className="small text-muted">目标名称</Form.Label>
-                    <Form.Control type="text" placeholder="例如：换新手机" value={goalForm.title} onChange={(e) => setGoalForm({ ...goalForm, title: e.target.value })} />
+                    <Form.Control required maxLength={100} type="text" placeholder="例如：换新手机" value={goalForm.title} onChange={(e) => setGoalForm({ ...goalForm, title: e.target.value })} />
                   </Form.Group>
                   <Row>
                     <Col>
-                      <Form.Group className="mb-3">
+                      <Form.Group controlId="goal-target" className="mb-3">
                         <Form.Label className="small text-muted">目标金额（元）</Form.Label>
-                        <Form.Control type="number" min="0" step="0.01" placeholder="8000" value={goalForm.target_amount} onChange={(e) => setGoalForm({ ...goalForm, target_amount: e.target.value })} />
+                        <Form.Control required type="number" min="0.01" max="100000000" step="0.01" placeholder="8000" value={goalForm.target_amount} onChange={(e) => setGoalForm({ ...goalForm, target_amount: e.target.value })} />
                       </Form.Group>
                     </Col>
                     <Col>
-                      <details><summary className="small">已留过钱？（选填）</summary><Form.Group className="mb-3">
+                      <details><summary className="small">已留过钱？（选填）</summary><Form.Group controlId="goal-current" className="mb-3">
                         <Form.Label className="small text-muted">已存金额（元）</Form.Label>
                         <Form.Control type="number" min="0" step="0.01" placeholder="0" value={goalForm.current_amount} onChange={(e) => setGoalForm({ ...goalForm, current_amount: e.target.value })} />
                       </Form.Group></details>
                     </Col>
                   </Row>
-                  <Form.Group className="mb-3">
+                  <Form.Group controlId="goal-deadline" className="mb-3">
                     <Form.Label className="small text-muted">付款截止日</Form.Label>
                     <Form.Control type="date" required value={goalForm.deadline} onChange={(e) => setGoalForm({ ...goalForm, deadline: e.target.value })} />
                   </Form.Group>
@@ -150,10 +159,10 @@ export default function LedgerGoals({ goals, goalForm, setGoalForm, goalError, s
                           </div>
                           {g.deadline && <div className="text-muted small mt-1">付款截止：{g.deadline}</div>}
                           {g.status === 'active' && <details className="mt-2"><summary className="small">调整目标</summary><Form className="mt-2" onSubmit={e => handleGoalEdit(e, g.id)}>
-                            <Form.Label className="small">更新锁定金额</Form.Label>
-                            <Form.Control name="current_amount" type="number" min="0" step="0.01" required defaultValue={current} />
-                            <Form.Label className="small mt-2">截止日</Form.Label>
-                            <Form.Control name="deadline" type="date" required defaultValue={String(g.deadline || '').slice(0, 10)} />
+                            <Form.Label htmlFor={`goal-current-${g.id}`} className="small">更新锁定金额</Form.Label>
+                            <Form.Control id={`goal-current-${g.id}`} name="current_amount" type="number" min="0" step="0.01" required defaultValue={current} />
+                            <Form.Label htmlFor={`goal-date-${g.id}`} className="small mt-2">截止日</Form.Label>
+                            <Form.Control id={`goal-date-${g.id}`} name="deadline" type="date" required defaultValue={String(g.deadline || '').slice(0, 10)} />
                             <Button type="submit" variant="outline-primary" size="sm" className="mt-2">保存</Button>
                           </Form></details>}
                         </div>

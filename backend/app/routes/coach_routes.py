@@ -52,7 +52,8 @@ def chat(user_info):
                 'task': task, 'financial_context_authorized': data.get('use_learning_context') is True}
     try:
         from app.services.admin_service import list_kb_articles
-        articles, error = list_kb_articles()
+        articles, error = list_kb_articles(limit=2000)
+        articles = [article for article in articles if article.get('region', 'CN') == 'CN']
         if error:
             raise RuntimeError(error)
         evidence.update(retrieve_knowledge(task['retrieval_query'], articles))

@@ -97,6 +97,11 @@ export default function DailyPodcast({ userId }) {
       <p className="daily-podcast-publisher">来自《{result.program.name}》 · {result.program.publisher} · {result.program.episode_published_at}</p>
       <p className="daily-podcast-description">{result.program.episode_summary}</p>
       <p className="daily-podcast-reason">为什么适合你：{result.reason}</p>
+      {result.selection_tier && result.selection_tier !== 'personalized' && <p className="daily-podcast-note">{
+        ({ explore: '拓展推荐：从现有节目中选择相对合适的一期。', revisit: '重听推荐：近期新候选有限，推荐过不代表已经收听。',
+          evergreen: '常青推荐：发布或来源更新较早，请结合当前情况理解。',
+          evergreen_revisit: '常青重听：发布或来源更新较早，供你再次参考。' })[result.selection_tier]
+      }</p>}
       {result.demo_model && <p className="daily-podcast-note">当前为合成数据训练的演示推荐，尚未用校园数据验证推荐效果。</p>}
       {result.evidence?.length > 0 && <details><summary>查看推荐依据</summary>
         <p>依据时间：{result.as_of?.slice(0, 10)}。只使用推荐时已记录的数据；锁定储蓄独立计算，预计收入不算实际到账。</p>
@@ -115,7 +120,7 @@ export default function DailyPodcast({ userId }) {
         <p>{result.message}</p>
         <button type="button" disabled={!!busy} onClick={() => feedback('undislike')}>恢复本期推荐</button>
       </div>
-    ) : result && <p className="daily-podcast-empty">{result.message || '今天没有合适的新单集。'}</p>}
+    ) : result && <div className="daily-podcast-empty"><p>{result.message || '当前目录暂时没有可播放的已审核单集。'}</p><button type="button" onClick={load}>重新挑选</button></div>}
     <p className="daily-podcast-note">收藏只影响青盈后续推荐，不会在外部平台收藏；收听不代表已经掌握知识。</p>
   </section>;
 }

@@ -11,6 +11,11 @@ def work(app, stopped, once=False, limit=100):
     while not stopped.is_set():
         try:
             with app.app_context():
+                try:
+                    from app.services.knowledge_updates import run_due
+                    run_due()
+                except Exception:
+                    app.logger.exception('Knowledge update cycle failed; podcast processing continues')
                 pipeline.schedule_due()
                 for _ in range(limit):
                     if stopped.is_set() or pipeline.run_one() is None:

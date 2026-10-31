@@ -45,3 +45,12 @@ test('首页教练问题在登录后保留并回到对话', async () => {
   fireEvent.click(screen.getByRole('button', { name: '进入青盈' }));
   expect(await screen.findByText('这周生活费怎么安排？ · 返回 /')).toBeTruthy();
 });
+
+test('登录后返回之前请求的学习功能与参数', async () => {
+  login.mockResolvedValue({ role: 'user' });
+  render(<MemoryRouter initialEntries={[{ pathname: '/login', state: { from: '/learning?tab=review' } }]}><Routes><Route path="/login" element={<Login />} /><Route path="/learning" element={<div>回到每周复盘</div>} /></Routes></MemoryRouter>);
+  fireEvent.change(screen.getByLabelText('电子邮箱'), { target: { value: 'demo@youthgain.local' } });
+  fireEvent.change(screen.getByLabelText('密码'), { target: { value: 'test' } });
+  fireEvent.click(screen.getByRole('button', { name: '进入青盈' }));
+  expect(await screen.findByText('回到每周复盘')).toBeTruthy();
+});

@@ -19,6 +19,22 @@ beforeEach(() => {
   sendPodcastImpression.mockResolvedValue({ saved: true });
 });
 
+test('labels a fallback honestly without hiding the recommended episode', async () => {
+  getTodayPodcast.mockResolvedValue({ ...recommendation, selection_tier: 'revisit' });
+  render(<DailyPodcast userId="alice" />);
+  expect(await screen.findByRole('heading', { name: '这一期谈预算' })).toBeInTheDocument();
+  expect(screen.getByText(/重听推荐：近期新候选有限/)).toBeInTheDocument();
+});
+
+test('lets an empty recommendation recover on the same day without reloading the page', async () => {
+  getTodayPodcast.mockResolvedValueOnce({ status: 'none', program: null,
+    message: '当前目录暂无可播放的已审核单集，稍后可重试。' }).mockResolvedValueOnce(recommendation);
+  render(<DailyPodcast userId="alice" />);
+  fireEvent.click(await screen.findByRole('button', { name: '重新挑选' }));
+  expect(await screen.findByRole('heading', { name: '这一期谈预算' })).toBeInTheDocument();
+  expect(getTodayPodcast).toHaveBeenCalledTimes(2);
+});
+
 test('reports only visible exposure once and binds helpful feedback to its recommendation', async () => {
   let observe;
   const prior = window.IntersectionObserver;

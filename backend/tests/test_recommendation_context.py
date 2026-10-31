@@ -128,13 +128,15 @@ def test_legacy_database_migration_does_not_invent_historical_snapshot(client):
         assert conn.execute('SELECT COUNT(*) FROM finance_snapshots').fetchone()[0] == 0
 
 
-def test_cooldown_empty_and_helpful_is_scoped_to_recommendation(client, monkeypatch):
+def test_cooldown_fallback_and_helpful_is_scoped_to_recommendation(client, monkeypatch):
     pid = add(client)
     today = call(client, 'get', '/api/podcasts/today').json
     assert call(client, 'post', '/api/podcasts/feedback', {
         'program_id': pid, 'kind': 'helpful', 'recommendation_id': today['recommendation_id']}).status_code == 200
     monkeypatch.setattr(service, 'now', lambda: datetime.fromisoformat('2026-10-12T12:00:00+08:00'))
-    assert call(client, 'get', '/api/podcasts/today').json['status'] == 'none'
+    repeated = call(client, 'get', '/api/podcasts/today').json
+    assert repeated['program']['id'] == pid and repeated['selection_tier'] == 'revisit'
+    assert repeated['helpful'] is False
     monkeypatch.setattr(service, 'now', lambda: datetime.fromisoformat('2026-11-12T12:00:00+08:00'))
     later = call(client, 'get', '/api/podcasts/today').json
     assert later['program']['id'] == pid and later['recommendation_id'] != today['recommendation_id']

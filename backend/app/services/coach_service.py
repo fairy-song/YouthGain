@@ -1,4 +1,8 @@
-import google.generativeai as genai
+try:
+    import google.generativeai as genai
+except ImportError:
+    # Reading/editing persona settings does not require the optional legacy provider SDK.
+    genai = None
 from flask import current_app
 from .firestore_service import save_coach_message, get_coach_history, _dev_db, is_dev_mode
 
@@ -20,6 +24,8 @@ def get_active_system_prompt():
 
 def configure_gemini():
     """Configures the Gemini API key."""
+    if genai is None:
+        raise ValueError('当前未安装旧版 Gemini 服务依赖。')
     api_key = current_app.config.get('GEMINI_API_KEY')
     if not api_key:
         raise ValueError("GEMINI_API_KEY not configured.")
@@ -59,7 +65,7 @@ def generate_coach_response(user_id, user_message_text, context_type="general_ch
             role = "user" if msg.get("sender") == "user" else "model" # Gemini uses 'user' and 'model'
             # Ensure 'parts' is a list of dictionaries with 'text'
             formatted_history.append({"role": role, "parts": [{"text": msg.get("text", "")}]})
-    
+
     # Add current user message to the history for the prompt
     # The API expects the current user message as the last 'user' part.
     # If history is empty, formatted_history will be empty.
@@ -69,7 +75,7 @@ def generate_coach_response(user_id, user_message_text, context_type="general_ch
     # Construct the payload for generateContent
     # Gemini API expects `contents` to be a list of turns, where each turn has a role and parts.
     # The last part should be the current user's message.
-    
+
     # Start with the base persona if no history or as a system instruction (depends on model)
     # For gemini-pro, you can prepend system instructions or include them in the first user turn.
     # A more robust way is to use system_instruction if the model supports it.
@@ -91,9 +97,9 @@ def generate_coach_response(user_id, user_message_text, context_type="general_ch
     # Let's build the `contents` for the API call
     # `formatted_history` already contains past user/model messages
     # The new user message should be the last item.
-    
+
     current_user_turn = {
-        "role": "user", 
+        "role": "user",
         "parts": [
             {
                 "text": base_prompt + "\n---对话历史---\n" + user_message_text if not formatted_history else user_message_text
@@ -120,14 +126,14 @@ def generate_coach_response(user_id, user_message_text, context_type="general_ch
     try:
         # 更新为使用 Gemini 2.5 Flash 模型
         model = genai.GenerativeModel('gemini-2.5-flash')
-        
+
         # print(f"DEBUG: Sending to Gemini API. Contents: {api_contents}")
 
         response = model.generate_content(
             api_contents,
             # generation_config=genai.types.GenerationConfig(...) # Optional: temperature, top_k, etc.
         )
-        
+
         # print(f"DEBUG: Gemini API Response: {response}")
 
         ai_response_text = ""
@@ -156,4 +162,4 @@ def generate_coach_response(user_id, user_message_text, context_type="general_ch
         print(f"Error saving AI response for {user_id}: {error}")
         # Decide how to handle this, the user already got the response
 
-    return ai_response_text, False # False indicates no error in generation 
+    return ai_response_text, False # False indicates no error in generation

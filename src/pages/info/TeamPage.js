@@ -1,6 +1,6 @@
 import React from 'react';
 import InfoPageHeader from './InfoPageHeader';
-import { FaLinkedin, FaEnvelope, FaGraduationCap } from 'react-icons/fa';
+import { FaGraduationCap } from 'react-icons/fa';
 
 const TeamPage = () => {
   // 虚构的团队成员数据
@@ -90,14 +90,15 @@ const TeamPage = () => {
   return (
     <div className="team-page bg-neutral-50 min-h-screen pb-20">
       {/* 页面标题 */}
-      <InfoPageHeader 
-        title="团队介绍" 
+      <InfoPageHeader
+        title="团队介绍"
         subtitle="了解我们背后的专业团队，共同致力于提升每个人的金融素养"
         category="about"
       />
-      
+
       {/* 公司简介 */}
       <div className="container mx-auto px-4">
+        <p role="note" className="alert alert-info">本页为历史团队展示示例，人物与履历为虚构素材，不代表真实项目成员。当前未提供成员社交或邮件联系入口。</p>
         <div className="bg-white rounded-lg shadow-md p-8 mb-16">
           <h2 className="text-3xl font-bold text-center mb-8 text-neutral-800">我们的故事</h2>
           <div className="max-w-3xl mx-auto">
@@ -112,16 +113,16 @@ const TeamPage = () => {
             </p>
           </div>
         </div>
-        
+
         {/* 核心团队 */}
         <h2 className="text-3xl font-bold text-center mb-10 text-neutral-800">核心团队</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
           {teamMembers.map(member => (
             <div key={member.id} className="bg-white rounded-lg shadow-md overflow-hidden transform transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
               <div className="h-64 bg-neutral-200 overflow-hidden">
-                <img 
-                  src={member.image} 
-                  alt={member.name} 
+                <img
+                  src={member.image}
+                  alt={member.name}
                   className="w-full h-full object-cover object-center"
                 />
               </div>
@@ -133,19 +134,11 @@ const TeamPage = () => {
                   <FaGraduationCap className="mr-2" />
                   <span>{member.education}</span>
                 </div>
-                <div className="flex space-x-3">
-                  <a href={member.linkedin} className="text-primary-700 hover:text-primary-800">
-                    <FaLinkedin size={20} />
-                  </a>
-                  <a href={`mailto:${member.email}`} className="text-primary-700 hover:text-primary-800">
-                    <FaEnvelope size={20} />
-                  </a>
-                </div>
               </div>
             </div>
           ))}
         </div>
-        
+
         {/* 顾问团队 */}
         <h2 className="text-3xl font-bold text-center mb-10 text-neutral-800">专家顾问</h2>
         <div className="space-y-8 mb-16">
@@ -153,9 +146,9 @@ const TeamPage = () => {
             <div key={advisor.id} className="bg-white rounded-lg shadow-md overflow-hidden p-6 flex flex-col md:flex-row items-center">
               <div className="w-full md:w-1/4 mb-4 md:mb-0 md:mr-6 flex justify-center">
                 <div className="h-40 w-40 rounded-full overflow-hidden">
-                  <img 
-                    src={advisor.image} 
-                    alt={advisor.name} 
+                  <img
+                    src={advisor.image}
+                    alt={advisor.name}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -172,7 +165,7 @@ const TeamPage = () => {
             </div>
           ))}
         </div>
-        
+
         {/* 使命和愿景 */}
         <div className="bg-gradient-to-r from-primary-700 to-primary-900 text-white rounded-lg shadow-lg p-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -212,4 +205,4 @@ const TeamPage = () => {
   );
 };
 
-export default TeamPage; 
+export default TeamPage;

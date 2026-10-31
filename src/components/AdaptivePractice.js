@@ -85,7 +85,7 @@ export default function AdaptivePractice({ lessons = [], onSelectLesson }) {
           </div>;
         })()}
         <div className="d-flex gap-2">
-          <Button as={Link} to="/knowledge" variant="outline-secondary">去知识库学习</Button>
+          <Button as={Link} to="/info/knowledge" variant="outline-secondary">去知识库学习</Button>
           <Button as={Link} to="/learning" variant="primary">明天继续练习</Button>
         </div>
       </div>}

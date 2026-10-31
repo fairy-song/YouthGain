@@ -22,7 +22,8 @@ test('后台提供中枢返回和学校研究入口，不包含用户业务入�
   setup();
   expect(screen.getByRole('link', { name: /返回球体中枢/ }).getAttribute('href')).toBe('/admin');
   expect(screen.getByRole('link', { name: '学校研究管理' }).getAttribute('href')).toBe('/research');
-  expect(screen.getByRole('heading', { name: '平台概览' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: '管理中枢' })).toBeTruthy();
+  expect(screen.getByRole('navigation', { name: '后台功能导航' }).querySelectorAll('a')).toHaveLength(5);
   ['每日打卡', '健康评估', 'AI 教练', '返回个人中心'].forEach(text => expect(screen.queryByText(text)).toBeNull());
   expect(screen.getByRole('link', { name: /预览用户端/ }).getAttribute('target')).toBe('_blank');
 });

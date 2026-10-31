@@ -15,7 +15,7 @@ export default function MobileNavBar() {
     {destinations.map(item => {
       const Icon = item.icon === 'admin' ? FaShieldAlt : icons[item.icon];
       const active = location.pathname === item.path;
-      return <Link key={item.path} to={item.requireAuth && !currentUser ? '/login' : item.path} aria-current={active ? 'page' : undefined} className={`mobile-main-nav-item ${active ? 'active' : ''}`} style={{ width: itemWidth }}>
+      return <Link key={item.path} to={item.requireAuth && !currentUser ? '/login' : item.path} state={item.requireAuth && !currentUser ? { from: item.path } : undefined} aria-current={active ? 'page' : undefined} className={`mobile-main-nav-item ${active ? 'active' : ''}`} style={{ width: itemWidth }}>
         <Icon aria-hidden="true" /><span>{item.label}</span>
       </Link>;
     })}

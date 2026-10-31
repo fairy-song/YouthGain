@@ -49,6 +49,8 @@ function LearningContent() {
   const [review, setReview] = useState({ observation: '', next_action: '', principle: '', previous_action_result: '', pressure: 'neutral' });
   const [outcomeDrafts, setOutcomeDrafts] = useState({});
 
+  useEffect(() => { setNotice(''); setError(''); }, [tab]);
+
 
   useEffect(() => {
     let active = true;

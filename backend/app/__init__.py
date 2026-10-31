@@ -85,6 +85,8 @@ def create_app():
 
     from .routes.knowledge_routes import knowledge_bp
     app.register_blueprint(knowledge_bp, url_prefix='/api/knowledge')
+    from .routes.knowledge_update_routes import knowledge_updates_bp
+    app.register_blueprint(knowledge_updates_bp, url_prefix='/api/admin/knowledge-updates')
 
     @app.route('/api/health', methods=['GET'])
     def health_check():

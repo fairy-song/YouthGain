@@ -44,12 +44,14 @@ LESSONS = [
 
 
 def text_field(data, name, required=False, limit=1000):
+    label = {'due_date': '预计日期', 'title': '开支事项', 'category': '商品或消费类别',
+             'reflection': '思考内容', 'observation': '本周回看', 'next_action': '下周行动'}.get(name, name)
     value = data.get(name, '')
     if not isinstance(value, str) or len(value) > limit:
-        raise ValueError(f'{name} 必须是 {limit} 字以内的文字')
+        raise ValueError(f'{label} 必须是 {limit} 字以内的文字')
     value = value.strip()
     if required and not value:
-        raise ValueError('请填写思考内容后再保存')
+        raise ValueError(f'请填写{label}后再保存')
     return value
 
 

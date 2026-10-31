@@ -529,6 +529,11 @@ export const adminDeleteKbArticle = async (articleId) => {
   return response.data;
 };
 
+export const knowledgeUpdatesApi = async (method, path = '', data) => {
+  const response = await api.request({ method, url: `/admin/knowledge-updates${path}`, data });
+  return response.data;
+};
+
 // 导出API服务
 const apiService = {
   loginUser,

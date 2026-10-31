@@ -71,7 +71,7 @@ def test_auth_daily_stability_feedback_and_account_isolation(client, monkeypatch
     assert call(client, 'get', '/api/podcasts/today').json['status'] == 'none'  # Explicit dislike remains respected.
 
 
-def test_review_quality_duplicate_platforms_and_no_forced_candidate(client):
+def test_review_quality_and_empty_pick_recovers_when_catalog_is_ready(client):
     empty = call(client, 'get', '/api/podcasts/today').json
     assert empty['status'] == 'none'
     add(client, approved=False)
@@ -85,7 +85,7 @@ def test_review_quality_duplicate_platforms_and_no_forced_candidate(client):
                payload('内部链接', canonical_url='https://127.0.0.1/private'), user='admin')
     assert bad.status_code == 400
     program = add(client, name='优质节目')
-    assert call(client, 'get', '/api/podcasts/today').json == empty
+    assert call(client, 'get', '/api/podcasts/today').json['program']['id'] == program
     assert call(client, 'get', '/api/podcasts/today', user='carol').json['program']['id'] == program
     assert call(client, 'post', f'/api/podcasts/admin/programs/{program}/review',
                 {'approved': False}, user='admin').status_code == 200
@@ -149,15 +149,17 @@ def test_interest_and_timezone_change_recommendation_day(client, monkeypatch):
     assert first['program']['id'] == choice
     monkeypatch.setattr(service, 'now', lambda: datetime.fromisoformat('2026-10-12T20:00:00+08:00'))
     assert call(client, 'get', '/api/podcasts/today').json['date'] == '2026-10-12'
-    # The previous episode is excluded by the new 30-day cooldown.
-    assert call(client, 'get', '/api/podcasts/today').json['status'] == 'none'
+    # Try a new adjacent topic before repeating the previous choice episode.
+    result = call(client, 'get', '/api/podcasts/today').json
+    assert result['status'] == 'ready' and result['program']['id'] != choice
+    assert result['selection_tier'] == 'explore'
 
 
-def test_starter_catalog_respects_cached_empty_until_next_local_day(client, monkeypatch):
+def test_starter_catalog_recovers_cached_empty_on_same_local_day(client, monkeypatch):
     empty = call(client, 'get', '/api/podcasts/today').json
     assert empty['status'] == 'none'
     client.application.config['PODCAST_STARTER_CATALOG_ENABLED'] = True
-    assert call(client, 'get', '/api/podcasts/today').json == empty
+    assert call(client, 'get', '/api/podcasts/today').json['status'] == 'ready'
     monkeypatch.setattr(service, 'now', lambda: datetime.fromisoformat('2026-10-12T12:00:00+08:00'))
     ready = call(client, 'get', '/api/podcasts/today').json
     assert ready['status'] == 'ready'
@@ -175,6 +177,57 @@ def test_recent_programme_is_deprioritized_when_another_matches(client, monkeypa
     assert picked in (first, second)
     monkeypatch.setattr(service, 'now', lambda: datetime.fromisoformat('2026-10-12T12:00:00+08:00'))
     assert call(client, 'get', '/api/podcasts/today').json['program']['id'] != picked
+
+
+def test_single_episode_repeats_after_a_gap_instead_of_going_empty(client, monkeypatch):
+    pid = add(client)
+    first = call(client, 'get', '/api/podcasts/today').json
+    monkeypatch.setattr(service, 'now', lambda: datetime.fromisoformat('2026-10-16T12:00:00+08:00'))
+    result = call(client, 'get', '/api/podcasts/today').json
+    assert result['program']['id'] == pid
+    assert result['selection_tier'] == 'revisit'
+    assert '不代表你已经听过' in result['reason']
+    assert result['recommendation_id'] != first['recommendation_id']
+    assert call(client, 'get', '/api/podcasts/today').json == result
+
+
+def test_explores_a_new_topic_when_no_episode_matches(client):
+    pid = add(client, topic='risk')
+    result = call(client, 'get', '/api/podcasts/today').json
+    assert result['program']['id'] == pid and result['selection_tier'] == 'explore'
+    assert '拓展' in result['reason']
+    assert not result['evidence']
+
+
+def test_evergreen_fallback_keeps_real_publication_dates_and_feedback_works(client):
+    pid = add(client, episode_published_at='2025-01-01', last_episode_at='2025-01-01')
+    result = call(client, 'get', '/api/podcasts/today').json
+    assert result['program']['id'] == pid and result['selection_tier'] == 'evergreen'
+    assert result['program']['episode_published_at'] == '2025-01-01'
+    assert call(client, 'post', '/api/podcasts/feedback', {
+        'program_id': pid, 'recommendation_id': result['recommendation_id'],
+        'kind': 'impression', 'event_id': 'evergreen-impression'}).status_code == 200
+
+
+def test_fallback_still_respects_dislikes_and_disabled_or_invalid_sources(client, monkeypatch):
+    pid = add(client)
+    add(client, name='未发布', episode_published_at='2026-12-01', last_episode_at='2026-12-01')
+    add(client, name='未审核', approved=False)
+    add(client, name='停用来源', source_enabled=False)
+    add(client, name='失效链接', link_status='invalid')
+    # Persist source metadata directly because editorial payload validation strips these fields.
+    from app.services import podcast_store
+    with client.application.app_context(), podcast_store.transaction() as conn:
+        for program in podcast_store.program_rows(conn):
+            if program['name'] == '停用来源':
+                program['source_enabled'] = False
+            elif program['name'] == '失效链接':
+                program['link_status'] = 'invalid'
+            podcast_store.save_program(conn, program)
+    assert call(client, 'get', '/api/podcasts/today').json['program']['id'] == pid
+    call(client, 'post', '/api/podcasts/feedback', {'program_id': pid, 'kind': 'dislike'})
+    monkeypatch.setattr(service, 'now', lambda: datetime.fromisoformat('2026-10-12T12:00:00+08:00'))
+    assert call(client, 'get', '/api/podcasts/today').json['status'] == 'none'
 
 
 def test_multiple_episodes_can_share_show_homepage(client):
@@ -259,7 +312,9 @@ def test_rss_sync_reads_metadata_only_and_preserves_last_good_record(client, mon
     assert stored['description'] == 'Publisher description of budgeting'
     assert stored['source_error']
     monkeypatch.setattr(service, 'now', lambda: datetime.fromisoformat('2026-11-15T12:00:00+08:00'))
-    assert call(client, 'get', '/api/podcasts/today', user='bob').json['status'] == 'none'  # Stale sync.
+    fallback = call(client, 'get', '/api/podcasts/today', user='bob').json
+    assert fallback['program']['id'] == program_id
+    assert fallback['selection_tier'] == 'evergreen'  # Last reviewed metadata remains usable.
 
 
 def test_sparse_description_uses_reviewed_topic_and_forbids_xml_entities(client):

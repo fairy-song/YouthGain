@@ -58,6 +58,7 @@ const ApiStatusIndicator = () => {
 // 受保护的路由组件
 const ProtectedRoute = ({ children }) => {
   const { currentUser, loading, initializing } = useAuth();
+  const location = useLocation();
   
   // initializing: 首次挂载时正在恢复登录状态（Firebase 异步），此时不能判定未登录
   if (loading || initializing) {
@@ -65,7 +66,7 @@ const ProtectedRoute = ({ children }) => {
   }
   
   if (!currentUser) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   }
   
   return <React.Fragment key={currentUser.uid}>{children}</React.Fragment>;
@@ -79,6 +80,7 @@ const HomeEntry = () => {
 
 const OnboardingRoute = ({ children }) => {
   const { currentUser, loading, initializing } = useAuth();
+  const location = useLocation();
   const userId = currentUser?.uid;
   const userEmail = currentUser?.email;
   const [checking, setChecking] = useState(true);
@@ -96,7 +98,7 @@ const OnboardingRoute = ({ children }) => {
     return () => { active = false; };
   }, [userId, userEmail]);
   if (loading || initializing || checking) return <div className="flex justify-center items-center h-screen">准备你的理财空间…</div>;
-  if (!currentUser) return <Navigate to="/login" replace />;
+  if (!currentUser) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   if (checkError) return <div role="alert" className="alert alert-warning m-4">{checkError}</div>;
   return complete ? children : <Navigate to="/start" replace />;
 };

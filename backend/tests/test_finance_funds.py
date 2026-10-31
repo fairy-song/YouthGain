@@ -48,6 +48,20 @@ def context(client):
     return response.json['data']
 
 
+def test_funds_exposes_snapshot_timezone_in_both_existing_endpoints(client, clock):
+    opening(client)
+    call(client, 'put', '/api/learning/profile', {'timezone': 'America/New_York'})
+    for path in ('/api/decision/funds', '/api/decision/transactions'):
+        response = call(client, 'get', path)
+        assert response.status_code == 200
+        data = response.json['data']
+        data = data['funds'] if 'funds' in data else data
+        assert data['timezone'] == 'America/New_York'
+        assert data['month'] == data['as_of'][:7]
+        assert datetime.fromisoformat(data['as_of']).utcoffset() == timedelta(hours=-4)
+        assert data['available_remaining_month'] == 1000
+
+
 def test_transfer_release_and_deletion_never_become_income_or_expense(client):
     opening(client)
     gid = goal(client)

@@ -21,6 +21,7 @@ import { Modal, Button, Form, Row, Col, Alert, Spinner, Badge, ProgressBar } fro
 import { FaMicrophone, FaStop, FaRobot, FaPiggyBank, FaCheckCircle } from 'react-icons/fa';
 import { assessPurchase, createTransaction, transcribeAudio } from '../services/api';
 import { parseBillText, parsedToForm, validateBillForm } from '../utils/billParser';
+import { dateKey } from './FinanceVisuals';
 
 const CATEGORY_OPTIONS = ['餐饮', '饮品', '零食', '交通', '娱乐', '购物', '学习', '房租', '话费', '医疗', '其他'];
 
@@ -42,6 +43,8 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
   // 录音资源（AudioContext / 采集节点 / 麦克风流 / 采样缓冲）
   const audioRef = useRef(null);     // { ctx, source, processor, stream, samples, rate }
   const timerRef = useRef(null);
+  const completionTimerRef = useRef(null);
+  const requestVersion = useRef(0);
   const cleanupAudio = useCallback(() => {
     const a = audioRef.current;
     if (!a) return;
@@ -74,13 +77,17 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
   // 组件卸载时释放麦克风与音频资源
   useEffect(() => {
     return () => {
+      requestVersion.current += 1;
       if (timerRef.current) clearInterval(timerRef.current);
       cleanupAudio();
+      if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
     };
   }, [cleanupAudio]);
 
   // 关闭时重置全部状态
   const resetAll = useCallback(() => {
+    requestVersion.current += 1;
+    if (completionTimerRef.current) { clearTimeout(completionTimerRef.current); completionTimerRef.current = null; }
     if (timerRef.current) clearInterval(timerRef.current);
     cleanupAudio();
     setListening(false);
@@ -100,6 +107,13 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
     setAssessing(false);
     setSaved(false);
   }, [cleanupAudio]);
+
+  useEffect(() => {
+    setAssessment(null);
+    setAssessError('');
+    setSaveError('');
+    if (form) setStage(STAGE.PARSED);
+  }, [form]);
 
   // ---- 音频工具函数：Float32 合并 → 降采样到 16k → Int16 PCM → base64 ----
 
@@ -131,11 +145,13 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
 
   // 开始录音（ASR 第 1 步：本地采集 PCM，录完再上传讯飞）
   const startListening = async () => {
+    const version = ++requestVersion.current;
     setAsrError('');
     setManualText('');
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (version !== requestVersion.current) { stream.getTracks().forEach(track => track.stop()); return; }
     } catch (e) {
       setAsrError('无法使用麦克风（权限被拒绝或没有麦克风），可改用文本输入');
       return;
@@ -174,6 +190,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
 
   // 停止录音 → 转 PCM → 上传讯飞 → 拿文本自动进入抽取回显
   const stopListening = () => {
+    const version = requestVersion.current;
     if (timerRef.current) clearInterval(timerRef.current);
     const a = audioRef.current;
     if (!a) return;
@@ -200,6 +217,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
 
     transcribeAudio(audioB64)
       .then((text) => {
+        if (version !== requestVersion.current) return;
         setTranscribing(false);
         if (text && text.trim()) {
           setManualText(text); // 识别文本回填输入框，保证"识别文本"展示一致
@@ -209,6 +227,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
         }
       })
       .catch((err) => {
+        if (version !== requestVersion.current) return;
         setTranscribing(false);
         setAsrError(err?.response?.data?.message || err?.message || '语音识别失败，请确认后端服务已启动');
       });
@@ -219,7 +238,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
     const result = parseBillText(text);
     setParsed(result);
     // 回显表单（第 3 步），多金额时默认选第一个，由用户确认
-    setForm(parsedToForm(result, new Date().toISOString().slice(0, 10)));
+    setForm(parsedToForm(result, dateKey()));
     setSelectedAmount(result.amount != null ? result.amount : null);
     setStage(STAGE.PARSED);
     setParseError('');
@@ -243,6 +262,8 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
 
   // 第 4-5 步：消费影响试算
   const handleAssess = async () => {
+    if (assessing || saving || saved) return;
+    const version = requestVersion.current;
     const errorMsg = validateBillForm(form);
     if (errorMsg) {
       setAssessError(errorMsg);
@@ -258,17 +279,20 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
         note: form.note,
         monthly_income: monthlyIncome,
       });
+      if (version !== requestVersion.current) return;
       setAssessment(result);
       setStage(STAGE.ASSESSED);
     } catch (err) {
+      if (version !== requestVersion.current) return;
       setAssessError(err?.response?.data?.message || err?.message || '评估失败，请确认后端服务已启动');
     } finally {
-      setAssessing(false);
+      if (version === requestVersion.current) setAssessing(false);
     }
   };
 
   // 第 6 步：确认保存
   const handleSave = async () => {
+    if (saving || saved || assessing) return;
     const errorMsg = validateBillForm(form);
     if (errorMsg) {
       setSaveError(errorMsg);
@@ -287,13 +311,14 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
         planned: form.planned || null, purpose: form.purpose || '',
       };
       if (form.hour !== '') payload.hour = parseInt(form.hour, 10);
-      await createTransaction(payload);
+      const savedRecord = await createTransaction(payload);
       setSaved(true);
       // 通知看板刷新
-      if (onSaved) onSaved();
-      setTimeout(() => {
+      completionTimerRef.current = setTimeout(() => {
+        completionTimerRef.current = null;
         resetAll();
         onClose();
+        if (onSaved) onSaved({ ...payload, ...savedRecord });
       }, 800);
     } catch (err) {
       setSaveError(err?.response?.data?.message || err?.message || '保存失败，请确认后端服务已启动');
@@ -304,9 +329,9 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
 
   // ---- 渲染 ----
   return (
-    <Modal show={show} onHide={() => { if (!saving) { resetAll(); onClose(); } }} size="lg" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>
+    <Modal show={show} onHide={() => { if (!saving && !saved) { resetAll(); onClose(); } }} aria-labelledby="voice-bill-title" size="lg" centered>
+      <Modal.Header closeButton={!saving && !saved} closeLabel="关闭语音记账">
+        <Modal.Title id="voice-bill-title">
           <FaMicrophone className="me-2 text-success" />
           语音记一笔
         </Modal.Title>
@@ -344,7 +369,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
 
             {/* 文本兜底 */}
             <Form onSubmit={handleParseManual}>
-              <Form.Group className="mb-2">
+              <Form.Group controlId="voice-input" className="mb-2">
                 <Form.Label className="small text-muted">或手动输入消费内容</Form.Label>
                 <Form.Control
                   as="textarea"
@@ -399,10 +424,10 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
             )}
 
             {/* 回显表单 */}
-            <Form>
+            <Form><fieldset disabled={saving || saved || assessing}>
               <Row className="g-3">
                 <Col md={3}>
-                  <Form.Group>
+                  <Form.Group controlId="voice-amount">
                     <Form.Label className="small text-muted">金额（元）*</Form.Label>
                     <Form.Control
                       type="number" min="0" step="0.01"
@@ -413,7 +438,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
                   </Form.Group>
                 </Col>
                 <Col md={3}>
-                  <Form.Group>
+                  <Form.Group controlId="voice-category">
                     <Form.Label className="small text-muted">类别 *</Form.Label>
                     <Form.Select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
                       {CATEGORY_OPTIONS.map((c) => <option key={c}>{c}</option>)}
@@ -421,7 +446,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
                   </Form.Group>
                 </Col>
                 <Col md={3}>
-                  <Form.Group>
+                  <Form.Group controlId="voice-merchant">
                     <Form.Label className="small text-muted">商户</Form.Label>
                     <Form.Control
                       type="text"
@@ -432,7 +457,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
                   </Form.Group>
                 </Col>
                 <Col md={3}>
-                  <Form.Group>
+                  <Form.Group controlId="voice-date">
                     <Form.Label className="small text-muted">消费日期 *</Form.Label>
                     <Form.Control
                       type="date"
@@ -442,7 +467,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
                   </Form.Group>
                 </Col>
                 <Col md={6}>
-                  <Form.Group>
+                  <Form.Group controlId="voice-items">
                     <Form.Label className="small text-muted">商品 / 买了什么</Form.Label>
                     <Form.Control
                       type="text"
@@ -453,7 +478,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
                   </Form.Group>
                 </Col>
                 <Col md={3}>
-                  <Form.Group>
+                  <Form.Group controlId="voice-hour">
                     <Form.Label className="small text-muted">时段（可选）</Form.Label>
                     <Form.Select value={form.hour} onChange={(e) => setForm({ ...form, hour: e.target.value })}>
                       <option value="">不填写</option>
@@ -462,7 +487,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
                   </Form.Group>
                 </Col>
                 <Col md={3}>
-                  <Form.Group>
+                  <Form.Group controlId="voice-note">
                     <Form.Label className="small text-muted">备注</Form.Label>
                     <Form.Control
                       type="text"
@@ -474,7 +499,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
                 </Col>
               </Row>
               <TransactionIntent value={form} onChange={setForm} />
-            </Form>
+            </fieldset></Form>
 
             {assessError && <Alert variant="danger" className="small mt-3 mb-0">{assessError}</Alert>}
             {saveError && <Alert variant="danger" className="small mt-3 mb-0">{saveError}</Alert>}
@@ -504,7 +529,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
                 <div className="mb-2">
                   <div className="d-flex justify-content-between small text-muted mb-1">
                     <span>本月已消费 ¥{assessment.budget.spent_this_month.toLocaleString()}</span>
-                    <span>购买前余量 ¥{assessment.budget.remaining.toLocaleString()}</span>
+                    <span>本月收支余量 ¥{assessment.budget.remaining.toLocaleString()}</span>
                   </div>
                   <ProgressBar
                     now={assessment.budget.remaining <= 0 ? 100
@@ -517,7 +542,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
 
                 {/* 储蓄影响 */}
                 <div className="small text-muted mb-1">
-                  月度结余：¥{assessment.surplus.before.toLocaleString()}
+                  本月收支结余：¥{assessment.surplus.before.toLocaleString()}
                   <span className="text-danger"> → ¥{assessment.surplus.after.toLocaleString()}</span>
                   （这笔 -¥{assessment.amount}）
                   {assessment.goal.has_goal && assessment.goal.status_before !== assessment.goal.status_after && (
@@ -534,7 +559,7 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
                 </div>
 
                 {/* 平价建议 / 提示 */}
-                <p className="small text-muted mt-2">{assessment.basis?.message} {assessment.goal.assumption}</p>
+                <p className="small text-muted mt-2">这里按本月收入减支出试算，不含上月结转与储蓄划拨，因此可能与账本“本月可用剩余”不同。{assessment.basis?.message} {assessment.goal.assumption}</p>
             {assessment.tip && (
                   <div className="small text-muted mt-2">
                     <FaPiggyBank className="me-1" />{assessment.tip}
@@ -545,15 +570,15 @@ export default function VoiceBillModal({ show, onClose, onSaved, monthlyIncome }
 
             {/* 操作按钮 */}
             <div className="d-flex justify-content-end gap-2 mt-3">
-              <Button variant="outline-secondary" className="rounded-pill px-3" onClick={() => setStage(STAGE.PARSED)}>
-                修改
+              <Button variant="outline-secondary" className="rounded-pill px-3" disabled={saving || saved || assessing} onClick={() => { setAssessment(null); setStage(STAGE.INPUT); }}>
+                重新输入
               </Button>
               {stage !== STAGE.ASSESSED && (
                 <Button variant="primary" className="rounded-pill px-3" onClick={handleAssess} disabled={assessing}>
                   {assessing ? (<><Spinner size="sm" className="me-1" />评估中</>) : (<><FaRobot className="me-1" />消费影响试算</>)}
                 </Button>
               )}
-              <Button variant="success" className="rounded-pill px-3" onClick={handleSave} disabled={saving || saved}>
+              <Button variant="success" className="rounded-pill px-3" onClick={handleSave} disabled={saving || saved || assessing}>
                 {saving ? (<><Spinner size="sm" className="me-1" />保存中</>)
                   : saved ? (<><FaCheckCircle className="me-1" />已保存</>)
                   : (<><FaCheckCircle className="me-1" />确认保存</>)}

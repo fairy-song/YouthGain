@@ -25,6 +25,15 @@ const send = text => {
   fireEvent.submit(screen.getByRole('textbox').closest('form'));
 };
 
+test('failed send restores the question so the user can retry without retyping', async () => {
+  sendMessageToCoach.mockRejectedValue(new Error('offline'));
+  render(<App />);
+  expect(screen.getByRole('button', { name: '发送消息' })).toBeDisabled();
+  send('如何安排一周生活费？');
+  await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('如何安排一周生活费？'));
+  expect(screen.getByRole('button', { name: '发送消息' })).toBeEnabled();
+});
+
 test('shows only returned verified answer and distinguishes used sources from other recall', async () => {
   sendMessageToCoach.mockResolvedValue({ reply: '按本轮情境可留800元。',
     evidence: { facts: [{ id: 'F:scenario_surplus', label: '本轮收支差', value: 800, unit: '元', source: 'user_scenario' }],

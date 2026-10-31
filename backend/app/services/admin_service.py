@@ -17,6 +17,7 @@ from .firestore_service import (
     _dev_db,
     persist_dev_db,
     get_public_collection_path,
+    get_user_collection_path,
     get_users_root_path,
 )
 from app.utils.db_mysql import MySQLHelper, to_json_string, from_json_field
@@ -84,7 +85,7 @@ def list_all_users(limit=MAX_ADMIN_USERS):
             profile = record.get('profile', {}) or {}
             users.append({
                 'uid': uid,
-                'profile': profile,
+                'profile': {**profile, 'assessmentCompleted': bool(profile.get('assessmentCompleted') or record.get('assessments'))},
                 'disabled': bool(profile.get('disabled', False)),
             })
         return users, None
@@ -146,7 +147,7 @@ def get_user_detail(uid):
         profile = record.get('profile', {}) or {}
         return {
             'uid': uid,
-            'profile': profile,
+            'profile': {**profile, 'assessmentCompleted': bool(profile.get('assessmentCompleted') or record.get('assessments'))},
             'disabled': bool(profile.get('disabled', False)),
             'data_summary': {
                 'assessments': len(record.get('assessments', {})),
@@ -281,6 +282,18 @@ def _learning_entries_list(value):
 # ============================================================
 
 def get_platform_stats():
+    stats, error = _get_platform_stats()
+    if stats is not None:
+        try:
+            from .knowledge_updates import published
+            stats['total_kb_articles'] += len(published())
+        except Exception:
+            from flask import current_app
+            current_app.logger.exception('Dynamic knowledge count unavailable')
+    return stats, error
+
+
+def _get_platform_stats():
     """返回平台整体统计：用户数、评估/学习/消费/目标/对话/知识库文章数。"""
     stats = {
         'total_users': 0,
@@ -328,7 +341,7 @@ def get_platform_stats():
         cat_regret = {}
         for record in users.values():
             profile = record.get('profile', {}) or {}
-            if profile.get('assessmentCompleted'):
+            if profile.get('assessmentCompleted') or record.get('assessments'):
                 stats['assessment_completed_users'] += 1
             stats['total_assessments'] += len(record.get('assessments', {}))
             stats['total_learning_entries'] += len(record.get('learning_entries', {}))
@@ -347,6 +360,8 @@ def get_platform_stats():
             day_counts[day] += 1
             # 消费聚合
             for t in _as_list(record.get('transactions')):
+                if t.get('transaction_type', 'expense') != 'expense':
+                    continue
                 cat = t.get('category') or '其他'
                 amt = 0.0
                 try:
@@ -416,6 +431,21 @@ def _count_firestore_docs(collection_ref, limit=1000):
 # ============================================================
 
 def list_kb_articles(limit=200):
+    """Legacy/manual articles plus reviewed dynamic publications."""
+    from .knowledge_updates import published
+    original, error = _list_manual_kb_articles(limit)
+    if error:
+        return original, error
+    try:
+        dynamic = published()
+    except Exception:
+        from flask import current_app
+        current_app.logger.exception('Dynamic knowledge unavailable; retaining manual articles')
+        dynamic = []
+    return (dynamic + original)[:limit], None
+
+
+def _list_manual_kb_articles(limit=200):
     """返回知识库文章列表（新到旧）。"""
     if is_mysql_mode():
         _ensure_mysql_kb_table()

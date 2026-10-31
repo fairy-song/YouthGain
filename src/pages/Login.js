@@ -35,7 +35,10 @@ const Login = ({ adminMode = false }) => {
       } else if (!adminMode && result?.role !== 'admin' && new URLSearchParams(location.search).get('from') === 'questionnaire' && readDraft()?.complete) {
         navigate('/onboarding/complete', { replace: true });
       } else {
-        navigate(result?.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
+        const from = location.state?.from;
+        const returnTo = typeof from === 'string' && /^\/(?!\/)/.test(from) && !/[\\\r\n]/.test(from)
+          && !/^\/(?:admin|login|register)(?:[/?#]|$)/.test(from) ? from : '/dashboard';
+        navigate(result?.role === 'admin' ? '/admin' : returnTo, { replace: true });
       }
     } catch (err) {
       console.error('登录失败:', err);

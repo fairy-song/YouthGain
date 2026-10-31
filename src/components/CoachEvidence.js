@@ -19,7 +19,7 @@ export default function CoachEvidence({ evidence, validation }) {
       </li>)}</ul>
     </>}
     {evidence.calculation && <p className="small">消费记录区间：{evidence.calculation.start || '未知'} 至 {evidence.calculation.end || '未知'}。{evidence.calculation.limitation}</p>}
-    {used.length > 0 && <><h6>回答使用的知识片段</h6>{used.map(s => <blockquote key={s.source_id}><strong>{s.title}</strong><p>{s.excerpt}</p><small>站内知识库 · {s.date || '日期未标注'}</small></blockquote>)}</>}
+    {used.length > 0 && <><h6>回答使用的知识片段</h6>{used.map(s => <blockquote key={s.source_id}><strong>{s.title}</strong><p>{s.excerpt}</p><small>{s.source_name || '站内知识库'} · {s.date || '发布日期未标注'}{s.checked_at && ` · 采集核验 ${s.checked_at.slice(0, 10)}`}{s.region && ` · ${s.region}`}{s.version && ` · 版本 ${s.version.slice(0, 8)}`}</small>{s.source_url?.startsWith('https://') && <p><a href={s.source_url} target="_blank" rel="noreferrer">查看原始来源</a></p>}</blockquote>)}</>}
     {unused.length > 0 && <details><summary>其他检索片段（未作为本次回答依据）</summary>{unused.map(s => <p key={s.source_id}><strong>{s.title}</strong>：{s.excerpt}</p>)}</details>}
     {!facts.length && !used.length && <p>本轮没有引用个人计算事实或知识片段；回答中的通用解释仍需结合具体条件理解。</p>}
     <p className="small text-muted">数值绑定与来源检查有助于排查错误，不能保证全部陈述正确，也不代表学习效果已经得到验证。</p>

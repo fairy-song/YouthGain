@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import TodayHome from './TodayHome';
 import { listTransactions } from '../services/api';
 import { getAdaptiveLearning, getLearning } from '../services/learning';
+jest.mock('../config/features', () => ({ DAILY_FUNDS_BREAKDOWN_ENABLED: true }));
 jest.mock('../components/DailyPodcast', () => () => null);
 
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'student-1', displayName: '小青' } }) }));
@@ -13,9 +14,31 @@ jest.mock('../services/learning', () => ({ getAdaptiveLearning: jest.fn(), getLe
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.requireMock('../config/features').DAILY_FUNDS_BREAKDOWN_ENABLED = true;
   getAdaptiveLearning.mockResolvedValue({ next_item: { id: 'one', question: '这笔消费前先确认什么？' }, reason: '来自你记录的开支' });
   getLearning.mockResolvedValue({ entries: [] });
   listTransactions.mockResolvedValue({ monthly_budget: { spent: 20, complete: true } });
+});
+
+test('home expands the existing funds card, refreshes it in place, and can switch the enhancement off', async () => {
+  const data = amount => ({
+    monthly_budget: { spent: 20, complete: true },
+    funds: { available_complete: true, complete: true, available_remaining_month: amount,
+      month: new Date().toISOString().slice(0, 7), as_of: new Date().toISOString(), timezone: 'UTC' },
+  });
+  listTransactions.mockResolvedValue(data(4386));
+  const { container, rerender } = render(<MemoryRouter><TodayHome /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: /查看每日均分/ }));
+  expect(screen.getByText(/¥4,386.00 ÷ 剩余/)).toBeVisible();
+  listTransactions.mockResolvedValue(data(4000));
+  await act(async () => { window.dispatchEvent(new Event('transaction-saved')); });
+  expect(await screen.findByText(/¥4,000.00 ÷ 剩余/)).toBeVisible();
+  expect(screen.getByRole('button', { name: /收起换算/ })).toHaveAttribute('aria-expanded', 'true');
+  expect(container.querySelector('.funds-breakdown-playing')).toBeNull();
+  jest.requireMock('../config/features').DAILY_FUNDS_BREAKDOWN_ENABLED = false;
+  rerender(<MemoryRouter><TodayHome /></MemoryRouter>);
+  expect(screen.queryByRole('button', { name: /收起换算/ })).not.toBeInTheDocument();
+  expect(screen.getByText('本月可用剩余')).toBeVisible();
 });
 
 test('shows one practice task and refreshes the ledger amount after a saved transaction', async () => {

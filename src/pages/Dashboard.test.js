@@ -6,6 +6,7 @@ import Dashboard from './Dashboard';
 import { getDecisionReport, listTransactions, getUserGoals, createTransaction, getOpportunityCost, deleteTransaction, deleteBillImportRow } from '../services/api';
 import { getLearning, getLearningProfile } from '../services/learning';
 import { dateKey } from '../components/FinanceVisuals';
+jest.mock('../config/features', () => ({ SPENDING_MONEY_VISUAL_ENABLED: true }));
 const funds = available => ({ month: dateKey().slice(0, 7), complete: true, available_remaining_month: available,
   carryover_month: 2000, savings_locked_total: 0, savings_net_transfer_month: 0 });
 const cashflow = (spent, category = '餐饮') => ({
@@ -22,6 +23,7 @@ jest.mock('../components/VoiceBillModal', () => () => null);
 jest.mock('../components/GoalCashflow', () => ({ __esModule: true, default: () => null, GoalReserveHint: () => null }));
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.requireMock('../config/features').SPENDING_MONEY_VISUAL_ENABLED = true;
   createTransaction.mockResolvedValue({});
   getOpportunityCost.mockResolvedValue({ amount: 20, delay_days: 1, message: '已计算' });
   getLearningProfile.mockResolvedValue({ monthly_income: 2000 });
@@ -29,6 +31,71 @@ beforeEach(() => {
   getDecisionReport.mockResolvedValue({ has_data: false });
   listTransactions.mockResolvedValue({ transactions: [], monthly_cashflow: cashflow(0) });
   getUserGoals.mockResolvedValue({ data: { goals: [] } });
+});
+
+test('spending appears as money immediately after saving even if opportunity feedback is pending', async () => {
+  getOpportunityCost.mockReturnValue(new Promise(() => {}));
+  render(<MemoryRouter><Dashboard /></MemoryRouter>);
+  await screen.findByRole('heading', { name: '记一笔收支' });
+  fireEvent.change(screen.getByPlaceholderText('金额（元）'), { target: { value: '38' } });
+  fireEvent.click(screen.getByRole('button', { name: '记一笔' }));
+  const visual = await screen.findByRole('region', { name: '这笔花了的钱币展示' });
+  expect(within(visual).getByText('¥38.00')).toBeInTheDocument();
+  expect(within(visual).getByText('× 3枚')).toBeInTheDocument();
+});
+
+test('small expenses show less than one day instead of zero days', async () => {
+  getOpportunityCost.mockResolvedValue({ amount: 0.66, delay_days: 0.01, message: '小额支出已计算' });
+  render(<MemoryRouter><Dashboard /></MemoryRouter>);
+  await screen.findByRole('heading', { name: '记一笔收支' });
+  fireEvent.change(screen.getByLabelText('支出金额（元）'), { target: { value: '0.66' } });
+  fireEvent.click(screen.getByRole('button', { name: '记一笔' }));
+  expect(await screen.findByText('不到 1 天')).toBeInTheDocument();
+  expect(screen.queryByText('0 天')).not.toBeInTheDocument();
+});
+
+test('failed saves and income never show a spending money animation', async () => {
+  createTransaction.mockRejectedValueOnce(new Error('保存失败检验'));
+  render(<MemoryRouter><Dashboard /></MemoryRouter>);
+  await screen.findByRole('heading', { name: '记一笔收支' });
+  fireEvent.change(screen.getByPlaceholderText('金额（元）'), { target: { value: '38' } });
+  fireEvent.click(screen.getByRole('button', { name: '记一笔' }));
+  await screen.findByText('保存失败检验');
+  expect(screen.queryByRole('region', { name: /钱币展示/ })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('收支类型'), { target: { value: 'income' } });
+  fireEvent.click(screen.getByRole('button', { name: '记一笔' }));
+  await screen.findByText('收入已保存。');
+  expect(screen.queryByRole('region', { name: /钱币展示/ })).not.toBeInTheDocument();
+});
+
+test('expense history opens inline with refund context; income and refund are not spending buttons', async () => {
+  listTransactions.mockResolvedValue({ transactions: [
+    { id: 'expense', date: dateKey(), amount: 38, transaction_type: 'expense', category: '餐饮', refunded_amount: 10, original_amount: 38, net_amount: 28 },
+    { id: 'income', date: dateKey(), amount: 100, transaction_type: 'income' },
+    { id: 'refund', date: dateKey(), amount: 10, transaction_type: 'refund' },
+  ] });
+  render(<MemoryRouter><Dashboard /></MemoryRouter>);
+  const button = await screen.findByRole('button', { name: '查看支出钱币 餐饮 expense' });
+  expect(screen.getAllByRole('button', { name: /查看支出钱币/ })).toHaveLength(1);
+  fireEvent.click(button);
+  expect(button).toHaveAttribute('aria-expanded', 'true');
+  expect(await screen.findByText(/展示原支付金额；已退 ¥10.00/)).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: '这笔原支付的钱币展示' }).closest('tr')).toHaveAttribute('id', button.getAttribute('aria-controls'));
+  fireEvent.click(button);
+  expect(screen.queryByRole('region', { name: /钱币展示/ })).not.toBeInTheDocument();
+});
+
+test('disabling the switch restores the original amount display and successful entry feedback', async () => {
+  jest.requireMock('../config/features').SPENDING_MONEY_VISUAL_ENABLED = false;
+  listTransactions.mockResolvedValue({ transactions: [{ id: 'e', amount: 38, category: '餐饮', date: dateKey() }] });
+  render(<MemoryRouter><Dashboard /></MemoryRouter>);
+  await screen.findByRole('heading', { name: '记一笔收支' });
+  expect(screen.queryByRole('button', { name: /查看支出钱币/ })).not.toBeInTheDocument();
+  expect(screen.getByText('-¥38')).toBeInTheDocument();
+  fireEvent.change(screen.getByPlaceholderText('金额（元）'), { target: { value: '38' } });
+  fireEvent.click(screen.getByRole('button', { name: '记一笔' }));
+  await screen.findByText('已计算');
+  expect(screen.queryByRole('region', { name: /钱币展示/ })).not.toBeInTheDocument();
 });
 
 test('manual entry saves consumption content and displays it in recent transactions', async () => {

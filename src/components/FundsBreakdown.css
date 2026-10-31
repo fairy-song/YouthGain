@@ -1,0 +1,19 @@
+.funds-breakdown-enabled > .ledger-summary-label { display: block; margin: .8rem 0 .25rem; font-size: .82rem; color: var(--yg-muted, #6B6B6B); }
+.funds-breakdown-enabled > .ledger-summary-amount { display: block; margin-bottom: .5rem; overflow-wrap: anywhere; }
+.funds-breakdown-enabled > small { display: block; color: var(--yg-muted, #6B6B6B); font-size: .78rem; line-height: 1.65; }
+.funds-breakdown { margin-top: .7rem; min-width: 0; }
+.funds-breakdown-toggle { color: var(--yg-primary-text, #30775A); background: transparent; border: 0; border-radius: 6px; padding: .4rem 0; font: inherit; font-size: .85rem; font-weight: 650; cursor: pointer; min-height: 40px; text-align: left; }
+.funds-breakdown-toggle:focus-visible { outline: 3px solid var(--yg-secondary-text, #456FA3); outline-offset: 3px; }
+.funds-breakdown-toggle:disabled { cursor: wait; opacity: .65; }
+.funds-breakdown-content { border: 1px solid var(--yg-primary-border, #C1E3D5); border-radius: 16px; padding: 1rem; margin: .35rem 0 .7rem; background: var(--yg-surface, #F7FAF9); overflow-wrap: anywhere; }
+.funds-breakdown-content[hidden] { display: none; }
+.funds-breakdown-content .funds-breakdown-formula { font-size: .82rem; color: var(--yg-muted, #6B6B6B); margin: 0 0 .7rem; font-variant-numeric: tabular-nums; }
+.funds-breakdown-label { display: block; font-size: .85rem; color: var(--yg-primary-text, #30775A); }
+.funds-breakdown-value { display: block; font-size: clamp(1.4rem, 5vw, 1.85rem); color: var(--yg-primary-text, #30775A); font-variant-numeric: tabular-nums; line-height: 1.5; }
+.funds-breakdown-visual { margin: .3rem 0 .8rem; text-align: center; }
+.funds-breakdown-visual svg { display: block; width: 100%; max-width: 280px; height: auto; margin: 0 auto; }
+.funds-breakdown-visual span { display: block; font-size: .75rem; color: var(--yg-muted, #6B6B6B); }
+.funds-breakdown-content .funds-breakdown-note { margin: 0; font-size: .78rem; line-height: 1.65; }
+.funds-breakdown-playing .funds-breakdown-portion { animation: funds-breakdown-split 800ms ease-out both; }
+@keyframes funds-breakdown-split { from { transform: translateX(-130px); opacity: .2; } to { transform: translateX(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .funds-breakdown-playing .funds-breakdown-portion { animation: none; } }

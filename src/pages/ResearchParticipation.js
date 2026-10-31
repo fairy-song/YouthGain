@@ -32,7 +32,7 @@ export default function ResearchParticipation() {
     {error && <Alert variant="danger">{error}<Button variant="link" onClick={() => { setError(''); setReload(v => v + 1); }}>重试</Button></Alert>}
     {loading ? <Spinner animation="border" aria-label="加载研究项目" /> : !projects.length && <Alert variant="light">
       <h5 className="alert-heading">研究功能正在内测</h5>
-      <p className="mb-2">下一阶段研究预计 2026 年秋季开放。你可以先完善消费记录和学习路径，研究开放后将自动邀请你参与。</p>
+      <p className="mb-2">当前没有开放的研究项目。你可以继续记账和学习；如有兴趣，之后可回到这里查看，自主决定是否参与。</p>
       <p className="mb-0 small text-muted">此页面仅在有开放研究项目时显示可参与的项目，不影响记账和学习功能。</p>
     </Alert>}
     {projects.map(project => <Card key={project.id} className="mb-4 border-0 shadow-sm"><Card.Body>

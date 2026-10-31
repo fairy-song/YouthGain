@@ -135,6 +135,7 @@ const CoachChat = () => {
     } catch (error) {
       if (version !== requestVersion.current) return;
       setLoading(false);
+      setInput(value => value || userMessage.text);
       setMessages(prevMessages => [
         ...prevMessages,
         { id: Date.now() + 1, sender: 'ai', text: error?.response?.data?.message || '教练暂时无法回复，请稍后重试。你也可以继续成长页中的练习。' }
@@ -258,13 +259,15 @@ const CoachChat = () => {
                       placeholder="输入您的问题或描述您的财务状况..."
                       className="rounded-pill me-2 border-0 shadow-sm py-2 px-3"
               disabled={loading}
+              aria-label="向教练提问"
             />
                     <Button
                       variant="primary"
               type="submit"
                       className="rounded-circle d-flex align-items-center justify-content-center btn-glow"
                       style={{ width: '46px', height: '46px' }}
-                      disabled={loading}
+                      disabled={loading || !input.trim()}
+                      aria-label={loading ? '正在回复' : '发送消息'}
                     >
                       {loading ? <Spinner animation="border" size="sm" /> : <FaPaperPlane />}
                     </Button>

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getLearningProfile, saveLearningProfile } from '../services/learning';
-import { Container, Row, Col, Card, Button, Form, ProgressBar, Badge, Spinner, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, ProgressBar, Badge, Spinner, Alert } from 'react-bootstrap';
 import {
   FaCheckCircle, FaArrowRight, FaLightbulb,
   FaHistory, FaClipboardList, FaChartLine, FaArrowLeft, FaTrophy,
@@ -33,8 +33,11 @@ const questionBank = [
 ];
 
 function buildQuestions() {
-  const shuffled = [...questionBank].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 8).map(([category, question], index) => ({
+  // The API validates two answers per topic in this order. Randomise only within a topic.
+  const grouped = ['budget', 'choice', 'buffer', 'risk'].flatMap(topic =>
+    questionBank.filter(([category]) => category === topic).map(item => ({ item, order: Math.random() }))
+      .sort((a, b) => a.order - b.order).slice(0, 2).map(({ item }) => item));
+  return grouped.map(([category, question], index) => ({
     id: index + 1, category, question,
     options: [
       { id: 'a', text: '还没有这样做过', score: 1 },
@@ -300,7 +303,7 @@ const Assessment = () => {
   const [answers, setAnswers] = useState({});
   const [score, setScore] = useState(0);
   const [categoryScores, setCategoryScores] = useState({});
-  const [userName, setUserName] = useState('');
+  const [questionNotice, setQuestionNotice] = useState('');
   const [questions, setQuestions] = useState(() => buildQuestions());
 
   // History state
@@ -311,6 +314,7 @@ const Assessment = () => {
   // Save state
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null); // null | 'success' | 'error'
+  const [saveError, setSaveError] = useState('');
 
   const navigate = useNavigate();
 
@@ -328,6 +332,7 @@ const Assessment = () => {
   }, []);
 
   const handleAnswer = (questionId, optionId, optionScore, category) => {
+    setQuestionNotice('');
     const newAnswers = {
       ...answers,
       [questionId]: { optionId, score: optionScore, category }
@@ -337,6 +342,12 @@ const Assessment = () => {
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
+      const missing = questions.findIndex(item => !newAnswers[item.id]);
+      if (missing >= 0) {
+        setCurrentQuestion(missing);
+        setQuestionNotice('还有跳过的问题，请补充回答后查看完整结果。');
+        return;
+      }
       calculateResults(newAnswers);
       setView('result');
     }
@@ -364,8 +375,10 @@ const Assessment = () => {
   };
 
   const handleSaveResult = async () => {
+    if (saving || saveStatus === 'success') return;
     setSaving(true);
     setSaveStatus(null);
+    setSaveError('');
     try {
       const totalPct = Math.round((score / (questions.length * 4)) * 100);
       await submitAssessmentNew({
@@ -377,6 +390,7 @@ const Assessment = () => {
       });
       setSaveStatus('success');
     } catch (err) {
+      setSaveError(err?.response?.data?.error || err?.response?.data?.message || '保存失败，请检查连接后重试。');
       setSaveStatus('error');
     } finally {
       setSaving(false);
@@ -403,7 +417,7 @@ const Assessment = () => {
     setAnswers({});
     setScore(0);
     setCategoryScores({});
-    setUserName('');
+    setQuestionNotice('');
     setSaveStatus(null);
     setQuestions(buildQuestions());
     setView('quiz');
@@ -414,12 +428,13 @@ const Assessment = () => {
     setAnswers({});
     setScore(0);
     setCategoryScores({});
-    setUserName('');
+    setQuestionNotice('');
     setSaveStatus(null);
     setView('home');
   };
 
   const openHistory = () => {
+    if (saving) return;
     setView('history');
     fetchHistory();
   };
@@ -672,7 +687,7 @@ const Assessment = () => {
                     )}
                     {saveStatus === 'error' && (
                       <Alert variant="danger" className="rounded-3">
-                        保存失败，请检查服务是否正常运行。
+                        {saveError || '保存失败，请检查连接后重试。'}
                       </Alert>
                     )}
                     {saveStatus !== 'success' && (
@@ -690,6 +705,7 @@ const Assessment = () => {
                           variant="outline-secondary"
                           className="rounded-pill px-4"
                           onClick={openHistory}
+                          disabled={saving}
                         >
                           <FaHistory className="me-2" />查看历史
                         </Button>
@@ -709,13 +725,7 @@ const Assessment = () => {
                   {/* Start coaching */}
                   <div className="mb-4">
                     <h4 className="mb-3">开始财务教练会话</h4>
-                    <Form.Control
-                      type="text"
-                      placeholder="请输入您的名字（可选）"
-                      value={userName}
-                      onChange={(e) => setUserName(e.target.value)}
-                      className="mb-3 rounded-pill"
-                    />
+                    <p className="text-muted small">带着本次想探索的主题，继续和教练交流。</p>
                   </div>
 
                   <div className="d-flex flex-column flex-md-row gap-3 justify-content-center">
@@ -789,11 +799,13 @@ const Assessment = () => {
                   />
 
                   <h2 className="fs-4 fw-bold mb-4">{question.question}</h2>
+                  {questionNotice && <Alert variant="info" role="status">{questionNotice}</Alert>}
 
                   <div className="d-flex flex-column gap-3">
                     {question.options.map((option) => (
                       <Button
                         key={option.id}
+                        aria-pressed={answers[question.id]?.optionId === option.id}
                         variant="outline-primary"
                         className="text-start p-3 rounded-3 option-button d-flex align-items-center justify-content-between"
                         onClick={() => handleAnswer(question.id, option.id, option.score, question.category)}

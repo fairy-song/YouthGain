@@ -1,4 +1,5 @@
 import React from 'react';
+import '@testing-library/jest-dom';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import KnowledgePage from './KnowledgePage';
@@ -26,4 +27,11 @@ test('错误可以重试，删除的文章显示缺失提示', async () => {
   setup('/info/knowledge?article=missing');
   fireEvent.click(await screen.findByRole('button', { name:'重新加载' }));
   expect(await screen.findByText('这篇文章暂不可用')).toBeTruthy();
+});
+
+test('官方文章展示原文、地区与核验时间', async () => {
+  fetchKnowledgeArticles.mockResolvedValue([{ ...articles[0], source_url: 'https://www.nfra.gov.cn/example', source_name: '金融监管总局', region: 'CN', checked_at: '2026-10-29T10:00:00', version: 'revision123' }]);
+  setup('/info/knowledge?article=1');
+  expect(await screen.findByRole('link', { name: '查看原文：金融监管总局' })).toHaveAttribute('href', 'https://www.nfra.gov.cn/example');
+  expect(screen.getByLabelText('文章来源')).toHaveTextContent('中国内地 · 最近核验：2026-10-29 · 版本：revision');
 });
