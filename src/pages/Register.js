@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { readDraft } from '../data/firstVisit';
 
-const Register = () => {
+const Register = ({ schoolMode = false }) => {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -35,8 +35,8 @@ const Register = () => {
     try {
       setError('');
       setLoading(true);
-      await register(formData.email, formData.password, formData.username);
-      navigate(new URLSearchParams(location.search).get('from') === 'questionnaire' && readDraft()?.complete ? '/onboarding/complete' : '/dashboard', { replace: true });
+      await register(formData.email.trim(), formData.password, formData.username);
+      navigate(schoolMode ? '/research' : new URLSearchParams(location.search).get('from') === 'questionnaire' && readDraft()?.complete ? '/onboarding/complete' : '/dashboard', { replace: true });
     } catch (err) {
       setError(err.message || '注册失败，请稍后重试');
     } finally {
@@ -45,10 +45,11 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-170px)] flex items-center justify-center bg-neutral-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 space-y-8">
+    <div className={schoolMode ? 'school-access-page school-register-page' : 'min-h-[calc(100vh-170px)] flex items-center justify-center bg-neutral-50 py-12 px-4 sm:px-6 lg:px-8'}>
+      <div className={schoolMode ? 'school-access-form' : 'max-w-md w-full bg-white rounded-lg shadow-md p-8 space-y-8'}>
         <div>
-          <h2 className="text-center text-3xl font-extrabold text-neutral-900">注册账户</h2>
+          {schoolMode ? <header className="school-access-heading"><p>教师与研究人员</p><h1>注册学校端账号</h1><p>请用项目负责人授权的同一邮箱注册。注册后进入学校端查看验证与授权状态。</p></header>
+            : <h2 className="text-center text-3xl font-extrabold text-neutral-900">注册账户</h2>}
         </div>
 
         {error && (
@@ -139,7 +140,7 @@ const Register = () => {
         <div className="mt-6 text-center">
           <p className="text-neutral-600">
             已有账号？{' '}
-            <Link to={location.search.includes('from=questionnaire') ? '/login?from=questionnaire' : '/login'} className="text-primary-700 hover:underline">
+            <Link to={schoolMode ? '/research/login' : location.search.includes('from=questionnaire') ? '/login?from=questionnaire' : '/login'} className="text-primary-700 hover:underline">
               立即登录
             </Link>
           </p>

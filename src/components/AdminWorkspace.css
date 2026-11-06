@@ -1,0 +1,75 @@
+.admin-workspace.admin-workspace-editorial {
+  display: block;
+  background: #fbfaf5;
+}
+.admin-workspace-editorial::before, .admin-workspace-editorial::after { content: none; }
+.admin-workspace-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .8rem 1.5rem;
+  padding: .9rem clamp(1rem, 3vw, 2rem);
+  border-bottom: 1px solid var(--yg-line);
+}
+.admin-wordmark { color: var(--yg-ink); text-decoration: none; font-weight: 750; }
+.admin-wordmark b { display: inline-grid; place-items: center; width: 2rem; height: 2rem; margin-right: .35rem; color: white; background: var(--yg-primary-text); border-radius: .45rem; }
+.admin-workspace-links { display: flex; flex-wrap: wrap; gap: .4rem 1rem; }
+.admin-workspace-links a { color: var(--yg-primary-text); font-size: .87rem; text-underline-offset: .2em; }
+.admin-workspace-grid { max-width: 1450px; display: grid; grid-template-columns: 10.75rem minmax(0, 1fr); margin-inline: auto; }
+.admin-workspace-nav { border-right: 1px solid var(--yg-line); padding: 2rem .8rem; }
+.admin-workspace-nav a { color: var(--yg-muted); min-height: 44px; display: flex; align-items: center; padding: .35rem .65rem; border-left: 2px solid transparent; font-size: .9rem; text-decoration: none; }
+.admin-workspace-nav a:hover, .admin-workspace-nav a.is-current { color: var(--yg-primary-text); border-color: currentColor; background: var(--yg-primary-subtle); }
+.admin-workspace-nav a.is-current { font-weight: 700; }
+.admin-workspace-editorial .admin-content { width: 100%; min-width: 0; max-width: none; padding: clamp(1rem, 3vw, 2.7rem); }
+.admin-editorial-heading { padding-bottom: 1.15rem; margin-bottom: 1.35rem; border-bottom: 1px solid var(--yg-line); }
+.admin-editorial-heading > span { color: var(--yg-primary-text); font-size: .75rem; letter-spacing: .12em; font-weight: 700; }
+.admin-editorial-heading h1 { margin: .4rem 0 .5rem; font-size: clamp(1.65rem, 3.5vw, 2.8rem); font-weight: 750; }
+.admin-editorial-heading p { color: var(--yg-muted); margin: 0; }
+.admin-panel.admin-editorial-panel { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
+.admin-workspace-editorial :is(a, button, input, select, summary):focus-visible { outline: 2px solid var(--yg-primary-text); outline-offset: 3px; }
+.admin-stats-sheet { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%, 8rem),1fr)); gap: 1rem 1.5rem; border-block: 1px solid var(--yg-line); padding-block: 1rem; }
+.admin-stats-sheet dt { color: var(--yg-muted); font-size: .85rem; font-weight: 550; }
+.admin-stats-sheet dd { font-weight: 700; font-size: 1.6rem; margin: .2rem 0 0; font-variant-numeric: tabular-nums; }
+.admin-stats-editorial .admin-subcard { border: 0 !important; border-top: 1px solid var(--yg-line) !important; border-radius: 0; padding-inline: 0; background: transparent !important; backdrop-filter: none; }
+.admin-stats-editorial .quick-action { border: 0; border-radius: 0; padding-inline: 0; box-shadow: none; }
+.admin-editorial-section { padding-bottom: 1.35rem; margin-bottom: 1.35rem; border-bottom: 1px solid var(--yg-line); }
+.review-section-head { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: .55rem 1rem; margin-bottom: 1rem; }
+.review-section-head h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: .35rem; }
+.review-section-head p { margin: 0; color: var(--yg-muted); font-size: .9rem; }
+.review-workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr); border-block: 1px solid var(--yg-line); }
+.review-queue, .review-detail { min-width: 0; padding: 1rem; overflow-wrap: anywhere; }
+.review-queue { padding-left: 0; }
+.review-detail { border-left: 1px solid var(--yg-line); }
+.review-detail h3 { font-size: 1.28rem; scroll-margin-top: 1rem; }
+.review-detail h4 { font-size: .95rem; }
+.review-detail pre { font-family: inherit; white-space: pre-wrap; max-height: 24rem; overflow: auto; padding: .8rem; border-left: 2px solid var(--yg-primary-border); }
+.review-filter { display: block; color: var(--yg-muted); font-size: .84rem; }
+.review-filter select { margin-top: .3rem; }
+.review-queue-list { list-style: none; padding: 0; margin: .7rem 0 0; }
+.review-queue-list li { border-bottom: 1px solid var(--yg-line); }
+.review-queue-list button { width: 100%; text-align: left; display: grid; gap: .25rem; border: 0; border-left: 2px solid transparent; background: transparent; color: var(--yg-ink); padding: .7rem .55rem; overflow-wrap: anywhere; }
+.review-queue-list button[aria-pressed="true"], .review-queue-list button:hover { border-color: var(--yg-primary-text); background: var(--yg-primary-subtle); }
+.review-queue-list small { color: var(--yg-muted); }
+.review-entry-action { color: var(--yg-primary-text); font-size: .8rem; }
+.review-actions { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; margin-block: .65rem; }
+.review-actions p { flex-basis: 100%; margin: 0; }
+.review-source { margin-block: 1rem; border-top: 1px solid var(--yg-line); padding-block: .7rem; }
+.review-source summary, .review-disclosure summary { color: var(--yg-primary-text); font-weight: 650; cursor: pointer; padding-block: .4rem; }
+.review-disclosure { margin-block: .65rem; }
+.review-check { display: flex; align-items: start; gap: .5rem; margin-block: .65rem; }
+.review-check input { margin-top: .32rem; flex-shrink: 0; }
+.review-confirm { border-left: 2px solid var(--yg-primary-border); padding-left: .8rem; }
+@media (max-width: 900px) {
+  .admin-workspace-grid { display: block; }
+  .admin-workspace-nav { display: flex; flex-wrap: wrap; border: 0; border-bottom: 1px solid var(--yg-line); padding: .35rem 1rem; }
+  .admin-workspace-nav a { border-left: 0; border-bottom: 2px solid transparent; }
+  .admin-workspace-nav a.is-current, .admin-workspace-nav a:hover { border-color: currentColor; }
+}
+@media (max-width: 620px) {
+  .review-workbench { display: block; }
+  .review-queue, .review-detail { padding-inline: 0; }
+  .review-detail { border-left: 0; border-top: 1px solid var(--yg-line); }
+  .admin-workspace-bar .admin-account { width: 100%; gap: .65rem; justify-content: space-between; }
+  .admin-account-email { max-width: 100%; }
+}

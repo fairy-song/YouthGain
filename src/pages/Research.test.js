@@ -52,20 +52,29 @@ test('withdrawal stops participation and refreshes the displayed state', async (
 });
 
 test('researchers see only snapshots and export the selected month', async () => {
+  api.getResearchReleases.mockResolvedValue({ releases: [snapshot, { ...snapshot, month: '2026-03',
+    charts: [{ ...snapshot.charts[0], bins: [{ label: '500–1000元', percent: 42 }] }] }] });
   render(<MemoryRouter><SchoolResearch /></MemoryRouter>);
+  expect(await screen.findByText('42.0%')).toBeVisible();
+  fireEvent.change(screen.getByLabelText('查看月份'), { target: { value: '2026-02' } });
   expect(await screen.findByText('60.0%')).toBeInTheDocument();
+  expect(screen.queryByText('42.0%')).not.toBeInTheDocument();
   expect(screen.queryByText('建立研究项目')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: '生成月度快照' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '导出本月快照' }));
   await waitFor(() => expect(api.exportResearchRelease).toHaveBeenCalledWith('p1', '2026-02'));
-  await waitFor(() => expect(api.getResearchReleases).toHaveBeenCalledTimes(2));
+  expect(await screen.findByText('本月快照已导出。')).toBeInTheDocument();
+  expect(api.getResearchReleases).toHaveBeenCalledTimes(1);
 });
 
 test('accounts without project membership get no research data', async () => {
-  api.getResearchAccess.mockResolvedValue({ projects: [], can_manage: false, role: 'student' });
+  api.getResearchAccess.mockResolvedValueOnce({ projects: [], can_manage: false, role: 'student' });
   render(<MemoryRouter><SchoolResearch /></MemoryRouter>);
   expect(await screen.findByText(/当前账号没有有效的学校研究授权/)).toBeInTheDocument();
   expect(api.getResearchReleases).not.toHaveBeenCalled();
+  expect(screen.getByRole('link', { name: '切换账号' })).toHaveAttribute('href', '/research/login');
+  fireEvent.click(screen.getByRole('button', { name: '重新检查授权' }));
+  expect(await screen.findByText('60.0%')).toBeVisible();
 });
 
 test('unverified accounts can request verification and refresh their identity explicitly', async () => {
@@ -75,6 +84,7 @@ test('unverified accounts can request verification and refresh their identity ex
   render(<MemoryRouter><SchoolResearch /></MemoryRouter>);
   expect(api.sendResearchVerification).not.toHaveBeenCalled();
   fireEvent.click(await screen.findByRole('button', { name: '发送邮箱验证链接' }));
+  expect(screen.queryByText(/当前账号没有有效的学校研究授权/)).not.toBeInTheDocument();
   expect(await screen.findByText(/验证邮件已发送/)).toBeInTheDocument();
   await waitFor(() => expect(screen.getByRole('button', { name: '已验证，刷新权限' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: '已验证，刷新权限' }));
@@ -89,6 +99,8 @@ test('administrators can publish a month and grant scoped researcher access', as
   const month = await screen.findByLabelText('发布月份');
   fireEvent.change(month, { target: { value: '2026-02' } });
   fireEvent.click(screen.getByRole('button', { name: '生成月度快照' }));
+  expect(api.publishResearchRelease).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '确认生成' }));
   await waitFor(() => expect(api.publishResearchRelease).toHaveBeenCalledWith('p1', '2026-02'));
   await waitFor(() => expect(screen.getByRole('button', { name: '生成月度快照' })).toBeEnabled());
   fireEvent.click(screen.getByText('管理学校研究授权'));
@@ -104,5 +116,5 @@ test('suppressed releases show the budget notice instead of fabricated charts', 
     message: '受保护统计信号不足，本次已消耗预算' }] });
   render(<MemoryRouter><SchoolResearch /></MemoryRouter>);
   expect(await screen.findByText('受保护统计信号不足，本次已消耗预算')).toBeInTheDocument();
-  expect(screen.queryByRole('group', { name: '月度已记录支出区间' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('list', { name: '月度已记录支出区间' })).not.toBeInTheDocument();
 });

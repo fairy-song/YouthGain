@@ -1,102 +1,55 @@
-import React, { useState, useMemo } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { FaChartBar, FaUsers, FaBook, FaRobot, FaShieldAlt, FaSignOutAlt, FaExternalLinkAlt } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import Particles, { ParticlesProvider } from '@tsparticles/react';
-import { loadSlim } from '@tsparticles/slim';
-import './AdminLayout.css';
 import { focusContent } from '../utils/focusContent';
+import './AdminLayout.css';
+import './AdminWorkspace.css';
 
 const sections = [
-  { path: '/admin/stats', title: '平台概览', description: '了解平台使用情况与内容规模', icon: FaChartBar },
-  { path: '/admin/users', title: '用户管理', description: '查询用户资料，管理账号状态', icon: FaUsers },
-  { path: '/admin/knowledge', title: '知识库管理', description: '维护文章内容，为用户提供可靠的学习资源', icon: FaBook },
-  { path: '/admin/podcasts', title: '音频博客目录', description: '审核单集与同步获准来源', icon: FaBook },
-  { path: '/admin/coach', title: 'AI 教练配置', description: '调整教练人设、语气与系统指令', icon: FaRobot },
+  { path: '/admin/stats', title: '平台概览', description: '查看平台使用情况，进入需要处理的工作。' },
+  { path: '/admin/users', title: '用户管理', description: '查找账号，核对资料并管理账号状态。' },
+  { path: '/admin/knowledge', title: '知识库管理', description: '核对采集内容与出处，维护面向学生发布的资料。' },
+  { path: '/admin/podcasts', title: '音频博客目录', description: '核对单集、来源和使用范围，再决定是否推荐给学生。' },
+  { path: '/admin/coach', title: 'AI 教练配置', description: '调整教练的角色、语气和系统指令。' },
 ];
-
-const particlesInit = async (engine) => { await loadSlim(engine); };
 
 export default function AdminLayout() {
   const { currentUser, logout } = useAuth();
-
-  const particlesOptions = useMemo(() => ({
-    fullScreen: { enable: false },
-    background: { color: { value: 'transparent' } },
-    fpsLimit: 60,
-    interactivity: {
-      events: {
-        onHover: { enable: true, mode: 'grab' },
-        onClick: { enable: true, mode: 'push' },
-        resize: { enable: true },
-      },
-      modes: {
-        grab: { distance: 180, links: { opacity: 0.6 } },
-        push: { quantity: 4 },
-      },
-    },
-    particles: {
-      color: { value: ['#63B995', '#5488C4', '#E88A6E'] },
-      links: {
-        color: '#63B995',
-        distance: 150,
-        enable: true,
-        opacity: 0.35,
-        width: 1.2,
-      },
-      move: {
-        direction: 'none',
-        enable: true,
-        outModes: { default: 'out' },
-        random: true,
-        speed: 1.2,
-        straight: false,
-      },
-      number: { density: { enable: true, area: 800 }, value: 90 },
-      opacity: { value: { min: 0.3, max: 0.7 } },
-      shape: { type: 'circle' },
-      size: { value: { min: 1.5, max: 4 } },
-    },
-    detectRetina: true,
-  }), []);
   const location = useLocation();
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [leaving, setLeaving] = useState(false);
-  const section = sections.find(item => item.path === location.pathname) || { title: '管理中枢', description: '选择一个管理功能，或通过下方球体进入。' };
+  const section = sections.find(item => item.path === location.pathname) || sections[0];
+
   async function handleLogout() {
     setLeaving(true);
     setError('');
     try { await logout(); navigate('/admin/login', { replace: true }); }
     catch { setError('退出失败，请重试'); setLeaving(false); }
   }
-  return (
-    <div className="admin-workspace admin-workspace-nosidebar">
-      <a className="admin-skip" href="#admin-content" onClick={event => focusContent(event, 'admin-content')}>跳转到管理内容</a>
-      <div className="admin-body">
-        <ParticlesProvider init={particlesInit}>
-          <Particles id="admin-particles" className="admin-particles-bg" options={particlesOptions} />
-        </ParticlesProvider>
-        <header className="admin-topbar admin-topbar-flat">
-          <Link to="/admin" className="admin-back-to-orb">
-            <FaShieldAlt aria-hidden="true" /> ← 返回球体中枢
-          </Link>
-            <span className="admin-breadcrumb">{section.title}</span>
-            <Link to="/research" className="admin-preview">学校研究管理</Link>
-            <Link to="/admin/podcasts" className="admin-preview">音频博客目录</Link>
-          <div className="admin-account">
-            <Link to="/" target="_blank" rel="noopener noreferrer" className="admin-preview">预览用户端 <FaExternalLinkAlt aria-hidden="true" /></Link>
-            <span className="admin-account-email" title={currentUser?.email}>{currentUser?.email}<small>管理员</small></span>
-            <button type="button" className="btn btn-outline-secondary btn-sm" disabled={leaving} onClick={handleLogout}><FaSignOutAlt aria-hidden="true" /> {leaving ? '退出中…' : '退出登录'}</button>
-          </div>
-        </header>
-        <main id="admin-content" className="admin-content" tabIndex={-1}>
-          <div className="admin-page-heading"><span>YOUTHGAIN · 管理后台</span><h1>{section.title}</h1><p>{section.description}</p></div>
-          <nav className="d-flex flex-wrap gap-2 mb-4" aria-label="后台功能导航">{sections.map(item => <NavLink key={item.path} to={item.path} className={({ isActive }) => `btn btn-sm ${isActive ? 'btn-primary' : 'btn-outline-secondary'}`}>{item.title}</NavLink>)}</nav>
-          {error && <div role="alert" className="alert alert-danger">{error}</div>}
-          <section className="admin-panel" aria-label={section.title}><Outlet /></section>
-        </main>
+
+  return <div className="admin-workspace admin-workspace-editorial">
+    <a className="admin-skip" href="#admin-content" onClick={event => focusContent(event, 'admin-content')}>跳转到管理内容</a>
+    <header className="admin-workspace-bar">
+      <Link to="/admin" className="admin-wordmark"><b aria-hidden="true">青</b> 青盈管理</Link>
+      <div className="admin-workspace-links">
+        <Link to="/research">学校研究管理</Link>
+        <Link to="/" target="_blank" rel="noopener noreferrer">预览用户端 <span aria-hidden="true">↗</span></Link>
       </div>
+      <div className="admin-account"><span className="admin-account-email" title={currentUser?.email}>{currentUser?.email}</span>
+        <button type="button" className="btn btn-outline-secondary btn-sm" disabled={leaving} onClick={handleLogout}>{leaving ? '退出中…' : '退出登录'}</button>
+      </div>
+    </header>
+    <div className="admin-workspace-grid">
+      <nav className="admin-workspace-nav" aria-label="后台功能导航">
+        {sections.map(item => <Link key={item.path} to={item.path} aria-current={section === item ? 'page' : undefined}
+          className={section === item ? 'is-current' : undefined}>{item.title}</Link>)}
+      </nav>
+      <main id="admin-content" className="admin-content" tabIndex={-1}>
+        <header className="admin-editorial-heading"><span>YOUTHGAIN / 运营工作台</span><h1>{section.title}</h1><p>{section.description}</p></header>
+        {error && <div role="alert" className="alert alert-danger">{error}</div>}
+        <section className="admin-panel admin-editorial-panel" aria-label={section.title}><Outlet /></section>
+      </main>
     </div>
-  );
+  </div>;
 }

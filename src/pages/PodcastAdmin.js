@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Card, Col, Form, Row, Spinner } from 'react-bootstrap';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Button, Col, Form, Row, Spinner } from 'react-bootstrap';
 import { listPodcastPrograms, reviewPodcastProgram, savePodcastProgram, syncPodcastProgram, syncDuePodcasts } from '../services/podcasts';
 import PodcastPipelineAdmin from '../components/PodcastPipelineAdmin';
 
@@ -19,12 +19,23 @@ export default function PodcastAdmin() {
   const [programs, setPrograms] = useState(null);
   const [form, setForm] = useState(blank);
   const [editing, setEditing] = useState(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  const [filter, setFilter] = useState('draft');
+  const [confirmReview, setConfirmReview] = useState(false);
+  const editorHeading = useRef(null);
+  const detailHeading = useRef(null);
+  const queueFilter = useRef(null);
+  const detailTrigger = useRef(null);
+  useEffect(() => { if (editorOpen) editorHeading.current?.focus(); }, [editorOpen, editing]);
+  useEffect(() => { if (selectedId) detailHeading.current?.focus(); }, [selectedId]);
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const load = useCallback(async () => {
-    try { setPrograms(await listPodcastPrograms()); setError(''); }
-    catch (e) { setError(e?.response?.data?.message || '节目目录暂时无法读取。'); }
+    try { setPrograms(await listPodcastPrograms()); setLoadError(''); }
+    catch (e) { setLoadError(e?.response?.data?.message || '节目目录暂时无法读取。'); }
   }, []);
   useEffect(() => { load(); }, [load]);
   const update = (key, value) => setForm(current => ({ ...current, [key]: value }));
@@ -41,16 +52,78 @@ export default function PodcastAdmin() {
         ...(form.xiaoyuzhou_url ? [{ platform: 'xiaoyuzhou', url: form.xiaoyuzhou_url }] : []),
         ...(form.ximalaya_url ? [{ platform: 'ximalaya', url: form.ximalaya_url }] : []),
       ] };
-    operate(async () => { await savePodcastProgram(payload, editing); setEditing(null); setForm(blank); },
+    operate(async () => { await savePodcastProgram(payload, editing); setEditing(null); setForm(blank); setEditorOpen(false); queueFilter.current?.focus(); },
       '单集资料已保存为待审核。');
   };
+  const selected = (programs || []).find(program => program.id === selectedId);
+  const visible = (programs || []).filter(program => filter === 'all' || program.status === filter);
+  const pending = (programs || []).filter(program => program.status === 'draft').length;
+  const statusLabel = { draft: '待审核', approved: '已发布', withdrawn: '已撤回' };
+  const blockers = selected?.review_blockers || [];
+  const closeDetail = () => {
+    setSelectedId(null); setConfirmReview(false);
+    detailTrigger.current?.focus();
+  };
   return <div className="podcast-admin">
-    <p>每条目录记录对应一期音频。先核对单集内容、发布日期和直达链接，再发布给学生；同一节目可收录多期。</p>
-    {error && <Alert variant="danger" role="alert">{error}</Alert>}
-    {notice && <Alert variant="success" role="status">{notice}</Alert>}
-    <PodcastPipelineAdmin onCatalogueChange={load} />
-    <Card className="mb-4"><Card.Body>
-      <h2 className="h5">{editing ? '编辑单集' : '添加单集'}</h2>
+    <section className="admin-editorial-section" aria-label="播客单集审核">
+      <div className="review-section-head"><div><h2>单集审核</h2><p>核对一期音频的来源、发布日期和内容，再决定是否发布。</p></div>
+        <Button variant="outline-success" size="sm" disabled={busy || editorOpen} onClick={() => { setEditing(null); setForm(blank); setEditorOpen(true); }}>添加单集</Button></div>
+      {error && <Alert variant="danger" role="alert">{error}</Alert>}
+      {loadError && <Alert variant="warning" role="alert">{loadError} <Button size="sm" variant="link" disabled={busy} onClick={load}>重试读取目录</Button></Alert>}
+      {notice && <Alert variant="success" role="status">{notice}</Alert>}
+      <div className="review-workbench">
+        <div className="review-queue">
+          <label className="review-filter">单集状态<select ref={queueFilter} className="form-select" value={filter} onChange={e => { setFilter(e.target.value); setSelectedId(null); setConfirmReview(false); }}>
+            <option value="draft">待审核（{pending}）</option><option value="approved">已发布</option><option value="withdrawn">已撤回</option><option value="all">全部单集</option>
+          </select></label>
+          {!programs && !loadError && <Spinner role="status" className="mt-3" />}
+          {programs && !visible.length && <p className="text-muted mt-3">{programs.length ? '此状态暂无单集。' : '目录还没有单集。请先添加并审核。'}</p>}
+          <ul className="review-queue-list">{visible.map(program => <li key={program.id}>
+            <button type="button" disabled={busy} aria-pressed={selectedId === program.id} onClick={e => { detailTrigger.current = e.currentTarget; setSelectedId(program.id); setConfirmReview(false); }}>
+              <strong>{program.episode_title || '待补充单集'}</strong>
+              <small>{statusLabel[program.status] || program.status} · {program.name}</small>
+              <span className="review-entry-action">核对单集 <span aria-hidden="true">→</span></span>
+            </button>
+          </li>)}</ul>
+        </div>
+        <div className="review-detail" role="region" aria-label="播客审核详情">
+          {selected ? <>
+            <h3 tabIndex={-1} ref={detailHeading}>{selected.episode_title || '待补充单集'}</h3>
+            <p className="small text-muted">{selected.publisher} · {selected.episode_published_at || '发布日期待填写'} · {statusLabel[selected.status]}</p>
+            {selected.episode_url && <p><a href={selected.episode_url} target="_blank" rel="noreferrer">打开原始单集 ↗</a></p>}
+            <p>{selected.episode_summary || '待补充本期简介。'}</p>
+            <p className="small text-muted">学习主题：{(selected.topics || []).map(topic => TOPICS.find(([id]) => id === topic)?.[1]).filter(Boolean).join('、') || '待补充'} · {selected.promotion_flag || selected.product_pitch ? '含推广或产品推介' : '未标记推广'}</p>
+            {selected.source_synced_at && <p className="small text-muted">RSS 更新：{selected.source_synced_at.slice(0, 16)}</p>}
+            {selected.source_error && <p className="small text-danger">同步失败：{selected.source_error}</p>}
+            {selected.processing?.suggestions && <details className="review-disclosure"><summary>内容整理依据与学习要点</summary>
+              {selected.processing.superseded_by_editor && <p className="small">资料已由编辑修订，以下保留原始整理参考。</p>}
+              <p className="small">整理依据为发布者标题与简介，未审听完整音频。{selected.processing.ai_used ? 'AI 整理建议需人工核对。' : '采用可追溯的文字摘录。'}</p>
+              <p>{selected.processing.suggestions.summary}</p>
+              <ul className="small">{(selected.processing.suggestions.knowledge_points || []).map((point, index) => <li key={index}>{point.text}（原文依据：{point.quote}）</li>)}</ul>
+              <p className="small text-muted">主题识别：{selected.processing.semantic_used ? '关键词与语义模型' : '关键词规则'} · 整理版本 {selected.processing.version}</p>
+              {!!selected.processing.fallback_reasons?.length && <p className="small text-muted">回退记录：{selected.processing.fallback_reasons.join('、')}</p>}
+            </details>}
+            {!!blockers.length && <Alert variant="warning">{blockers.join('；')}。请编辑核对后再审核发布。</Alert>}
+            <div className="review-actions">
+              <Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => { setEditing(selected.id); setForm(formValue(selected)); setEditorOpen(true); }}>编辑</Button>
+              {selected.rss_url && <Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => operate(() => syncPodcastProgram(selected.id), '来源简介已更新。')}>同步 RSS</Button>}
+              {!confirmReview && <Button size="sm" variant={selected.status === 'approved' ? 'outline-danger' : 'success'} disabled={busy || (selected.status !== 'approved' && blockers.length > 0)} onClick={() => setConfirmReview(true)}>{selected.status === 'approved' ? '撤回' : '审核发布'}</Button>}
+              <Button size="sm" variant="link" disabled={busy} onClick={closeDetail}>关闭详情</Button>
+            </div>
+            {confirmReview && <div className="review-confirm">
+              <p>{selected.status === 'approved' ? '撤回后，这期音频将退出推荐目录。' : '发布后，这期音频可以参与学生端的每日推荐。'}</p>
+              <Button size="sm" variant={selected.status === 'approved' ? 'danger' : 'success'} disabled={busy || (selected.status !== 'approved' && blockers.length > 0)} onClick={() => {
+                const approve = selected.status !== 'approved';
+                operate(async () => { await reviewPodcastProgram(selected.id, approve); setConfirmReview(false); setSelectedId(null); queueFilter.current?.focus(); }, approve ? '单集已审核发布。' : '单集已撤回。');
+              }}>{selected.status === 'approved' ? '确认撤回' : '确认发布'}</Button>
+              <Button size="sm" variant="link" disabled={busy} onClick={() => setConfirmReview(false)}>取消</Button>
+            </div>}
+          </> : <p className="text-muted">选择一条单集，核对证据和发布条件。</p>}
+        </div>
+      </div>
+    </section>
+    {editorOpen && <section className="admin-editorial-section">
+      <h2 className="h5" tabIndex={-1} ref={editorHeading}>{editing ? '编辑单集' : '添加单集'}</h2>
       <Form onSubmit={save}>
         <Row><Col md={6}><Form.Group controlId="podcast-name" className="mb-3"><Form.Label>节目名称</Form.Label><Form.Control required maxLength={120} value={form.name} onChange={e => update('name', e.target.value)} /></Form.Group></Col>
           <Col md={6}><Form.Group controlId="podcast-publisher" className="mb-3"><Form.Label>发布者</Form.Label><Form.Control required maxLength={120} value={form.publisher} onChange={e => update('publisher', e.target.value)} /></Form.Group></Col></Row>
@@ -70,25 +143,13 @@ export default function PodcastAdmin() {
         {form.source_permission !== 'manual' && <Form.Group controlId="podcast-rss" className="mb-3"><Form.Label>RSS 地址（须在服务端允许列表）</Form.Label><Form.Control type="url" value={form.rss_url} onChange={e => update('rss_url', e.target.value)} /></Form.Group>}
         <div className="d-flex flex-wrap gap-3 mb-3"><Form.Check id="podcast-promotion" type="checkbox" label="含商业推广" checked={form.promotion_flag} onChange={e => update('promotion_flag', e.target.checked)} /><Form.Check id="podcast-product-pitch" type="checkbox" label="推介具体金融产品" checked={form.product_pitch} onChange={e => update('product_pitch', e.target.checked)} /></div>
         <Button type="submit" disabled={busy || !form.topics.length}>{busy ? '保存中…' : '保存待审核'}</Button>
-        {editing && <Button type="button" variant="link" onClick={() => { setEditing(null); setForm(blank); }}>取消编辑</Button>}
+        <Button type="button" variant="link" disabled={busy} onClick={() => { setEditing(null); setForm(blank); setEditorOpen(false); queueFilter.current?.focus(); }}>取消编辑</Button>
       </Form>
-    </Card.Body></Card>
-    <div className="d-flex justify-content-between align-items-center mb-3"><h2 className="h5 mb-0">单集目录</h2><Button variant="outline-secondary" size="sm" disabled={busy} onClick={() => operate(syncDuePodcasts, '到期来源已加入后台采集队列。')}>同步到期来源</Button></div>
-    {!programs ? <Spinner role="status" /> : programs.length === 0 ? <p>目录还没有单集。请先添加并审核。</p> : programs.map(program => <Card key={program.id} className="mb-3"><Card.Body>
-      <div className="d-flex justify-content-between gap-3 flex-wrap"><div><h3 className="h6 mb-1">{program.episode_title || '待补充单集'} · {program.name}</h3><p className="small text-muted mb-1">{program.publisher} · {program.topics.map(topic => TOPICS.find(([id]) => id === topic)?.[1]).join('、')}</p><p className="small mb-1">状态：{({ draft: '待审核', approved: '已发布', withdrawn: '已撤回' })[program.status]} · 发布日期：{program.episode_published_at || '待填写'}</p>{program.source_synced_at && <p className="small text-muted mb-1">RSS 更新：{program.source_synced_at.slice(0, 16)}</p>}{program.source_error && <p className="small text-danger mb-1">同步失败：{program.source_error}</p>}</div>
-      <div className="d-flex gap-2 flex-wrap align-content-start"><Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => { setEditing(program.id); setForm(formValue(program)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>编辑</Button>
-        {program.rss_url && <Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => operate(() => syncPodcastProgram(program.id), '来源简介已更新。')}>同步 RSS</Button>}
-        {program.status !== 'approved' ? <Button size="sm" disabled={busy} onClick={() => operate(() => reviewPodcastProgram(program.id, true), '单集已审核发布。')}>审核发布</Button>
-          : <Button size="sm" variant="outline-danger" disabled={busy} onClick={() => operate(() => reviewPodcastProgram(program.id, false), '单集已撤回。')}>撤回</Button>}</div></div>
-      {program.processing && <details className="mt-2"><summary>内容整理依据与学习要点</summary>
-        {program.processing.superseded_by_editor && <p className="small mt-2 mb-1">资料已由编辑修订，以下保留原始整理参考。</p>}
-        <p className="small mt-2 mb-1">仅基于发布者标题与简介，未审听完整音频。{program.processing.ai_used ? '已生成 AI 整理建议，需人工核对。' : '使用可追溯的文字摘录。'}</p>
-        <p className="small mb-1">{program.processing.suggestions.summary}</p>
-        <ul className="small">{program.processing.suggestions.knowledge_points.map((point, index) => <li key={index}>{point.text}<span className="text-muted">（原文依据：{point.quote}）</span></li>)}</ul>
-        <p className="small text-muted mb-1">主题识别：{program.processing.semantic_used ? '关键词与语义模型' : '关键词规则'} · 整理版本 {program.processing.version}</p>
-        {!!program.processing.fallback_reasons?.length && <p className="small text-muted">回退记录：{program.processing.fallback_reasons.join('、')}</p>}
-      </details>}
-      {!!program.review_blockers?.length && <Alert variant="warning" className="small mt-2 mb-0">{program.review_blockers.join('；')}。请编辑核对后再审核发布。</Alert>}
-    </Card.Body></Card>)}
+    </section>}
+    <details className="review-source">
+      <summary>采集来源与同步记录</summary>
+      <div className="review-actions mt-3"><Button variant="outline-secondary" size="sm" disabled={busy} onClick={() => operate(syncDuePodcasts, '到期来源已加入后台采集队列。')}>同步到期来源</Button></div>
+      <PodcastPipelineAdmin onCatalogueChange={load} />
+    </details>
   </div>;
 }

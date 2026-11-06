@@ -14,7 +14,7 @@ test('requires explicit review confirmation and sends the displayed current vers
   render(<KnowledgeUpdatesAdmin />);
   await screen.findByText('更新的预算方法');
   expect(screen.getByRole('button', { name: '立即检查' })).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: '查看正文与变化' }));
+  fireEvent.click(screen.getByRole('button', { name: /查看正文与变化/ }));
   const publish = screen.getByRole('button', { name: '审核通过并发布' });
   expect(publish).toBeDisabled();
   expect(screen.getByText('旧正文')).toBeInTheDocument();
@@ -25,6 +25,7 @@ test('requires explicit review confirmation and sends the displayed current vers
 
 test('supports enabling a source and clearly shows loading failure', async () => {
   render(<KnowledgeUpdatesAdmin />);
+  fireEvent.click(await screen.findByText('管理采集来源'));
   fireEvent.click(await screen.findByRole('button', { name: '启用' }));
   await waitFor(() => expect(knowledgeUpdatesApi).toHaveBeenCalledWith('PUT', '/sources/s', { enabled: true }));
 });

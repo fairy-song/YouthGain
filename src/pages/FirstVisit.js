@@ -6,7 +6,10 @@ import './FirstVisit.css';
 
 export function Welcome() {
   return <main className="first-visit welcome-page">
-    <nav className="first-visit-top"><Link to="/" className="first-visit-brand">青盈<span>·</span></Link><Link to="/login">已有账号？登录</Link></nav>
+    <nav className="first-visit-top" aria-label="首页导航">
+      <Link to="/" className="first-visit-brand">青盈<span>·</span></Link>
+      <div className="welcome-access"><Link to="/login">学生登录</Link><Link to="/research">学校端</Link></div>
+    </nav>
     <div className="welcome-glow" aria-hidden="true" />
     <section className="welcome-content">
       <p className="first-visit-eyebrow">给大学生的财商练习</p>

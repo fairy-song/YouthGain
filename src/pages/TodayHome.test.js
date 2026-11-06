@@ -1,11 +1,13 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import TodayHome from './TodayHome';
 import { listTransactions } from '../services/api';
 import { getAdaptiveLearning, getLearning } from '../services/learning';
-jest.mock('../config/features', () => ({ DAILY_FUNDS_BREAKDOWN_ENABLED: true }));
+import { shiftCalendarDay } from '../utils/livingFundsProjection';
+import { fundsDateKey } from '../utils/dailyFundsBreakdown';
+jest.mock('../config/features', () => ({ DAILY_FUNDS_BREAKDOWN_ENABLED: true, LIVING_FUNDS_STRESS_TEST_ENABLED: false }));
 jest.mock('../components/DailyPodcast', () => () => null);
 
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'student-1', displayName: '小青' } }) }));
@@ -15,6 +17,7 @@ jest.mock('../services/learning', () => ({ getAdaptiveLearning: jest.fn(), getLe
 beforeEach(() => {
   jest.clearAllMocks();
   jest.requireMock('../config/features').DAILY_FUNDS_BREAKDOWN_ENABLED = true;
+  jest.requireMock('../config/features').LIVING_FUNDS_STRESS_TEST_ENABLED = false;
   getAdaptiveLearning.mockResolvedValue({ next_item: { id: 'one', question: '这笔消费前先确认什么？' }, reason: '来自你记录的开支' });
   getLearning.mockResolvedValue({ entries: [] });
   listTransactions.mockResolvedValue({ monthly_budget: { spent: 20, complete: true } });
@@ -86,4 +89,55 @@ test('does not show an old amount or invented task when reads fail', async () =>
   listTransactions.mockResolvedValue({ monthly_budget: { spent: 0, complete: true } });
   fireEvent.click(screen.getByRole('button', { name: '重新加载' }));
   expect(await screen.findByRole('heading', { name: '今天先到这里' })).toBeInTheDocument();
+});
+
+test('lets the student compare a purchase and a delayed payday without a usable ledger', async () => {
+  jest.requireMock('../config/features').LIVING_FUNDS_STRESS_TEST_ENABLED = true;
+  getLearning.mockRejectedValue(new Error('offline'));
+  listTransactions.mockRejectedValue(new Error('offline'));
+  const { rerender } = render(<MemoryRouter><TodayHome /></MemoryRouter>);
+  await screen.findByText('账本暂时无法读取。');
+  fireEvent.click(screen.getByRole('button', { name: /试一笔消费/ }));
+  expect(screen.queryByRole('button', { name: '带入账本参考' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '用示例试试' }));
+  fireEvent.click(screen.getByRole('button', { name: '查看试算结果' }));
+  const result = screen.getByRole('region', { name: '生活费试算结果' });
+  expect(within(result).getByRole('heading', { name: '生活费试算结果' })).toHaveFocus();
+  expect(within(result).getByText('预计还剩 ¥160.00')).toBeVisible();
+  expect(within(result).getByText('预计还差 ¥29.00')).toBeVisible();
+  expect(within(result).getByText(/首次不足.*当日差 ¥9.00/)).toBeVisible();
+  fireEvent.change(screen.getByLabelText('如果到账晚了'), { target: { value: '0' } });
+  expect(screen.queryByRole('region', { name: '生活费试算结果' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '查看试算结果' }));
+  expect(screen.getByText('预计还剩 ¥31.00')).toBeVisible();
+  jest.requireMock('../config/features').LIVING_FUNDS_STRESS_TEST_ENABLED = false;
+  rerender(<MemoryRouter><TodayHome /></MemoryRouter>);
+  expect(screen.queryByRole('button', { name: /试一笔消费/ })).not.toBeInTheDocument();
+});
+
+test('only projects explicitly selected unpaid expenses and only offers a same-day confirmed funds reference', async () => {
+  jest.requireMock('../config/features').LIVING_FUNDS_STRESS_TEST_ENABLED = true;
+  const now = new Date();
+  const today = fundsDateKey(now, 'Asia/Shanghai');
+  listTransactions.mockResolvedValue({
+    monthly_budget: { spent: 50, complete: true },
+    funds: { complete: true, available_complete: true, as_of: now.toISOString(), timezone: 'Asia/Shanghai',
+      month: today.slice(0, 7), available_remaining_month: 300 },
+  });
+  getLearning.mockResolvedValue({ entries: [
+    { id: 'next', kind: 'upcoming', title: '考试费', amount: 120, due_date: today, handled: false },
+    { id: 'old', kind: 'upcoming', title: '已经处理', amount: 120, due_date: today, handled: true },
+  ] });
+  render(<MemoryRouter><TodayHome /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: /试一笔消费/ }));
+  fireEvent.click(await screen.findByRole('button', { name: '带入账本参考' }));
+  fireEvent.change(screen.getByLabelText('下一次预计到账'), { target: { value: shiftCalendarDay(today, 1) } });
+  fireEvent.click(screen.getByRole('button', { name: '查看试算结果' }));
+  expect(screen.getByText('预计还剩 ¥300.00')).toBeVisible();
+  fireEvent.click(screen.getByText('预留必要开支'));
+  expect(screen.queryByLabelText(/已经处理/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByLabelText(/考试费/));
+  fireEvent.click(screen.getByRole('button', { name: '查看试算结果' }));
+  expect(screen.getByText('预计还剩 ¥180.00')).toBeVisible();
+  expect(screen.getByText(/未填每日开销/)).toBeVisible();
 });

@@ -54,3 +54,18 @@ test('登录后返回之前请求的学习功能与参数', async () => {
   fireEvent.click(screen.getByRole('button', { name: '进入青盈' }));
   expect(await screen.findByText('回到每周复盘')).toBeTruthy();
 });
+
+test.each(['user', 'admin'])('学校入口登录后直接进入学校端：%s', async role => {
+  login.mockResolvedValue({ role });
+  render(<MemoryRouter initialEntries={['/research/login']}><Routes>
+    <Route path="/research/login" element={<Login schoolMode />} />
+    <Route path="/research" element={<div>核对项目授权</div>} />
+    <Route path="/admin" element={<div>管理后台</div>} />
+  </Routes></MemoryRouter>);
+  expect(screen.getByRole('link', { name: /先看演示月报/ }).getAttribute('href')).toBe('/research/demo');
+  fireEvent.change(screen.getByLabelText('获授权的电子邮箱'), { target: { value: 'teacher@example.org' } });
+  fireEvent.change(screen.getByLabelText('密码'), { target: { value: 'test' } });
+  fireEvent.click(screen.getByRole('button', { name: '登录并查看研究项目' }));
+  expect(await screen.findByText('核对项目授权')).toBeTruthy();
+  expect(login).toHaveBeenCalledWith('teacher@example.org', 'test');
+});

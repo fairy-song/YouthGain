@@ -5,9 +5,10 @@ import { listTransactions } from '../services/api';
 import { getAdaptiveLearning, getLearning } from '../services/learning';
 import { dateKey } from '../components/FinanceVisuals';
 import DailyPodcast from '../components/DailyPodcast';
+import LivingFundsStressTest from '../components/LivingFundsStressTest';
 import MonthlyAvailableFunds from '../components/MonthlyAvailableFunds';
 import TodayPracticeMascot from '../components/TodayPracticeMascot';
-import { DAILY_FUNDS_BREAKDOWN_ENABLED } from '../config/features';
+import { DAILY_FUNDS_BREAKDOWN_ENABLED, LIVING_FUNDS_STRESS_TEST_ENABLED } from '../config/features';
 import './TodayHome.css';
 
 const yuan = value => `¥${Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -16,7 +17,7 @@ export default function TodayHome() {
   const { currentUser } = useAuth();
   const [practice, setPractice] = useState(null);
   const [ledger, setLedger] = useState(null);
-  const [upcoming, setUpcoming] = useState(null);
+  const [entries, setEntries] = useState(null);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
@@ -32,16 +33,13 @@ export default function TodayHome() {
     if (current !== version.current) return;
     setPractice(learningResult.status === 'fulfilled' ? learningResult.value : null);
     setLedger(ledgerResult.status === 'fulfilled' ? ledgerResult.value : null);
-    const entries = entriesResult.status === 'fulfilled' ? entriesResult.value.entries || [] : [];
-    const today = dateKey();
-    setUpcoming(entries.filter(entry => entry.kind === 'upcoming' && !entry.handled && entry.due_date >= today)
-      .sort((a, b) => a.due_date.localeCompare(b.due_date))[0] || null);
+    setEntries(entriesResult.status === 'fulfilled' ? entriesResult.value.entries || [] : null);
     setErrors({ learning: learningResult.status === 'rejected', ledger: ledgerResult.status === 'rejected' });
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    setPractice(null); setLedger(null); setUpcoming(null); setErrors({});
+    setPractice(null); setLedger(null); setEntries(null); setErrors({});
   }, [currentUser?.uid]);
 
   useEffect(() => {
@@ -64,17 +62,48 @@ export default function TodayHome() {
   const item = practice?.next_item;
   const budget = ledger?.monthly_budget;
   const cashflow = ledger?.monthly_cashflow;
+  const today = dateKey();
+  const upcoming = (entries || []).filter(entry => entry.kind === 'upcoming' && !entry.handled && entry.due_date >= today)
+    .sort((a, b) => a.due_date.localeCompare(b.due_date)).slice(0, 3);
   const name = currentUser?.displayName?.trim() || '同学';
   return <div className="today-page">
     <div className="today-wrap">
       <header className="today-intro">
-        <span className="today-eyebrow">青盈 · 今天</span>
-        <h1>{name}，今天先做一步</h1>
-        <p>用一个小问题，慢慢练习看清钱的去向与选择。</p>
+        <div className="today-masthead"><span className="today-eyebrow">青盈 · 生活费手账</span><time dateTime={today}>{today}</time></div>
+        <h1>{name}，<br />把接下来的钱安排好</h1>
+        <p>看看要先留哪笔钱，再决定今天怎么花。</p>
       </header>
 
+      <div className="today-support">
+        <section className="today-panel today-money-story" aria-labelledby="today-ledger-title">
+          <span className="today-eyebrow">01 / 现在</span>
+          <h2 id="today-ledger-title">手里的钱还能怎么安排？</h2>
+          {errors.ledger ? <p role="status">账本暂时无法读取。<button type="button" className="today-inline-button" onClick={requestRefresh}>重试</button></p>
+            : !budget ? <p role="status">{loading ? '正在读取本月记录…' : '暂无可汇总的账本记录。'}</p>
+              : budget.complete !== false && budget.spent != null ? <>
+                <MonthlyAvailableFunds key={currentUser?.uid} funds={ledger?.funds} enableDailyBreakdown={DAILY_FUNDS_BREAKDOWN_ENABLED} refreshing={loading} onRefresh={requestRefresh} />
+                <div className="today-cashflow" aria-label="本月收支"><div><span>本月支出</span><strong>{yuan(cashflow?.spent ?? budget.spent)}</strong></div><div><span>本月收入</span><strong>{cashflow?.complete ? yuan(cashflow.income) : '暂未汇总'}</strong></div></div>
+                <p>仅按已记录收支计算，退款抵减支出。{cashflow?.complete && (cashflow.has_expense_records === false || cashflow.has_income_records === false) && ' 本月有一侧尚无记录，结余可能不完整。'}</p>
+              </> : <p>部分记录暂时无法汇总，请到账本核对。</p>}
+          {LIVING_FUNDS_STRESS_TEST_ENABLED && <LivingFundsStressTest key={currentUser?.uid} funds={ledger?.funds} entries={entries} refreshing={loading} />}
+          <div className="today-panel-links"><Link to="/dashboard">打开账本记一笔 <span aria-hidden="true">→</span></Link></div>
+        </section>
+
+        <section className="today-panel today-next" aria-labelledby="today-next-title">
+          <span className="today-eyebrow">02 / 接下来</span>
+          <h2 id="today-next-title">近期要留的钱</h2>
+          {entries == null ? <p role="status">{loading ? '正在读取开支安排…' : '暂时无法读取开支安排。'}</p>
+            : upcoming.length ? <ol className="today-timeline">{upcoming.map(entry => <li key={entry.id}>
+              <time dateTime={entry.due_date}>{entry.due_date}</time>
+              <strong>{entry.title}</strong>
+              {entry.amount != null && Number.isFinite(Number(entry.amount)) && <span>{yuan(entry.amount)}</span>}
+            </li>)}</ol> : <p>还没有待处理的开支安排。可以先记下一笔考试费、车费或订阅续费。</p>}
+          <Link className="today-text-link" to="/dashboard?tab=upcoming">查看未来开支 <span aria-hidden="true">→</span></Link>
+        </section>
+      </div>
+
       <section className="today-task" aria-labelledby="today-task-title">
-        <div className="today-task-top"><span className="today-tag">今日练习</span><span className="today-task-meta">一次只看一个问题</span></div>
+        <div className="today-task-top"><span className="today-eyebrow">03 / 今日练习</span></div>
         {loading && !practice && !errors.learning ? <div role="status" className="today-task-body">正在准备今天的练习…</div>
           : errors.learning ? <div className="today-task-body"><h2 id="today-task-title">暂时没能读取练习</h2><p>你的记录仍在。可以重试，或稍后从学习页进入。</p><button type="button" className="today-retry" onClick={() => setReload(value => value + 1)}>重新加载</button></div>
             : item ? <div className="today-task-body">
@@ -88,23 +117,6 @@ export default function TodayHome() {
         <TodayPracticeMascot />
       </section>
 
-      <div className="today-support">
-        <section className="today-panel" aria-labelledby="today-ledger-title">
-          <div className="today-panel-top"><span className="today-panel-icon" aria-hidden="true">¥</span><span>我的账本</span></div>
-          <h2 id="today-ledger-title">本月收支</h2>
-          {errors.ledger ? <p role="status">账本暂时无法读取。<button type="button" className="today-inline-button" onClick={() => setReload(value => value + 1)}>重试</button></p>
-            : !budget ? <p role="status">{loading ? '正在读取本月记录…' : '暂无可汇总的账本记录。'}</p>
-              : budget.complete !== false && budget.spent != null ? <><div className="today-cashflow"><div><span>支出</span><strong className="today-amount">{yuan(cashflow?.spent ?? budget.spent)}</strong></div><div><span>收入</span><strong>{cashflow?.complete ? yuan(cashflow.income) : '暂未汇总'}</strong></div></div><MonthlyAvailableFunds key={currentUser?.uid} funds={ledger?.funds} enableDailyBreakdown={DAILY_FUNDS_BREAKDOWN_ENABLED} refreshing={loading} onRefresh={requestRefresh} /><p>仅按已记录收支计算；退款抵减支出。{cashflow?.complete && (cashflow.has_expense_records === false || cashflow.has_income_records === false) && ' 本月有一侧尚无记录，结余可能不完整。'}</p></>
-                : <p>部分记录暂时无法汇总，请到账本核对。</p>}
-          <div className="today-panel-links"><Link to="/dashboard">记一笔</Link><Link to="/dashboard">查看账本</Link></div>
-        </section>
-
-        <section className="today-panel today-panel-soft" aria-labelledby="today-next-title">
-          <div className="today-panel-top"><span className="today-panel-icon" aria-hidden="true">↗</span><span>接下来</span></div>
-          {upcoming ? <><h2 id="today-next-title">有一项开支值得提前看</h2><p className="today-upcoming">{upcoming.title} · {upcoming.due_date}</p><p>这是你的安排，尚未自动扣款。</p><Link className="today-text-link" to="/dashboard?tab=upcoming">查看这项安排 →</Link></>
-            : <><h2 id="today-next-title">留一点时间给自己</h2><p>记录一笔真实消费，或回看一次之前的选择，都可以慢慢来。</p><Link className="today-text-link" to="/learning?tab=review">做一次简短回看 →</Link></>}
-        </section>
-      </div>
       <DailyPodcast userId={currentUser?.uid} />
     </div>
   </div>;

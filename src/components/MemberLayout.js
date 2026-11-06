@@ -24,7 +24,10 @@ export default function MemberLayout() {
     <header className="member-header">
       <div className="member-header-inner">
         <Link className="member-brand" to="/" aria-label="青盈，返回今天"><span className="member-brand-mark" aria-hidden="true">青</span><span>青盈</span></Link>
-        <div className="member-desktop-nav">{navigation}</div>
+        <div className="member-header-actions">
+          <div className="member-desktop-nav">{navigation}</div>
+          <Link className="member-school-link" to="/research">学校端 <span aria-hidden="true">↗</span></Link>
+        </div>
       </div>
     </header>
     <main id="member-main" className="member-main" tabIndex={-1}><Outlet /></main>

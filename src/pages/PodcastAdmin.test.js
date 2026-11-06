@@ -25,6 +25,7 @@ beforeEach(() => {
 test('administrator can create a draft and explicitly approve it', async () => {
   render(<PodcastAdmin />);
   expect(await screen.findByText('目录还没有单集。请先添加并审核。')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '添加单集' }));
   fireEvent.change(screen.getByLabelText('节目名称'), { target: { value: '收支节目' } });
   fireEvent.change(screen.getByLabelText('发布者'), { target: { value: '某编辑部' } });
   fireEvent.change(screen.getByLabelText('发布者填写的节目简介'), { target: { value: '长期讨论收支安排' } });
@@ -40,7 +41,10 @@ test('administrator can create a draft and explicitly approve it', async () => {
     name: '收支节目', episode_title: '这一期谈预算',
     episode_url: 'https://podcasts.example/episode/one', topics: ['budget'], difficulty: 1, quality_score: 0.8,
   }), null));
-  fireEvent.click(await screen.findByRole('button', { name: '审核发布' }));
+  fireEvent.click(await screen.findByRole('button', { name: /这一期谈预算.*核对单集/ }));
+  fireEvent.click(screen.getByRole('button', { name: '审核发布' }));
+  expect(reviewPodcastProgram).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '确认发布' }));
   await waitFor(() => expect(reviewPodcastProgram).toHaveBeenCalledWith('one', true));
   expect(await screen.findByText('单集已审核发布。')).toBeInTheDocument();
 });

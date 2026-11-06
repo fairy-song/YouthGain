@@ -316,6 +316,7 @@ const Layout = () => {
                       <div className="nav-underline"></div>
                     </div>
 
+                    <Nav.Link as={Link} to="/research" className="text-white">学校端</Nav.Link>
                     <Nav.Link as={Link} to="/admin/login" className="text-white">管理员登录</Nav.Link>
 
                     <AnimatedButton

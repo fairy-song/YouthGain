@@ -1,18 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Alert, Badge, Button, Card, Col, Container, Form, Row, Spinner } from 'react-bootstrap';
+import { Alert, Button, Col, Form, Row, Spinner } from 'react-bootstrap';
+import { useAuth } from '../contexts/AuthContext';
+import ResearchCharts from '../components/ResearchCharts';
 import { getResearchAccess, createResearchProject, setResearchMember, getResearchReleases, publishResearchRelease, exportResearchRelease, sendResearchVerification, refreshResearchIdentity, researchError } from '../services/research';
+import './SchoolResearch.css';
 
 export default function SchoolResearch() {
+  const { currentUser } = useAuth() || {};
   const [access, setAccess] = useState(null);
   const [selected, setSelected] = useState('');
   const [releases, setReleases] = useState([]);
+  const [releasesFor, setReleasesFor] = useState('');
+  const [reportMonth, setReportMonth] = useState('');
+  const [releaseError, setReleaseError] = useState('');
   const [loadingReleases, setLoadingReleases] = useState(false);
   const [error, setError] = useState('');
   const [verificationSent, setVerificationSent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState('');
   const [reload, setReload] = useState(0);
   const [month, setMonth] = useState('');
+  const [pendingPublish, setPendingPublish] = useState(null);
   const [member, setMember] = useState({ email: '', expires: '' });
   const [form, setForm] = useState({ title: '', school: '', purpose: '', start_month: '', end_month: '', mode: 'demo' });
   useEffect(() => {
@@ -21,43 +30,61 @@ export default function SchoolResearch() {
       if (!active) return;
       setAccess(data);
       setSelected(value => data.projects.some(p => p.id === value) ? value : data.projects[0]?.id || '');
-    }).catch(e => { if (active) setError(researchError(e)); });
+    }).catch(e => { if (active) { setAccess(null); setSelected(''); setError(researchError(e)); } });
     return () => { active = false; };
   }, [reload]);
   useEffect(() => {
     let active = true;
     setReleases([]);
+    setReleasesFor('');
+    setReleaseError('');
     if (!selected) return () => { active = false; };
     setLoadingReleases(true);
-    getResearchReleases(selected).then(data => { if (active) setReleases(data.releases); })
-      .catch(e => { if (active) setError(researchError(e)); }).finally(() => { if (active) setLoadingReleases(false); });
+    getResearchReleases(selected).then(data => {
+      if (!active) return;
+      setReleases([...data.releases].sort((a, b) => b.month.localeCompare(a.month)));
+      setReleasesFor(selected);
+    }).catch(e => {
+      if (active) setReleaseError(researchError(e));
+    }).finally(() => { if (active) setLoadingReleases(false); });
     return () => { active = false; };
   }, [selected, reload]);
   const project = access?.projects.find(p => p.id === selected);
-  async function run(action) {
-    setBusy(true); setError('');
-    try { await action(); setReload(v => v + 1); }
+  const snapshot = releasesFor === selected ? releases.find(entry => entry.month === reportMonth) || releases[0] : null;
+  async function run(action, message = '', refresh = true) {
+    setBusy(true); setError(''); setNotice('');
+    try { await action(); setNotice(message); if (refresh) setReload(v => v + 1); }
     catch (e) { setError(researchError(e)); }
     finally { setBusy(false); }
   }
   const field = (key, value) => setForm(previous => ({ ...previous, [key]: value }));
-  return <Container className="py-4" style={{ maxWidth: 1100 }}>
-    <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-      <div><span className="text-success small">YOUTHGAIN · 群体消费研究</span><h1 className="h3 mt-1">学校研究</h1></div>
-      <Link to="/research/participation">学生研究参与</Link>
-    </div>
-    <p className="text-muted">查看获授权项目的月度群体统计，了解消费结构与预算安排。统计来自自愿参与者，不直接代表全校学生。</p>
+  return <div className="school-research">
+    <header className="research-masthead">
+      <div><span>YOUTHGAIN / 校园研究</span><h1>学校研究</h1></div>
+      <Link to="/research/login">切换账号</Link>
+    </header>
+    <p className="research-intro">查看获授权项目的月度群体统计，了解消费结构与预算安排。真实统计来自自愿参与者，不直接代表全校学生。</p>
     {error && <Alert variant="danger">{error}<Button variant="link" onClick={() => { setError(''); setReload(v => v + 1); }}>重试</Button></Alert>}
-    {!access && !error && <Spinner animation="border" aria-label="加载研究权限" />}
-    {access?.requires_email_verification && <Alert variant="info">
-      <p>学校研究权限需要验证登录邮箱。</p>
-      {verificationSent && <p>验证邮件已发送，请打开邮件中的链接，再点击“已验证，刷新权限”。</p>}
+    {notice && <p role="status" className="text-success">{notice}</p>}
+    {!access && !error && <p role="status">正在核对学校端访问权限…</p>}
+    {access?.requires_email_verification && <section className="research-access-state" aria-labelledby="research-verify-title">
+      <h2 id="research-verify-title">先验证邮箱</h2>
+      {currentUser?.email && <p>当前账号：<strong>{currentUser.email}</strong></p>}
+      <p>验证通过后，系统会用这个邮箱核对项目授权。请先打开验证邮件里的链接，再返回此页刷新权限。</p>
+      {verificationSent && <p role="status">验证邮件已发送，请查看收件箱和垃圾邮件。</p>}
       <Button size="sm" variant="outline-primary" className="me-2" disabled={busy || verificationSent} onClick={() => run(async () => { await sendResearchVerification(); setVerificationSent(true); })}>发送邮箱验证链接</Button>
       <Button size="sm" variant="outline-primary" disabled={busy} onClick={() => run(refreshResearchIdentity)}>已验证，刷新权限</Button>
-    </Alert>}
-    {access && !access.can_manage && !access.projects.length && <Alert variant="light">当前账号没有有效的学校研究授权。请由项目管理者绑定已验证的登录邮箱及授权期限。</Alert>}
-    {access?.can_manage && <Card className="mb-4 border-0 shadow-sm"><Card.Body>
-      <h2 className="h5">研究项目管理</h2>
+    </section>}
+    {access && !access.requires_email_verification && !access.can_manage && !access.projects.length && <section className="research-access-state" aria-labelledby="research-denied-title">
+      <h2 id="research-denied-title">当前账号没有有效的学校研究授权</h2>
+      {currentUser?.email && <p>当前账号：<strong>{currentUser.email}</strong></p>}
+      <p>请把当前登录邮箱发给项目负责人，请对方添加项目授权并确认截止日期。若授权的是另一个邮箱，请切换账号。</p>
+      <div className="research-access-actions"><Button size="sm" variant="outline-success" disabled={busy} onClick={() => {
+        setError(''); setAccess(null); setReload(value => value + 1);
+      }}>重新检查授权</Button><Link to="/research/demo">先看演示月报</Link><Link to="/research/participation">我是学生，查看研究参与</Link></div>
+    </section>}
+    {access?.can_manage && <details className="research-management">
+      <summary>研究项目管理</summary>
       <p className="small text-muted">真实研究平台累计隐私预算：已用 {access.global_budget.spent_milli / 1000} / {access.global_budget.total_milli / 1000} ε。各项目共用此上限，模拟发布不消耗真实预算。</p>
       <details className="mb-3"><summary>查看发布预算记录</summary>
         {!access.global_budget.entries?.length ? <p className="small mt-2">暂无发布记录。</p> : <div className="table-responsive mt-2"><table className="table table-sm">
@@ -82,22 +109,58 @@ export default function SchoolResearch() {
           <Button type="submit" variant="success" disabled={busy}>建立项目</Button>
         </Form>
       </details>
-    </Card.Body></Card>}
-    {access?.projects.length > 0 && <Form.Group className="mb-4"><Form.Label htmlFor="research-project">选择研究项目</Form.Label><Form.Select id="research-project" value={selected} onChange={e => setSelected(e.target.value)} disabled={busy}>
+    </details>}
+    {access?.projects.length > 0 && <div className="research-selectors"><Form.Group><Form.Label htmlFor="research-project">选择研究项目</Form.Label><Form.Select id="research-project" value={selected} onChange={e => {
+      setSelected(e.target.value); setReportMonth(''); setMonth(''); setPendingPublish(null); setNotice(''); setError(''); setReleaseError('');
+    }} disabled={busy}>
       {access.projects.map(p => <option key={p.id} value={p.id}>{p.school} · {p.title}{p.mode === 'demo' ? '（模拟）' : ''}</option>)}
-    </Form.Select></Form.Group>}
+    </Form.Select></Form.Group>
+      {snapshot && <Form.Group><Form.Label htmlFor="research-report-month">查看月份</Form.Label><Form.Select id="research-report-month" value={snapshot.month}
+        disabled={busy} onChange={e => { setReportMonth(e.target.value); setNotice(''); setError(''); }}>
+        {releases.map(entry => <option value={entry.month} key={entry.month}>{entry.month}{entry.status !== 'published' ? ' · 暂无可解读数据' : ''}</option>)}
+      </Form.Select></Form.Group>}
+    </div>}
     {project && <>
-      <Card className="mb-4 border-0 shadow-sm"><Card.Body>
-        <h2 className="h5">{project.title} {project.mode === 'demo' && <Badge bg="warning" text="dark">模拟数据</Badge>}</h2>
-        <p>{project.purpose}</p>
-        <p className="small text-muted">{project.start_month} 至 {project.end_month} · 项目发布预算已用 {project.epsilon_spent} / {project.epsilon_total} ε</p>
-        {project.mode === 'demo' && <Alert variant="warning">本项目使用程序生成的模拟数据，与真实学生记录无关，不能用于研究结论。</Alert>}
-        {access.can_manage && <>
-          <Form className="d-flex flex-wrap align-items-end gap-2 mb-3" onSubmit={e => { e.preventDefault(); run(() => publishResearchRelease(selected, month)); }}>
+      <section className="research-project-summary" aria-label="当前研究项目">
+        <p className="research-kicker">{project.school} · {project.start_month} 至 {project.end_month}</p>
+        <h2>{project.title}</h2><p>{project.purpose}</p>
+        {project.mode === 'demo' ? <p className="research-source" data-kind="demo"><strong>模拟数据</strong> · 仅用于演示，不能用于研究结论。</p>
+          : <p className="research-source"><strong>自愿参与统计</strong> · 仅涵盖本项目的受保护月度快照。</p>}
+      </section>
+      {releaseError ? <Alert variant="danger">{releaseError}<Button variant="link" onClick={() => setReload(v => v + 1)}>重试读取月报</Button></Alert>
+        : loadingReleases || releasesFor !== selected ? <Spinner animation="border" aria-label="加载研究快照" />
+          : !snapshot && <p className="research-empty" role="status">该项目尚未发布月度统计。</p>}
+      {snapshot && <article className="research-report" aria-label="项目月报">
+        <header className="research-report-heading">
+          <div><span className="research-kicker">月度报告 {snapshot.mode === 'demo' && ' / 模拟'}</span><h2>{snapshot.month}</h2></div>
+          <Button size="sm" variant="outline-success" disabled={busy} onClick={() => run(() => exportResearchRelease(selected, snapshot.month), '本月快照已导出。', false)}>导出本月快照</Button>
+        </header>
+        {snapshot.status !== 'published' ? <Alert variant="info">{snapshot.message || '本月统计信号不足，暂不能解读。'}</Alert> : <ResearchCharts charts={snapshot.charts} />}
+        <p className="research-report-note">{snapshot.notice}</p>
+        <details className="research-notes"><summary>统计口径与隐私说明</summary>
+          <p>{snapshot.record_scope}</p><p>{snapshot.trust_boundary}</p>
+          <p>版本 {snapshot.version} · ε={snapshot.epsilon}，δ={snapshot.delta} · {snapshot.privacy_unit}</p>
+          <p>单个统计坐标的理论95%噪声范围约 ±{snapshot.coordinate_noise_95}。{snapshot.noise_note}</p>
+          <p>发布时间：{snapshot.published_at}。查看和导出复用同一结果。</p>
+        </details>
+      </article>}
+        {access.can_manage && <section className="research-project-controls" aria-label="发布与授权">
+          <h2>发布与授权</h2>
+          <p className="small text-muted">项目发布预算已用 {project.epsilon_spent} / {project.epsilon_total} ε。</p>
+          <Form className="d-flex flex-wrap align-items-end gap-2 mb-3" onSubmit={e => {
+            e.preventDefault(); setPendingPublish({ projectId: selected, month });
+          }}>
             <div><Form.Label htmlFor="publish-month">发布月份</Form.Label><Form.Control type="month" id="publish-month" value={month} min={project.start_month} max={project.end_month} onChange={e => setMonth(e.target.value)} required /></div>
-            <Button type="submit" variant="success" disabled={busy}>生成月度快照</Button>
+            <Button type="submit" variant="outline-success" disabled={busy}>生成月度快照</Button>
           </Form>
           <p className="small text-muted">仅发布已结束的月份。重复操作复用同一快照；统计信号不足的发布也计入预算。</p>
+          {pendingPublish?.projectId === selected && pendingPublish.month === month && <div className="research-confirm">
+            <p>确认生成 {month} 的{project.mode === 'demo' ? '模拟' : '真实研究'}快照。{project.mode !== 'demo' && '首次发布会占用真实研究隐私预算。'}</p>
+            <Button type="button" size="sm" variant="success" disabled={busy} onClick={() => run(async () => {
+              await publishResearchRelease(pendingPublish.projectId, pendingPublish.month); setReportMonth(pendingPublish.month); setPendingPublish(null);
+            }, '月度快照已生成。')}>确认生成</Button>
+            <Button type="button" size="sm" variant="link" disabled={busy} onClick={() => setPendingPublish(null)}>取消</Button>
+          </div>}
           <details><summary>管理学校研究授权</summary>
             <Form className="d-flex flex-wrap align-items-end gap-2 mt-3" onSubmit={e => { e.preventDefault(); run(() => setResearchMember(selected, member)); }}>
               <div><Form.Label htmlFor="member-email">研究者登录邮箱</Form.Label><Form.Control id="member-email" type="email" value={member.email} onChange={e => setMember(v => ({ ...v, email: e.target.value }))} required /></div>
@@ -106,26 +169,7 @@ export default function SchoolResearch() {
             </Form>
             <ul className="mt-3">{Object.entries(project.researchers || {}).map(([email, expires]) => <li key={email}>{email} · 截止 {expires} <Button size="sm" variant="link" disabled={busy} onClick={() => run(() => setResearchMember(selected, { email, revoke: true }))}>撤销授权</Button></li>)}</ul>
           </details>
-        </>}
-      </Card.Body></Card>
-      {loadingReleases ? <Spinner animation="border" aria-label="加载研究快照" /> : !releases.length && <Alert variant="light">该项目尚未发布月度统计。</Alert>}
-      {releases.map(snapshot => <Card key={snapshot.month} className="mb-4 border-0 shadow-sm"><Card.Body>
-        <div className="d-flex flex-wrap justify-content-between gap-2"><h2 className="h5">{snapshot.month} · 月度统计 {snapshot.mode === 'demo' && '（模拟）'}</h2>
-          <Button size="sm" variant="outline-success" disabled={busy} onClick={() => run(() => exportResearchRelease(selected, snapshot.month))}>导出本月快照</Button></div>
-        {snapshot.status !== 'published' && <Alert variant="info">{snapshot.message}</Alert>}
-        <Row className="g-4 mt-1">{snapshot.charts.map(chart => <Col md={4} key={chart.title}><h3 className="h6">{chart.title}</h3>
-          <div role="group" aria-label={chart.title}>{chart.bins.map(bin => <div className="mb-3" key={bin.label}>
-            <div className="d-flex justify-content-between small"><span>{bin.label}</span><strong>{bin.percent.toFixed(1)}%</strong></div>
-            <div className="progress mt-1" style={{ height: 8 }}><div className="progress-bar bg-success" style={{ width: `${bin.percent}%` }} /></div>
-          </div>)}</div>
-        </Col>)}</Row>
-        <p className="small text-muted mt-3">{snapshot.notice}</p>
-        <details className="small"><summary>统计口径与隐私说明</summary><p className="mt-2">{snapshot.record_scope}</p><p>{snapshot.trust_boundary}</p>
-          <p>版本 {snapshot.version} · ε={snapshot.epsilon}，δ={snapshot.delta} · {snapshot.privacy_unit}</p>
-          <p>单个统计坐标的理论95%噪声范围约 ±{snapshot.coordinate_noise_95}。{snapshot.noise_note}</p>
-          <p>发布时间：{snapshot.published_at}。查看和导出复用同一结果。</p>
-        </details>
-      </Card.Body></Card>)}
+        </section>}
     </>}
-  </Container>;
+  </div>;
 }

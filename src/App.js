@@ -16,13 +16,13 @@ import Profile from './pages/Profile';
 import Assessment from './pages/Assessment';
 import CoachChat from './pages/CoachChat';
 import AdminDashboard from './pages/AdminDashboard';
-import AdminOrb from './pages/AdminOrb';
 import PodcastAdmin from './pages/PodcastAdmin';
 import NotFound from './pages/NotFound';
 import Onboarding from './pages/Onboarding';
 import FirstVisit, { Welcome } from './pages/FirstVisit';
 import OnboardingComplete from './pages/OnboardingComplete';
 import SchoolResearch from './pages/SchoolResearch';
+import { SchoolWorkspace, SchoolReportDemo } from './pages/SchoolAccess';
 import ResearchParticipation from './pages/ResearchParticipation';
 import { getLearningProfile, getQuestionnaires } from './services/learning';
 
@@ -56,7 +56,7 @@ const ApiStatusIndicator = () => {
 };
 
 // 受保护的路由组件
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, loginPath = '/login' }) => {
   const { currentUser, loading, initializing } = useAuth();
   const location = useLocation();
   
@@ -66,7 +66,7 @@ const ProtectedRoute = ({ children }) => {
   }
   
   if (!currentUser) {
-    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
+    return <Navigate to={loginPath} replace state={{ from: location.pathname + location.search }} />;
   }
   
   return <React.Fragment key={currentUser.uid}>{children}</React.Fragment>;
@@ -146,8 +146,14 @@ function App() {
         <Route path="YouthGain/*" element={<Navigate to="/" replace />} />
         
         <Route path="/admin/login" element={<main className="admin-login"><Login key="admin" adminMode /></main>} />
+        <Route path="/research" element={<SchoolWorkspace />}>
+          <Route index element={<ProtectedRoute loginPath="/research/login"><SchoolResearch /></ProtectedRoute>} />
+          <Route path="login" element={<Login key="school" schoolMode />} />
+          <Route path="register" element={<Register key="school" schoolMode />} />
+          <Route path="demo" element={<SchoolReportDemo />} />
+        </Route>
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-          <Route index element={<AdminOrb />} />
+          <Route index element={<AdminDashboard />} />
           <Route path="stats" element={<AdminDashboard />} />
           <Route path="users" element={<AdminDashboard section="users" />} />
           <Route path="knowledge" element={<AdminDashboard section="kb" />} />
@@ -173,7 +179,6 @@ function App() {
           <Route path="onboarding/complete" element={<ProtectedRoute><OnboardingComplete /></ProtectedRoute>} />
           <Route path="learning" element={<ProtectedRoute><Learning /></ProtectedRoute>} />
           <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="research" element={<ProtectedRoute><SchoolResearch /></ProtectedRoute>} />
           <Route path="research/participation" element={<ProtectedRoute><ResearchParticipation /></ProtectedRoute>} />
           <Route path="assessment" element={
             <ProtectedRoute>

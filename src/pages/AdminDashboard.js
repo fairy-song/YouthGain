@@ -11,21 +11,19 @@ import {
   adminGetCoachConfig, adminSaveCoachConfig, adminResetCoachConfig,
 } from '../services/api';
 import {
-  FaChartBar, FaUsers, FaBook, FaSearch, FaTrashAlt,
+  FaUsers, FaBook, FaSearch, FaTrashAlt,
   FaPlus, FaEdit, FaBan, FaCheckCircle, FaSyncAlt,
-  FaClipboardCheck, FaComments, FaCreditCard, FaBullseye, FaFileAlt,
 } from 'react-icons/fa';
 
-// 统计卡片配置：icon / 标题 / 字段名 / 色值
-const STAT_CARDS = [
-  { key: 'total_users', label: '注册用户', icon: <FaUsers />, gradient: 'linear-gradient(135deg,#63B995,#1F4A38)' },
-  { key: 'assessment_completed_users', label: '完成评估用户', icon: <FaClipboardCheck />, gradient: 'linear-gradient(135deg,#5488C4,#2E496C)' },
-  { key: 'total_assessments', label: '评估记录', icon: <FaChartBar />, gradient: 'linear-gradient(135deg,#E88A6E,#6C3528)' },
-  { key: 'total_learning_entries', label: '理财成长记录', icon: <FaBook />, gradient: 'linear-gradient(135deg,#7FC8A9,#3A7D5F)' },
-  { key: 'total_transactions', label: '消费记录', icon: <FaCreditCard />, gradient: 'linear-gradient(135deg,#9BB8E0,#456FA3)' },
-  { key: 'total_goals', label: '理财目标', icon: <FaBullseye />, gradient: 'linear-gradient(135deg,#F2B8A0,#C5755E)' },
-  { key: 'total_coach_messages', label: 'AI 教练对话', icon: <FaComments />, gradient: 'linear-gradient(135deg,#8FD3B8,#2F855A)' },
-  { key: 'total_kb_articles', label: '知识库文章', icon: <FaFileAlt />, gradient: 'linear-gradient(135deg,#A8C8B8,#30775A)' },
+const STAT_FIELDS = [
+  ['total_users', '注册用户'],
+  ['assessment_completed_users', '完成评估用户'],
+  ['total_assessments', '评估记录'],
+  ['total_learning_entries', '理财成长记录'],
+  ['total_transactions', '消费记录'],
+  ['total_goals', '理财目标'],
+  ['total_coach_messages', 'AI 教练对话'],
+  ['total_kb_articles', '知识库文章'],
 ];
 
 const KB_CATEGORIES = [{ id: '', name: '未分类' }, ...knowledgeCategories, ...legacyCategories];
@@ -47,35 +45,6 @@ const AdminDashboard = ({ section = 'stats' }) => (
 // ============================================================
 // 平台统计
 // ============================================================
-// 数字滚动动画 hook：从 0 平滑滚动到目标值
-const useCountUp = (target, duration = 900) => {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    let raf;
-    const start = performance.now();
-    const tick = (now) => {
-      const p = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
-      setValue(Math.round((target || 0) * eased));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, duration]);
-  return value;
-};
-
-const StatCard = ({ card, value }) => {
-  const display = useCountUp(value || 0);
-  return (
-    <div className="stat-card">
-      <div className="stat-card-icon" style={{ background: card.gradient }}>{card.icon}</div>
-      <div className="stat-card-value">{display}</div>
-      <div className="stat-card-label">{card.label}</div>
-    </div>
-  );
-};
-
 // 用户增长趋势 SVG 折线图
 const GrowthTrend = ({ data }) => {
   if (!data || data.length === 0) return <div className="chart-empty">近 14 天暂无新增用户数据</div>;
@@ -181,7 +150,7 @@ const StatsTab = () => {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <div>
+    <div className="admin-stats-editorial">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div className="text-muted">平台整体数据一览</div>
         <button type="button" className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" onClick={load} disabled={loading}>
@@ -191,29 +160,13 @@ const StatsTab = () => {
 
       {error && <div className="alert alert-danger py-2">{error}</div>}
 
-      {loading && (
-        <div className="row g-3">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div className="col-6 col-md-4 col-lg-3" key={i}>
-              <div className="skeleton-card">
-                <div className="skeleton-block" style={{ width: 44, height: 44, borderRadius: 14, marginBottom: 14 }} />
-                <div className="skeleton-block" style={{ width: 60, height: 26, marginBottom: 8 }} />
-                <div className="skeleton-block" style={{ width: 80, height: 14 }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {loading && <p role="status">正在读取平台统计…</p>}
 
       {!loading && stats && (
         <>
-          <div className="row g-3 admin-stagger">
-            {STAT_CARDS.map((card) => (
-              <div className="col-6 col-md-4 col-lg-3" key={card.key}>
-                <StatCard card={card} value={stats[card.key] ?? 0} />
-              </div>
-            ))}
-          </div>
+          <dl className="admin-stats-sheet">
+            {STAT_FIELDS.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{stats[key] == null ? '暂无' : Number(stats[key]).toLocaleString('zh-CN')}</dd></div>)}
+          </dl>
 
           <div className="admin-overview-row">
             <div className="admin-subcard">
@@ -238,6 +191,7 @@ const StatsTab = () => {
               <div className="admin-subcard-title">快捷操作</div>
               <Link to="/admin/users" className="quick-action"><FaUsers /> 用户管理</Link>
               <Link to="/admin/knowledge" className="quick-action"><FaBook /> 知识库管理</Link>
+              <Link to="/admin/podcasts" className="quick-action"><FaBook /> 音频博客目录</Link>
             </div>
           </div>
 
@@ -256,7 +210,7 @@ const StatsTab = () => {
             </div>
             <div className="col-12 col-lg-6">
               <div className="admin-subcard">
-                <div className="admin-subcard-title">后悔消费洞察 <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--yg-muted)' }}>AI 教练核心价值</span></div>
+                <div className="admin-subcard-title">消费回访 <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--yg-muted)' }}>按已填写的回访汇总</span></div>
                 <RegretBars data={stats.regret_breakdown || []} />
               </div>
             </div>

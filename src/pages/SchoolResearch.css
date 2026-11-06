@@ -1,0 +1,63 @@
+.school-research { max-width: 70rem; margin: 0 auto; padding: clamp(1.2rem, 4vw, 3.4rem) clamp(1rem, 4vw, 2.5rem) 5rem; color: var(--yg-ink); }
+.research-masthead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .8rem; padding-bottom: 1rem; border-bottom: 1px solid var(--yg-line); }
+.research-masthead span, .research-kicker { color: var(--yg-primary-text); font-size: .82rem; font-weight: 700; letter-spacing: .05em; }
+.research-masthead h1 { font-weight: 750; font-size: clamp(2.15rem, 5vw, 3.7rem); margin: .4rem 0 0; }
+.research-masthead a { color: var(--yg-primary-text); text-underline-offset: .24em; }
+.research-intro { color: var(--yg-muted); line-height: 1.65; margin: 1rem 0 1.5rem; }
+.research-selectors { display: grid; gap: 1rem; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-bottom: 1.3rem; }
+.research-selectors label { font-weight: 650; font-size: .9rem; }
+.research-selectors select { min-height: 44px; }
+.research-project-summary { margin: 1.2rem 0 1.5rem; }
+.research-project-summary h2, .research-project-controls h2 { font-size: 1.3rem; font-weight: 700; overflow-wrap: anywhere; }
+.research-project-summary p { margin-bottom: .55rem; }
+.research-source { color: var(--yg-muted); border-left: 2px solid var(--yg-primary-border); padding-left: .75rem; }
+.research-source[data-kind="demo"] { border-color: #a06b20; color: #71501d; }
+.research-report { border-block: 1px solid var(--yg-line); padding-block: clamp(1.2rem, 3vw, 2.2rem); }
+.research-report-heading { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; justify-content: space-between; margin-bottom: 1.15rem; }
+.research-report-heading h2 { font-size: clamp(1.9rem, 5vw, 3.1rem); font-weight: 740; font-variant-numeric: tabular-nums; margin: .15rem 0 0; }
+.research-charts { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%, 15rem),1fr)); gap: 1.35rem; }
+.research-chart { min-width: 0; border-top: 1px solid var(--yg-line); padding-top: .8rem; }
+.research-chart h3 { font-weight: 700; font-size: 1rem; margin-bottom: .85rem; }
+.research-chart ul { padding: 0; margin: 0; list-style: none; }
+.research-chart li { margin-bottom: .8rem; }
+.research-chart li div { display: flex; justify-content: space-between; gap: .45rem; font-size: .9rem; }
+.research-chart li strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.research-bar { display: block; height: .4rem; background: var(--yg-primary-subtle); margin-top: .3rem; }
+.research-bar > span { display: block; height: 100%; background: var(--yg-primary-text); }
+.research-report-note, .research-notes, .research-empty { color: var(--yg-muted); }
+.research-notes summary, .research-management summary, .research-project-controls summary { color: var(--yg-primary-text); cursor: pointer; font-weight: 650; padding-block: .5rem; }
+.research-notes p { margin: .45rem 0 0; }
+.research-management, .research-project-controls { border-top: 1px solid var(--yg-line); padding-block: .8rem; margin-block: 1rem; }
+.research-confirm { border-left: 2px solid var(--yg-primary-border); padding-left: .75rem; margin-block: .85rem; }
+.school-research :is(a, button, input, select, summary):focus-visible { outline: 2px solid var(--yg-primary-text); outline-offset: 3px; }
+@media (max-width: 620px) { .research-selectors { grid-template-columns: 1fr; } }
+.school-workspace { min-height: 100vh; background: #fbfaf5; color: var(--yg-ink); }
+.school-workspace-bar { max-width: 75rem; margin: 0 auto; min-height: 65px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .25rem 1.2rem; padding: .45rem clamp(1rem,4vw,2.5rem); border-bottom: 1px solid var(--yg-line); }
+.school-workspace-brand { color: var(--yg-ink); font-weight: 750; text-decoration: none; display: inline-flex; align-items: center; gap: .55rem; min-height: 44px; }
+.school-workspace-brand span { display: inline-grid; place-items: center; width: 2rem; height: 2rem; color: white; background: var(--yg-primary-text); border-radius: .45rem; }
+.school-workspace-bar nav { display: flex; align-items: center; flex-wrap: wrap; gap: 0 .9rem; }
+.school-workspace-bar nav :is(a,button), .school-workspace-error { color: var(--yg-primary-text); }
+.school-workspace-bar nav :is(a,button) { display: inline-flex; min-height: 44px; align-items: center; font-size: .87rem; font-weight: 650; text-underline-offset: .22em; }
+.school-workspace-bar nav button { border: 0; background: transparent; text-decoration: underline; padding: 0; }
+.school-workspace-error { max-width: 65rem; margin: .7rem auto; padding-inline: 1rem; }
+.school-access-page { max-width: 65rem; margin-inline: auto; padding: clamp(1.45rem,5vw,5rem) clamp(1rem,4vw,2.5rem) 4rem; display: grid; align-items: start; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(1.2rem,7vw,5rem); }
+.school-register-page { display: block; max-width: 37rem; }
+.school-access-heading p { color: var(--yg-muted); line-height: 1.65; margin-bottom: 1.25rem; }
+.school-access-heading p:first-child { color: var(--yg-primary-text); font-weight: 700; font-size: .88rem; margin-bottom: .4rem; }
+.school-access-heading h1 { font-size: clamp(2.1rem,5vw,3.9rem); font-weight: 750; letter-spacing: -.045em; margin-bottom: .8rem; }
+.school-access-form input { min-height: 44px; background: white; }
+.school-access-primary { min-height: 46px; border: 0; border-radius: .55rem; background: var(--yg-primary-text); color: #fff; font-weight: 700; padding: .55rem 1.2rem; }
+.school-access-primary:disabled { opacity: .65; }
+.school-access-current { overflow-wrap: anywhere; }
+.school-access-local { font-size: .87rem; border-left: 2px solid #a06b20; color: #71501d; padding-left: .65rem; }
+.school-access-help { border-top: 1px solid var(--yg-line); padding-top: 1.3rem; margin-top: 1.15rem; }
+.school-access-help h2, .research-access-state h2 { font-size: 1.3rem; font-weight: 720; }
+.school-access-help li { color: var(--yg-muted); margin: .55rem 0; line-height: 1.6; }
+.school-access-help a, .school-access-current a, .research-access-actions a { color: var(--yg-primary-text); font-weight: 650; text-underline-offset: .22em; }
+.school-demo-link { display: inline-flex; align-items: center; min-height: 44px; gap: .35rem; }
+.school-access-help > p { color: var(--yg-muted); font-size: .87rem; margin: 0; }
+.research-access-state { max-width: 44rem; border-top: 1px solid var(--yg-line); padding-top: 1.2rem; }
+.research-access-state p { overflow-wrap: anywhere; }
+.research-access-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
+.school-workspace :is(a, button, input, summary):focus-visible { outline: 2px solid var(--yg-primary-text); outline-offset: 3px; }
+@media (max-width: 660px) { .school-access-page { grid-template-columns: minmax(0, 1fr); } .school-access-primary { width: 100%; } .school-access-help { margin-top: 0; } }
