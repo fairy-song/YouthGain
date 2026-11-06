@@ -8,7 +8,8 @@ import DailyPodcast from '../components/DailyPodcast';
 import LivingFundsStressTest from '../components/LivingFundsStressTest';
 import MonthlyAvailableFunds from '../components/MonthlyAvailableFunds';
 import TodayPracticeMascot from '../components/TodayPracticeMascot';
-import { DAILY_FUNDS_BREAKDOWN_ENABLED, LIVING_FUNDS_STRESS_TEST_ENABLED } from '../config/features';
+import SpendingJourney from '../components/SpendingJourney';
+import { DAILY_FUNDS_BREAKDOWN_ENABLED, LIVING_FUNDS_STRESS_TEST_ENABLED, SPENDING_JOURNEY_ENABLED } from '../config/features';
 import './TodayHome.css';
 
 const yuan = value => `¥${Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -57,10 +58,12 @@ export default function TodayHome() {
   return <div className="today-page">
     <div className="today-wrap">
       <header className="today-intro">
-        <div className="today-masthead"><span className="today-eyebrow">青盈 · 生活费手账</span><time dateTime={today}>{today}</time></div>
-        <h1>{name}，<br />把接下来的钱安排好</h1>
-        <p>看看要先留哪笔钱，再决定今天怎么花。</p>
+        <div className="today-masthead"><span className="today-eyebrow">青盈 · 财商实践</span><time dateTime={today}>{today}</time></div>
+        <h1>{name}，<br />{SPENDING_JOURNEY_ENABLED ? '看懂花费，安排生活' : '把接下来的钱安排好'}</h1>
+        <p>{SPENDING_JOURNEY_ENABLED ? '从你关心的一笔花费开始，按自己的节奏回来。' : '看看要先留哪笔钱，再决定今天怎么花。'}</p>
       </header>
+
+      {SPENDING_JOURNEY_ENABLED && <SpendingJourney cashflow={cashflow} loading={ledgerLoading} error={ledgerError} entries={entries} onRetry={refreshLedger} />}
 
       <div className="today-support">
         <section className="today-panel today-money-story" aria-labelledby="today-ledger-title">
@@ -105,7 +108,7 @@ export default function TodayHome() {
         <TodayPracticeMascot />
       </section>
 
-      <DailyPodcast userId={currentUser?.uid} />
+      <div id="today-podcast" tabIndex={-1} aria-label="本次知识推荐"><DailyPodcast userId={currentUser?.uid} /></div>
     </div>
   </div>;
 }

@@ -7,6 +7,7 @@ import { ComparisonBars } from '../components/FinanceVisuals';
 import SectionNav from '../components/SectionNav';
 import CoachHelp from '../components/CoachHelp';
 import AdaptivePractice from '../components/AdaptivePractice';
+import { SPENDING_JOURNEY_ENABLED } from '../config/features';
 import { getLearning, getWeeklyFacts, saveLearningEntry, saveDecisionOutcome, learningError } from '../services/learning';
 
 const choiceLabels = { buy: '现在购买', wait: '延后考虑', adjust: '调整预算' };
@@ -34,6 +35,9 @@ function LearningContent() {
   const requestedTab = new URLSearchParams(location.search).get('tab');
   const tab = ['practice', 'decision', 'review', 'growth'].includes(requestedTab) ? requestedTab : 'practice';
   const isReview = tab === 'review';
+  const incomingObservation = SPENDING_JOURNEY_ENABLED && typeof location.state?.spendingObservation === 'string'
+    ? location.state.spendingObservation.slice(0, 600) : '';
+  const [observationUsed, setObservationUsed] = useState(false);
   const trialAmount = Number(location.state?.trialAmount);
   const hasTrialAmount = tab === 'decision' && Number.isFinite(trialAmount) && trialAmount > 0 && trialAmount <= 100000000;
   const [data, setData] = useState(null);
@@ -182,6 +186,11 @@ function LearningContent() {
     </>}
 
     {tab === 'review' && <Card className="border-0 shadow-sm"><Card.Body className="p-4"><h2 className="h4">简短回看这一周</h2>
+      <p className="text-muted">不必每天记录。可以回顾更早的消费，文字里注明时间即可；这次复盘会保存在本周。</p>
+      {incomingObservation && !observationUsed && <Alert variant="light"><strong>刚才的消费观察</strong><p>{incomingObservation}</p><p className="small">核对后可带入下方；已有文字会保留，仍需点击保存才会写入账户。</p><Button variant="outline-secondary" disabled={(review.observation ? review.observation.length + 1 : 0) + incomingObservation.length > 1000} onClick={() => {
+        setReview(value => ({ ...value, observation: [value.observation, incomingObservation].filter(Boolean).join('\n') }));
+        setObservationUsed(true);
+      }}>将观察带入复盘</Button><Button variant="link" onClick={() => setObservationUsed(true)}>这次不用</Button>{(review.observation ? review.observation.length + 1 : 0) + incomingObservation.length > 1000 && <p className="small">已有文字较长，请先整理下方观察，再带入。</p>}</Alert>}
       {!facts && !factsError && <p role="status" className="text-muted">正在汇总本周账目，可以先填写下方的复盘。</p>}
       {factsError && <Alert variant="warning">{factsError}<Button variant="link" onClick={() => setFactsRetry(v => v + 1)}>重试账目</Button></Alert>}
       {facts && <Alert variant="light">{facts.start} 至 {facts.end}：已记录 {facts.count} 笔，共 ¥{facts.total.toFixed(2)}。<div className="small">{facts.message}{facts.limited && ' 当前只读取最近 2000 笔，汇总可能不完整。'}</div></Alert>}

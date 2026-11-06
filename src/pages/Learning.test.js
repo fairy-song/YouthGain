@@ -23,6 +23,17 @@ const state = {
 };
 const renderPage = (tab = 'practice') => render(<MemoryRouter initialEntries={[`/learning?tab=${tab}`]}>{tab === 'profile' ? <Profile /> : <Learning />}</MemoryRouter>);
 
+test('review handoff requires confirmation, preserves existing writing and does not autosave', async () => {
+  render(<MemoryRouter initialEntries={[{ pathname: '/learning', search: '?tab=review', state: { spendingObservation: '2026-10 餐饮累计净支出 80 元。' } }]}><Learning /></MemoryRouter>);
+  const input = await screen.findByLabelText('这周哪笔消费值得回看？（没有消费也可以回看计划）');
+  expect(input).toHaveValue('');
+  fireEvent.change(input, { target: { value: '我已经写的想法' } });
+  fireEvent.click(screen.getByRole('button', { name: '将观察带入复盘' }));
+  expect(input).toHaveValue('我已经写的想法\n2026-10 餐饮累计净支出 80 元。');
+  expect(saveLearningEntry).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: '将观察带入复盘' })).not.toBeInTheDocument();
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   authenticatedApi.get.mockResolvedValue({ data: {} });

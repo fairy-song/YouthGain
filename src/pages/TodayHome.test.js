@@ -18,9 +18,22 @@ beforeEach(() => {
   jest.clearAllMocks();
   jest.requireMock('../config/features').DAILY_FUNDS_BREAKDOWN_ENABLED = true;
   jest.requireMock('../config/features').LIVING_FUNDS_STRESS_TEST_ENABLED = false;
+  jest.requireMock('../config/features').SPENDING_JOURNEY_ENABLED = false;
   getAdaptiveLearning.mockResolvedValue({ next_item: { id: 'one', question: '这笔消费前先确认什么？' }, reason: '来自你记录的开支' });
   getLearning.mockResolvedValue({ entries: [] });
   listTransactions.mockResolvedValue({ monthly_budget: { spent: 20, complete: true } });
+});
+
+test('the new practice journey can be switched off without losing the original ledger and practice', async () => {
+  jest.requireMock('../config/features').SPENDING_JOURNEY_ENABLED = true;
+  const { rerender } = render(<MemoryRouter><TodayHome /></MemoryRouter>);
+  expect(await screen.findByRole('heading', { name: '钱花出去了，感受跟上了吗？' })).toBeVisible();
+  expect(await screen.findByRole('link', { name: /到账本核对或补充记录/ })).toBeVisible();
+  jest.requireMock('../config/features').SPENDING_JOURNEY_ENABLED = false;
+  rerender(<MemoryRouter><TodayHome /></MemoryRouter>);
+  expect(screen.queryByRole('heading', { name: '钱花出去了，感受跟上了吗？' })).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /打开账本记一笔/ })).toBeVisible();
+  expect(screen.getByRole('link', { name: /开始这一步/ })).toBeVisible();
 });
 
 test('home expands the existing funds card, refreshes it in place, and can switch the enhancement off', async () => {

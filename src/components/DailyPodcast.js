@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getTodayPodcast, sendPodcastFeedback, sendPodcastImpression } from '../services/podcasts';
 import { dateKey } from './FinanceVisuals';
+import { SPENDING_JOURNEY_ENABLED } from '../config/features';
 import './DailyPodcast.css';
 
 export default function DailyPodcast({ userId }) {
@@ -113,6 +115,10 @@ export default function DailyPodcast({ userId }) {
         <button type="button" disabled={!!busy} onClick={() => feedback('dislike')}>不感兴趣</button>
         <button type="button" disabled={!!busy || result.helpful} onClick={() => feedback('helpful')}>{result.helpful ? '已反馈有帮助' : '对我有帮助'}</button>
       </div>
+      {SPENDING_JOURNEY_ENABLED && !result.dismissed && <div className="daily-podcast-apply">
+        <Link to="/coach" state={{ returnTo: '/', prompt: `我看到青盈推荐了《${result.program.episode_title}》（${result.program.publisher || result.program.name}）。我想了解其中的知识怎样用于自己的生活。请先问我想解决什么问题；如果你没有获取节目全文，请明确说明，不要编造节目内容。` }}>这期知识怎么用在我的生活里？ →</Link>
+        <p className="daily-podcast-note">可以把标题带到教练，核对后发送。教练不一定能读取节目全文。</p>
+      </div>}
       {result.program.platform_links.some(link => link.url !== result.program.episode_url) && <details className="daily-podcast-links"><summary>其他收听链接</summary>{result.program.platform_links.filter(link => link.url !== result.program.episode_url).map(link => <a key={link.url} href={link.url} onClick={() => feedback('view')}>{({ xiaoyuzhou: '小宇宙', ximalaya: '喜马拉雅', website: '网站', other: '其他平台' })[link.platform]} →</a>)}</details>}
       </div>
     </> : result?.status === 'dismissed' && result.program_id ? (

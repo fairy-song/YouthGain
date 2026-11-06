@@ -1,10 +1,12 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render as renderUI, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import DailyPodcast from './DailyPodcast';
 import { getTodayPodcast, sendPodcastFeedback, sendPodcastImpression } from '../services/podcasts';
 
 jest.mock('../services/podcasts', () => ({ getTodayPodcast: jest.fn(), sendPodcastFeedback: jest.fn(), sendPodcastImpression: jest.fn() }));
+const render = ui => renderUI(ui, { wrapper: MemoryRouter });
 
 const recommendation = { date: '2026-10-11', status: 'ready', reason: '你选择了收支主题。', followed: false,
   program: { id: 'show-1', name: '好好说钱', publisher: '某编辑部', description: '长期讨论预算和金融选择。',
@@ -17,6 +19,15 @@ beforeEach(() => {
   getTodayPodcast.mockResolvedValue(recommendation);
   sendPodcastFeedback.mockResolvedValue({ saved: true });
   sendPodcastImpression.mockResolvedValue({ saved: true });
+});
+
+test('hands off a recommendation title for confirmation without claiming access to the transcript', async () => {
+  const Destination = () => <output>{JSON.stringify(useLocation().state)}</output>;
+  render(<><DailyPodcast userId="alice" /><Destination /></>);
+  fireEvent.click(await screen.findByRole('link', { name: /这期知识怎么用/ }));
+  expect(screen.getByRole('status')).toHaveTextContent('这一期谈预算');
+  expect(screen.getByRole('status')).toHaveTextContent('不要编造节目内容');
+  expect(sendPodcastFeedback).not.toHaveBeenCalled();
 });
 
 test('labels a fallback honestly without hiding the recommended episode', async () => {

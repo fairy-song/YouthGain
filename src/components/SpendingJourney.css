@@ -1,0 +1,27 @@
+.spending-journey { padding-block: clamp(1.6rem, 4vw, 3rem); border-bottom: 1px solid var(--yg-line); }
+#today-podcast { scroll-margin-top: 6rem; }
+.daily-podcast-apply > a { display: inline-flex; align-items: center; min-height: 44px; color: var(--yg-primary-text); text-underline-offset: .25em; }
+.journey-heading { max-width: 720px; }
+.journey-heading h2 { font-size: clamp(1.5rem, 3.7vw, 2.6rem); line-height: 1.25; margin: .6rem 0 1rem; letter-spacing: -.03em; }
+.journey-heading p, .journey-empty p { color: var(--yg-muted); line-height: 1.8; }
+.journey-category { display: flex; flex-wrap: wrap; align-items: center; gap: .7rem; font-weight: 650; margin: 1.2rem 0; }
+.journey-category select { max-width: 100%; min-height: 44px; border: 1px solid var(--yg-line); border-radius: 5px; padding: .4rem 2rem .4rem .6rem; background: transparent; color: inherit; }
+.journey-amount { display: flex; flex-direction: column; gap: .15rem; }
+.journey-amount strong { font-size: clamp(2.8rem, 7vw, 4.8rem); line-height: 1.2; font-weight: 650; color: var(--yg-primary-deep); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.journey-note { font-size: .83rem; color: var(--yg-muted); line-height: 1.7; margin-block: .6rem; }
+.journey-money summary { width: fit-content; padding-block: .65rem; color: var(--yg-primary-text); cursor: pointer; font-weight: 650; }
+.journey-money .expense-money { max-width: none; background: transparent; border: 0; padding: 0; }
+.journey-money .expense-money-pieces > li { background: transparent; border: 0; border-radius: 0; }
+.journey-perception { margin: 1.4rem 0 .7rem; }
+.journey-perception legend { font-size: 1.05rem; font-weight: 650; }
+.journey-perception > div { display: flex; flex-wrap: wrap; gap: .6rem 1.4rem; }
+.journey-perception label { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; cursor: pointer; }
+.journey-perception input { width: 18px; height: 18px; accent-color: var(--yg-primary-text); }
+.journey-next-step { max-width: 760px; padding-left: 1rem; border-left: 2px solid var(--yg-primary-border); }
+.journey-links { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.5rem; }
+.journey-links a, .journey-return a, .journey-recommendation { color: var(--yg-primary-text); text-underline-offset: .25em; min-height: 44px; display: inline-flex; align-items: center; }
+.journey-recommendation { margin-top: .7rem; }
+.journey-return { border-top: 1px solid var(--yg-line); margin-top: 1.7rem; padding-top: 1.3rem; }
+.journey-return p { margin-bottom: .3rem; }
+.journey-last-action { font-size: 1.15rem; line-height: 1.6; overflow-wrap: anywhere; }
+.spending-journey :is(input, select):focus-visible { outline: 3px solid var(--yg-secondary-text); outline-offset: 3px; }
