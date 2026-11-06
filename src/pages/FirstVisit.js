@@ -1,35 +1,65 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { questions, freshDraft, readDraft, writeDraft, normalizedAnswers, previewSummary } from '../data/firstVisit';
+import { questions, draftOwner, freshDraft, readDraft, writeDraft, normalizedAnswers, previewSummary } from '../data/firstVisit';
+import LivingFundsStressTest from '../components/LivingFundsStressTest';
 import './FirstVisit.css';
+
+const ledgerIntent = { from: '/dashboard' };
 
 export function Welcome() {
   return <main className="first-visit welcome-page">
     <nav className="first-visit-top" aria-label="首页导航">
       <Link to="/" className="first-visit-brand">青盈<span>·</span></Link>
-      <div className="welcome-access"><Link to="/login">学生登录</Link><Link to="/research">学校端</Link></div>
+      <div className="welcome-access"><Link to="/login">学生登录</Link><Link to="/research">学校端</Link><Link to="/admin/login">管理端</Link></div>
     </nav>
     <div className="welcome-glow" aria-hidden="true" />
     <section className="welcome-content">
       <p className="first-visit-eyebrow">给大学生的财商练习</p>
-      <h1>从了解自己开始，<br /><em>一步一步学会用钱。</em></h1>
-      <p className="welcome-intro">不用先记一堆账。回答 12 个关于日常收支的问题，先看看自己的学习起点，再开始适合你的练习。</p>
-      <Link className="first-visit-primary welcome-cta" to="/start">开始体验 <span aria-hidden="true">→</span></Link>
-      <p className="welcome-note">约 3 分钟 · 先看结果，再登录保存</p>
+      <h1>这一笔花出去，<br /><em>生活费还够用吗？</em></h1>
+      <p className="welcome-intro">先用一个校园生活示例，看看一笔消费会怎样影响下次到账前的生活费。登录后就能记账、安排开支、练习消费决策。</p>
+      <div className="welcome-actions">
+        <Link className="first-visit-primary" to="/try">免登录试一笔 <span aria-hidden="true">→</span></Link>
+        <Link className="first-visit-secondary" to="/login" state={ledgerIntent}>登录去记账</Link>
+      </div>
     </section>
-    <section className="welcome-steps" aria-label="体验流程">
-      <div><span>01</span><strong>了解自己</strong><p>每次只回答一个简单问题</p></div>
-      <div><span>02</span><strong>看到起点</strong><p>用简短说明认识自己的现状</p></div>
-      <div><span>03</span><strong>每次学一步</strong><p>一张卡、一种新的思考方法</p></div>
+    <section className="welcome-questionnaire" aria-label="可选问卷">
+      <Link to="/start">做一份财商自评 →</Link>
+      <span>可选 · 12 道题，约 3 分钟</span>
+    </section>
+  </main>;
+}
+
+export function TryLivingFunds() {
+  const { workspace } = useAuth();
+  const signedIn = workspace === 'student';
+  return <main className="first-visit">
+    <nav className="first-visit-top" aria-label="试算导航">
+      <Link to="/" className="first-visit-brand">青盈<span>·</span></Link>
+      <Link to={signedIn ? ledgerIntent.from : '/login'} state={signedIn ? undefined : ledgerIntent}>
+        {signedIn ? '打开账本' : '登录去记账'} →
+      </Link>
+    </nav>
+    <section className="guest-trial">
+      <p className="first-visit-eyebrow">无需登录</p>
+      <h1>试一笔消费</h1>
+      <p className="question-hint">可以使用示例金额，也可以换成自己的数字。试算不会写入账本。</p>
+      <LivingFundsStressTest guest entries={[]} />
     </section>
   </main>;
 }
 
 export default function FirstVisit() {
+  const { currentUser, workspace, initializing } = useAuth();
+  const owner = draftOwner(workspace === 'student' ? currentUser : null);
+  if (initializing) return <p className="p-4" role="status">正在恢复登录状态…</p>;
+  return <Questionnaire key={owner || ''} owner={owner} />;
+}
+
+function Questionnaire({ owner }) {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
-  const [draft, setDraft] = useState(() => readDraft() || freshDraft());
+  const location = useLocation();
+  const [draft, setDraft] = useState(() => readDraft(owner) || freshDraft(owner));
   const [error, setError] = useState('');
   const question = questions[draft.step];
   const answers = draft.answers;
@@ -69,12 +99,14 @@ export default function FirstVisit() {
     setError('');
   };
   const back = () => {
-    update({ step: Math.max(0, draft.step - 1), complete: false });
+    update({ step: draft.complete ? questions.length - 1 : Math.max(0, draft.step - 1), complete: false });
     setError('');
   };
   const summary = draft.complete ? previewSummary(normalizedAnswers(answers)) : null;
+  const saveIntent = { questionnaireIntent: draft.submission_id };
   return <main className="first-visit questionnaire-page">
-    <nav className="first-visit-top"><Link to="/" className="first-visit-brand">青盈<span>·</span></Link><Link to="/">稍后继续</Link></nav>
+    <nav className="first-visit-top"><Link to="/" className="first-visit-brand">青盈<span>·</span></Link><Link to="/">返回首页</Link></nav>
+    {location.state?.draftUnavailable && <p role="status" className="mx-auto text-center">这份问卷草稿已失效，请重新作答。</p>}
     {draft.complete ? <section className="result-panel" aria-live="polite">
       <p className="first-visit-eyebrow">你的学习起点</p>
       <h1>你的简要财务知识评估</h1>
@@ -88,14 +120,15 @@ export default function FirstVisit() {
       <p className="result-basis">{summary.basis} 金额不会在这里逐项公开。登录后可将问卷保存到“我的”。</p>
       <div className="first-visit-actions">
         <button type="button" className="first-visit-secondary" onClick={back}>修改上一题</button>
-        {currentUser ? <button type="button" className="first-visit-primary" onClick={() => navigate('/onboarding/complete')}>保存到我的问卷 →</button>
-          : <Link className="first-visit-primary" to="/login?from=questionnaire">登录并保存到我的问卷 →</Link>}
+        {owner ? <button type="button" className="first-visit-primary" onClick={() => navigate('/onboarding/complete', { state: saveIntent })}>保存到我的问卷 →</button>
+          : <Link className="first-visit-primary" to="/login?from=questionnaire" state={saveIntent}>登录并保存到我的问卷 →</Link>}
       </div>
-      {!currentUser && <p className="result-register">还没有账号？<Link to="/register?from=questionnaire">注册后保存</Link></p>}
+      {!owner && <p className="result-register">还没有账号？<Link to="/register?from=questionnaire" state={saveIntent}>注册后保存</Link></p>}
     </section> : <section className="question-panel">
       <div className="question-progress"><span>{String(draft.step + 1).padStart(2, '0')} / 12</span><span>{question.topic}</span></div>
       <div className="question-track"><div style={{ width: `${(draft.step + 1) / questions.length * 100}%` }} /></div>
       <h1>{question.title}</h1>
+      {draft.step === 0 && <p className="question-hint">作答进度在当前标签页保留一小时。你可以直接返回首页，问卷不会影响记账。</p>}
       {question.hint && <p className="question-hint">{question.hint}</p>}
       {question.options ? <div className="question-options">{question.options.map(([id, label]) =>
         <button key={id} type="button" className={answers[question.id] === id ? 'selected' : ''} aria-pressed={answers[question.id] === id} onClick={() => choose(id)}>{label}<span aria-hidden="true">{answers[question.id] === id ? '✓' : '↗'}</span></button>)}</div>

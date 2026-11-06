@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { readDraft } from '../data/firstVisit';
+import { authDestination } from '../utils/authDestination';
 
 const Register = ({ schoolMode = false }) => {
   const [formData, setFormData] = useState({
@@ -26,6 +26,7 @@ const Register = ({ schoolMode = false }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
 
     // 验证表单
     if (formData.password !== formData.confirmPassword) {
@@ -35,8 +36,9 @@ const Register = ({ schoolMode = false }) => {
     try {
       setError('');
       setLoading(true);
-      await register(formData.email.trim(), formData.password, formData.username);
-      navigate(schoolMode ? '/research' : new URLSearchParams(location.search).get('from') === 'questionnaire' && readDraft()?.complete ? '/onboarding/complete' : '/dashboard', { replace: true });
+      await register(formData.email.trim(), formData.password, formData.username, schoolMode ? 'school' : 'student');
+      const destination = authDestination(location.state, { schoolMode });
+      navigate(destination.to, { replace: true, state: destination.state });
     } catch (err) {
       setError(err.message || '注册失败，请稍后重试');
     } finally {
@@ -45,11 +47,12 @@ const Register = ({ schoolMode = false }) => {
   };
 
   return (
-    <div className={schoolMode ? 'school-access-page school-register-page' : 'min-h-[calc(100vh-170px)] flex items-center justify-center bg-neutral-50 py-12 px-4 sm:px-6 lg:px-8'}>
+    <div className={schoolMode ? 'school-access-page school-register-page' : 'min-h-screen flex items-center justify-center bg-neutral-50 py-12 px-4 sm:px-6 lg:px-8'}>
       <div className={schoolMode ? 'school-access-form' : 'max-w-md w-full bg-white rounded-lg shadow-md p-8 space-y-8'}>
         <div>
+          {!schoolMode && <Link to="/" className="text-primary-700">← 返回青盈首页</Link>}
           {schoolMode ? <header className="school-access-heading"><p>教师与研究人员</p><h1>注册学校端账号</h1><p>请用项目负责人授权的同一邮箱注册。注册后进入学校端查看验证与授权状态。</p></header>
-            : <h2 className="text-center text-3xl font-extrabold text-neutral-900">注册账户</h2>}
+            : <h1 className="text-center text-3xl font-extrabold text-neutral-900">注册青盈账号</h1>}
         </div>
 
         {error && (
@@ -68,6 +71,7 @@ const Register = ({ schoolMode = false }) => {
                 id="username"
                 name="username"
                 type="text"
+                autoComplete="nickname"
                 required
                 className="appearance-none relative block w-full px-3 py-2 border border-neutral-300 placeholder-neutral-500 text-neutral-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 placeholder="用户名"
@@ -140,7 +144,7 @@ const Register = ({ schoolMode = false }) => {
         <div className="mt-6 text-center">
           <p className="text-neutral-600">
             已有账号？{' '}
-            <Link to={schoolMode ? '/research/login' : location.search.includes('from=questionnaire') ? '/login?from=questionnaire' : '/login'} className="text-primary-700 hover:underline">
+            <Link to={schoolMode ? '/research/login' : '/login'} state={location.state} className="text-primary-700 hover:underline">
               立即登录
             </Link>
           </p>

@@ -5,7 +5,7 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import MobileNavBar from './MobileNavBar';
 import Learning from '../pages/Learning';
 import CoachHelp from './CoachHelp';
-jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'user' }, isAdmin: false }) }));
+jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'user' }, workspace: 'student' }) }));
 jest.mock('../services/api', () => ({}));
 jest.mock('../services/learning', () => ({}));
 

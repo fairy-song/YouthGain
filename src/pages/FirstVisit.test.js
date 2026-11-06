@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import FirstVisit from './FirstVisit';
-import { clearDraft, readDraft } from '../data/firstVisit';
+import { clearDraft, freshDraft, readDraft, writeDraft } from '../data/firstVisit';
 
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: null }) }));
 
@@ -27,4 +27,14 @@ test('a visitor can finish one question at a time and see the summary before log
   expect(screen.getByRole('link', { name: /登录并保存/ })).toHaveAttribute('href', '/login?from=questionnaire');
   expect(readDraft().complete).toBe(true);
   expect(readDraft().answers.q1).toBe('beginner');
+  fireEvent.click(screen.getByRole('button', { name: '修改上一题' }));
+  expect(screen.getByText('12 / 12')).toBeInTheDocument();
+});
+
+test('另一位用户和访客都无法读取已绑定的草稿', () => {
+  const draft = freshDraft('first@example.org');
+  writeDraft(draft);
+  expect(readDraft('second@example.org')).toBeNull();
+  expect(readDraft()).toBeNull();
+  expect(readDraft('first@example.org').submission_id).toBe(draft.submission_id);
 });

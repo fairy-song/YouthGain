@@ -5,8 +5,6 @@
 .member-brand:hover { color: var(--yg-primary-deep); }
 .member-brand-mark { display: inline-grid; place-items: center; width: 34px; height: 34px; background: var(--yg-primary-text); border-radius: 11px; color: white; font-size: 1rem; }
 .member-navigation { display: flex; align-items: center; gap: .5rem; }
-.member-header-actions { display: flex; align-items: center; gap: 1.3rem; }
-.member-school-link { display: inline-flex; align-items: center; gap: .25rem; min-height: 44px; color: var(--yg-primary-text); font-weight: 650; font-size: .88rem; white-space: nowrap; text-underline-offset: .22em; }
 .member-nav-link { display: flex; align-items: center; justify-content: center; gap: .55rem; min-height: 42px; padding: .55rem 1rem; border-radius: 12px; color: var(--yg-muted); text-decoration: none; font-weight: 650; }
 .member-nav-link:hover, .member-nav-link.is-active { background: var(--yg-primary-subtle); color: var(--yg-primary-text); }
 .member-main { min-height: calc(100vh - 68px); }

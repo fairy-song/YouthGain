@@ -11,7 +11,7 @@ export const sendResearchVerification = async () => sendEmailVerification(fireba
 export const refreshResearchIdentity = async () => {
   const user = firebaseUser();
   await user.reload();
-  localStorage.setItem('authToken', await getIdToken(user, true));
+  sessionStorage.setItem('authToken', await getIdToken(user, true));
 };
 
 export const getResearchAccess = async () => (await api.get('/research/access')).data;

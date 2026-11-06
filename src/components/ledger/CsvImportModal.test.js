@@ -12,6 +12,17 @@ jest.mock('../../services/api', () => ({
 }));
 beforeEach(() => { jest.clearAllMocks(); listBillCategories.mockResolvedValue([]); });
 
+test('导入历史失败后只重读历史', async () => {
+  listBillImports.mockRejectedValueOnce(new Error('fixture')).mockResolvedValue([{ sha256: 'existing', source: 'wechat', count: 1, status: 'committed' }]);
+  const onSaved = jest.fn();
+  render(<CsvImportModal onClose={() => {}} onSaved={onSaved} />);
+  fireEvent.click(await screen.findByRole('button', { name: '只刷新导入历史' }));
+  expect(await screen.findByRole('button', { name: '查看并修改' })).toBeVisible();
+  expect(listBillImports).toHaveBeenCalledTimes(2);
+  expect(onSaved).not.toHaveBeenCalled();
+  expect(confirmBillImport).not.toHaveBeenCalled();
+});
+
 test('deleted imported rows remain visible as history without editable accounting controls', async () => {
   listBillImports.mockResolvedValue([{ sha256: 'deleted-batch', source: 'wechat', count: 1, status: 'committed' }]);
   getBillImport.mockResolvedValue({ sha256: 'deleted-batch', source: 'wechat', status: 'committed', can_revert_edit: true,

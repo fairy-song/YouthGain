@@ -127,46 +127,58 @@ const StatsTab = () => {
   const [recentUsers, setRecentUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState(false);
 
-  const load = useCallback(async () => {
+  const loadStats = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const [s, u] = await Promise.all([adminGetStats(), adminListUsers()]);
-      setStats(s);
-      const list = (u.users || [])
-        .slice()
-        .sort((a, b) => new Date(b.profile?.createdAt || 0) - new Date(a.profile?.createdAt || 0))
-        .slice(0, 5);
-      setRecentUsers(list);
-    } catch (e) {
-      setError('读取统计失败，请确认后端服务已启动');
-      console.error('读取统计失败:', e);
+      setStats(await adminGetStats());
+    } catch {
+      setError('暂时无法读取平台统计。');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const loadUsers = useCallback(async () => {
+    setUsersLoading(true);
+    setUsersError(false);
+    try {
+      const u = await adminListUsers();
+      const list = (u.users || [])
+        .slice()
+        .sort((a, b) => new Date(b.profile?.createdAt || 0) - new Date(a.profile?.createdAt || 0))
+        .slice(0, 5);
+      setRecentUsers(list);
+    } catch {
+      setUsersError(true);
+    } finally {
+      setUsersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadStats(); loadUsers(); }, [loadStats, loadUsers]);
 
   return (
     <div className="admin-stats-editorial">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div className="text-muted">平台整体数据一览</div>
-        <button type="button" className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" onClick={load} disabled={loading}>
-          <FaSyncAlt className={loading ? 'spin' : ''} /> 刷新
+        <button type="button" className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" onClick={() => { loadStats(); loadUsers(); }} disabled={loading || usersLoading}>
+          <FaSyncAlt className={loading || usersLoading ? 'spin' : ''} /> 刷新概览
         </button>
       </div>
 
-      {error && <div className="alert alert-danger py-2">{error}</div>}
+      {error && <div role="status" className="alert alert-warning py-2">{error} <button type="button" className="btn btn-link btn-sm" onClick={loadStats}>重试平台统计</button></div>}
 
       {loading && <p role="status">正在读取平台统计…</p>}
 
-      {!loading && stats && (
-        <>
+      {stats && (
           <dl className="admin-stats-sheet">
             {STAT_FIELDS.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{stats[key] == null ? '暂无' : Number(stats[key]).toLocaleString('zh-CN')}</dd></div>)}
           </dl>
+      )}
 
           <div className="admin-overview-row">
             <div className="admin-subcard">
@@ -174,7 +186,9 @@ const StatsTab = () => {
                 最新注册用户
                 <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--yg-muted)' }}>最近 5 位</span>
               </div>
-              {recentUsers.length === 0 && <div style={{ fontSize: 13, color: 'var(--yg-muted)' }}>暂无用户</div>}
+              {usersLoading && <p role="status">正在读取最新用户…</p>}
+              {usersError && <p role="status">暂时无法读取最新用户。 <button type="button" className="btn btn-link btn-sm" onClick={loadUsers}>重试用户列表</button></p>}
+              {!usersLoading && !usersError && recentUsers.length === 0 && <div style={{ fontSize: 13, color: 'var(--yg-muted)' }}>暂无用户</div>}
               {recentUsers.map((u) => (
                 <div className="recent-user-item" key={u.uid}>
                   <div className="recent-avatar">{((u.profile?.displayName || u.profile?.email || '?')[0]).toUpperCase()}</div>
@@ -195,6 +209,7 @@ const StatsTab = () => {
             </div>
           </div>
 
+          {stats && (
           <div className="row g-3 mt-1">
             <div className="col-12">
               <div className="admin-subcard">
@@ -215,7 +230,6 @@ const StatsTab = () => {
               </div>
             </div>
           </div>
-        </>
       )}
     </div>
   );

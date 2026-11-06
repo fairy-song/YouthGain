@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import ExpenseMoney from './ExpenseMoney';
 import { SPENDING_MONEY_VISUAL_ENABLED } from '../config/features';
 import { dailyFundsBreakdown, formatFundsCents, fundsDateKey } from '../utils/dailyFundsBreakdown';
@@ -29,9 +30,9 @@ function ResultCard({ label, result }) {
   </article>;
 }
 
-export default function LivingFundsStressTest({ funds, entries, refreshing }) {
+export default function LivingFundsStressTest({ funds, entries, refreshing, guest = false }) {
   const id = useId();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(guest);
   const [now, setNow] = useState(() => new Date());
   const [form, setForm] = useState(emptyForm);
   const [selected, setSelected] = useState([]);
@@ -141,10 +142,10 @@ export default function LivingFundsStressTest({ funds, entries, refreshing }) {
   };
 
   return <div className="living-funds">
-    <button type="button" className="living-funds-trigger" aria-expanded={expanded} aria-controls={id}
+    {!guest && <button type="button" className="living-funds-trigger" aria-expanded={expanded} aria-controls={id}
       onClick={() => { setExpanded(!expanded); setNow(new Date()); }}>
       {expanded ? '收起生活费试算' : '试一笔消费'} <span aria-hidden="true">{expanded ? '−' : '→'}</span>
-    </button>
+    </button>}
     <div id={id} hidden={!expanded}>
       {expanded && <>
         <p>看看这笔钱花掉后，能不能撑到下次预计到账。试算只在当前页面使用。</p>
@@ -165,7 +166,7 @@ export default function LivingFundsStressTest({ funds, entries, refreshing }) {
           </div>
           <details>
             <summary>预留必要开支</summary>
-            <p>勾选仍未支付且尚未从可用资金扣除的开支。</p>
+            <p>{guest ? '填写仍未支付且尚未从可用资金扣除的开支。' : '勾选仍未支付且尚未从可用资金扣除的开支。'}</p>
             {entries == null && <p>暂时无法读取账本计划，可在下方补充。</p>}
             {plan.some(entry => entry.due_date < today) && <p>有到期日已过的待处理开支，请到账本核对，或在下方补充。</p>}
             {due.length > 0 && <div className="living-funds-choices">{due.map(entry => <label key={entry.id}>
@@ -206,6 +207,7 @@ export default function LivingFundsStressTest({ funds, entries, refreshing }) {
             <summary>看看这笔钱</summary>
             <ExpenseMoney title="这笔预计花" amount={shownReport.purchaseCents / 100} />
           </details>}
+          {!guest && shownReport.purchaseCents > 0 && <Link className="btn btn-outline-success" to="/learning?tab=decision" state={{ trialAmount: shownReport.purchaseCents / 100 }}>带入金额，记录我的选择 →</Link>}
         </section>}
       </>}
     </div>

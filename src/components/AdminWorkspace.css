@@ -14,8 +14,6 @@
 }
 .admin-wordmark { color: var(--yg-ink); text-decoration: none; font-weight: 750; }
 .admin-wordmark b { display: inline-grid; place-items: center; width: 2rem; height: 2rem; margin-right: .35rem; color: white; background: var(--yg-primary-text); border-radius: .45rem; }
-.admin-workspace-links { display: flex; flex-wrap: wrap; gap: .4rem 1rem; }
-.admin-workspace-links a { color: var(--yg-primary-text); font-size: .87rem; text-underline-offset: .2em; }
 .admin-workspace-grid { max-width: 1450px; display: grid; grid-template-columns: 10.75rem minmax(0, 1fr); margin-inline: auto; }
 .admin-workspace-nav { border-right: 1px solid var(--yg-line); padding: 2rem .8rem; }
 .admin-workspace-nav a { color: var(--yg-muted); min-height: 44px; display: flex; align-items: center; padding: .35rem .65rem; border-left: 2px solid transparent; font-size: .9rem; text-decoration: none; }

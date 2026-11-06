@@ -2,9 +2,24 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, getIdToken } from 'firebase/auth';
 import { app } from '../services/firebase';
 import { fetchMyRole } from '../services/api';
+import { clearDraft } from '../data/firstVisit';
 
 // 创建认证上下文
 const AuthContext = createContext();
+const WORKSPACE_KEY = 'qingying:workspace';
+
+function readWorkspace() {
+  try { return JSON.parse(sessionStorage.getItem(WORKSPACE_KEY)); }
+  catch { return null; }
+}
+
+function checkWorkspaceRole(workspace, admin) {
+  if (workspace === 'admin' && !admin) throw new Error('该账号没有管理员权限，请改用获授权的管理员邮箱。');
+  if (workspace === 'school' && admin) throw new Error('学校端请使用研究项目授权的教师或研究人员账号。');
+  if (workspace === 'student' && admin) throw new Error('学生端请使用学生账号登录。');
+}
+
+const displayUser = user => ({ uid: user.uid, email: user.email, displayName: user.displayName || (user.email || '').split('@')[0] });
 
 // 自定义hook用于在组件中使用认证上下文
 export function useAuth() {
@@ -33,6 +48,7 @@ export function translateFirebaseError(code) {
 // 认证提供者组件
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
+  const [workspaceSession, setWorkspaceSession] = useState(readWorkspace);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -45,6 +61,12 @@ export function AuthProvider({ children }) {
 
   // Firebase 认证实例：未配置时为 null（开发模式）
   const auth = FIREBASE_ENABLED ? getAuth(app) : null;
+
+  function enterWorkspace(name, user) {
+    const next = { name, uid: user.uid };
+    sessionStorage.setItem(WORKSPACE_KEY, JSON.stringify(next));
+    setWorkspaceSession(next);
+  }
 
   // 从后端查询用户角色并写入 isAdmin。
   // - 生产（Firebase）：按后端 ADMIN_EMAILS 判定
@@ -61,19 +83,19 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // 登录状态监听：Firebase 模式下同步登录/登出，并把 ID token 写入 localStorage，
+  // 登录状态监听：Firebase 模式下同步登录/登出，并把 ID token 写入当前标签页，
   // api.js 的 axios 拦截器会自动以 "Bearer <token>" 形式携带，后端 require_auth 据此鉴权。
   useEffect(() => {
     if (!auth) {
-      // 开发模式：先尝试恢复 localStorage 中保存的模拟用户
+      // 开发模式：先尝试恢复当前标签页保存的模拟用户
       let devEmail = '';
       try {
-        const storedUser = localStorage.getItem('dev_current_user');
+        const storedUser = sessionStorage.getItem('dev_current_user');
         if (storedUser) {
           const parsed = JSON.parse(storedUser);
           setCurrentUser(parsed);
           devEmail = parsed.email || '';
-          const storedProfile = localStorage.getItem(`dev_user_profile:${(parsed.email || '').toLowerCase()}`) || localStorage.getItem('dev_user_profile');
+          const storedProfile = sessionStorage.getItem('dev_user_profile');
           if (storedProfile) setUserProfile(JSON.parse(storedProfile));
         }
       } catch (e) {
@@ -91,17 +113,16 @@ export function AuthProvider({ children }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setCurrentUser({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName || (user.email || '').split('@')[0],
-        });
+        setCurrentUser(displayUser(user));
         try {
           const token = await getIdToken(user);
-          localStorage.setItem('authToken', token);
+          if (auth.currentUser?.uid !== user.uid) return;
+          sessionStorage.setItem('authToken', token);
           const admin = await resolveAdminRole();
+          if (auth.currentUser?.uid !== user.uid) return;
           setIsAdmin(admin);
         } catch (e) {
+          if (auth.currentUser?.uid !== user.uid) return;
           console.error('获取 Firebase token 失败:', e);
           setIsAdmin(false);
         }
@@ -109,7 +130,9 @@ export function AuthProvider({ children }) {
         setCurrentUser(null);
         setUserProfile(null);
         setIsAdmin(false);
-        localStorage.removeItem('authToken');
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem(WORKSPACE_KEY);
+        setWorkspaceSession(null);
       }
       setInitializing(false);
     });
@@ -117,125 +140,72 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, [auth, resolveAdminRole]);
 
-  // 注册新用户
-  async function signup(email, password) {
+  async function completeFirebaseEntry(user, workspace) {
     try {
-      setError('');
-      setLoading(true);
-
-      if (!auth) {
-        // 开发模式模拟注册
-        const mockUser = {
-          uid: 'dev-user-' + Math.random().toString(36).substring(2, 9),
-          email: email,
-          displayName: email.split('@')[0],
-        };
-
-        setCurrentUser(mockUser);
-
-        // 模拟创建用户资料
-        const mockProfile = {
-          userId: mockUser.uid,
-          name: mockUser.displayName,
-          email: mockUser.email,
-          createdAt: new Date().toISOString(),
-        };
-
-        setUserProfile(mockProfile);
-
-        // 存储到localStorage模拟持久化
-        localStorage.setItem('dev_current_user', JSON.stringify(mockUser));
-        localStorage.setItem(`dev_user_profile:${email.toLowerCase()}`, JSON.stringify(mockProfile));
-        localStorage.setItem('dev_user_profile', JSON.stringify(mockProfile));
-
-        // 开发模式按实际登录邮箱判定角色（模拟专用管理员账号）
-        const admin = await resolveAdminRole(email);
-        setIsAdmin(admin);
-        setLoading(false);
-        return { user: mockUser, role: admin ? 'admin' : 'user' };
-      }
-
-      // 真实 Firebase 注册；登录态由 onAuthStateChanged 自动同步
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const token = await getIdToken(userCredential.user);
-      localStorage.setItem('authToken', token);
+      sessionStorage.setItem('authToken', await getIdToken(user));
       const admin = await resolveAdminRole();
+      checkWorkspaceRole(workspace, admin);
+      enterWorkspace(workspace, user);
+      const current = displayUser(user);
+      setCurrentUser(current);
       setIsAdmin(admin);
-      setLoading(false);
-      return {
-        user: {
-          uid: userCredential.user.uid,
-          email: userCredential.user.email,
-          displayName: userCredential.user.displayName || email.split('@')[0],
-        },
-        role: admin ? 'admin' : 'user',
-      };
+      return { user: current, role: admin ? 'admin' : 'user' };
     } catch (err) {
-      setLoading(false);
-      setError('注册失败：' + (err.code ? translateFirebaseError(err.code) : err.message));
+      sessionStorage.removeItem(WORKSPACE_KEY);
+      sessionStorage.removeItem('authToken');
+      setWorkspaceSession(null);
+      await signOut(auth);
       throw err;
     }
   }
 
+  async function completeDevEntry(email, workspace, username) {
+    const admin = await resolveAdminRole(email);
+    checkWorkspaceRole(workspace, admin);
+    const user = { uid: 'dev-user-' + Math.random().toString(36).substring(2, 9), email,
+      displayName: username?.trim() || email.split('@')[0] };
+    const profile = { userId: user.uid, name: user.displayName, email, createdAt: new Date().toISOString() };
+    sessionStorage.setItem('dev_current_user', JSON.stringify(user));
+    sessionStorage.setItem('dev_user_profile', JSON.stringify(profile));
+    enterWorkspace(workspace, user);
+    setCurrentUser(user);
+    setUserProfile(profile);
+    setIsAdmin(admin);
+    return { user, role: admin ? 'admin' : 'user' };
+  }
+
+  // 注册新用户
+  async function signup(email, password, username, workspace = 'student') {
+    try {
+      setError('');
+      setLoading(true);
+
+      if (!auth) return await completeDevEntry(email, workspace, username);
+      const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      return await completeFirebaseEntry(user, workspace);
+    } catch (err) {
+      setError('注册失败：' + (err.code ? translateFirebaseError(err.code) : err.message));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // 用户登录
-  async function login(email, password) {
+  async function login(email, password, workspace = 'student') {
     try {
       setError('');
       setLoading(true);
       email = email.trim();
 
-      if (!auth) {
-        // 先验证后台可用及角色，再建立本地登录态。
-        const admin = await resolveAdminRole(email);
-        // 开发模式模拟登录
-        const mockUser = {
-          uid: 'dev-user-' + Math.random().toString(36).substring(2, 9),
-          email: email,
-          displayName: email.split('@')[0],
-        };
-
-        setCurrentUser(mockUser);
-
-        // 模拟用户资料
-        const mockProfile = {
-          userId: mockUser.uid,
-          name: mockUser.displayName,
-          email: mockUser.email,
-          createdAt: new Date().toISOString(),
-        };
-
-        setUserProfile(mockProfile);
-
-        // 存储到localStorage模拟持久化
-        localStorage.setItem('dev_current_user', JSON.stringify(mockUser));
-        localStorage.setItem(`dev_user_profile:${email.toLowerCase()}`, JSON.stringify(mockProfile));
-        localStorage.setItem('dev_user_profile', JSON.stringify(mockProfile));
-
-        // 开发模式按实际登录邮箱判定角色（模拟专用管理员账号）
-        setIsAdmin(admin);
-        setLoading(false);
-        return { user: mockUser, role: admin ? 'admin' : 'user' };
-      }
-
-      // 真实 Firebase 登录；登录态由 onAuthStateChanged 自动同步
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const token = await getIdToken(userCredential.user);
-      localStorage.setItem('authToken', token);
-      const admin = await resolveAdminRole();
-      setIsAdmin(admin);
-      setLoading(false);
-      return {
-        user: {
-          uid: userCredential.user.uid,
-          email: userCredential.user.email,
-          displayName: userCredential.user.displayName || email.split('@')[0],
-        },
-        role: admin ? 'admin' : 'user',
-      };
+      if (!auth) return await completeDevEntry(email, workspace);
+      const { user } = await signInWithEmailAndPassword(auth, email, password);
+      return await completeFirebaseEntry(user, workspace);
     } catch (err) {
-      setLoading(false);
       setError('登录失败：' + (err.code ? translateFirebaseError(err.code) : err.message));
       throw err;
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -253,10 +223,12 @@ export function AuthProvider({ children }) {
       setUserProfile(null);
       setIsAdmin(false);
 
-      // 清除localStorage中的数据
-      localStorage.removeItem('dev_current_user');
-      localStorage.removeItem('dev_user_profile');
-      localStorage.removeItem('authToken');
+      clearDraft();
+      sessionStorage.removeItem('dev_current_user');
+      sessionStorage.removeItem('dev_user_profile');
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem(WORKSPACE_KEY);
+      setWorkspaceSession(null);
       setLoading(false);
     } catch (err) {
       setLoading(false);
@@ -277,8 +249,7 @@ export function AuthProvider({ children }) {
         setLoading(false);
         return currentUser;
       }
-      // 开发模式：从localStorage获取用户资料
-      const storedProfile = localStorage.getItem('dev_user_profile');
+      const storedProfile = sessionStorage.getItem('dev_user_profile');
       if (storedProfile) {
         const profileData = JSON.parse(storedProfile);
         setUserProfile(profileData);
@@ -294,8 +265,11 @@ export function AuthProvider({ children }) {
     }
   }, [currentUser, auth]);
 
+  const workspace = currentUser && workspaceSession?.uid === currentUser.uid ? workspaceSession.name : null;
+  const roleMatchesWorkspace = workspace === 'admin' ? isAdmin : !isAdmin;
   const value = {
     currentUser,
+    workspace: roleMatchesWorkspace ? workspace : null,
     userProfile,
     loading,
     error,

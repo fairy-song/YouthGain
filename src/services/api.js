@@ -28,7 +28,7 @@ export const authenticatedApi = api;
 // 请求拦截器 - 添加认证令牌
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken');
+    const token = sessionStorage.getItem('authToken');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -36,7 +36,7 @@ api.interceptors.request.use(
     // 后端据此按 ADMIN_EMAILS 判定管理员/普通用户角色
     if (!app && !config.headers['X-Dev-Email']) {
       try {
-        const raw = localStorage.getItem('dev_current_user');
+        const raw = sessionStorage.getItem('dev_current_user');
         if (raw) {
           const devUser = JSON.parse(raw);
           if (devUser && devUser.email) {
@@ -62,7 +62,7 @@ api.interceptors.response.use(
   (error) => {
     // 处理401错误 (未认证)
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('authToken');
+      sessionStorage.removeItem('authToken');
       // 可以在这里添加重定向到登录页的逻辑
     }
     return Promise.reject(error);

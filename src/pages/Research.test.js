@@ -95,7 +95,7 @@ test('unverified accounts can request verification and refresh their identity ex
 test('administrators can publish a month and grant scoped researcher access', async () => {
   api.getResearchAccess.mockResolvedValue({ projects: [project], can_manage: true, role: 'admin',
     global_budget: { total_milli: 6000, spent_milli: 0 }, live_enabled: false });
-  render(<MemoryRouter><SchoolResearch /></MemoryRouter>);
+  render(<MemoryRouter><SchoolResearch managementMode /></MemoryRouter>);
   const month = await screen.findByLabelText('发布月份');
   fireEvent.change(month, { target: { value: '2026-02' } });
   fireEvent.click(screen.getByRole('button', { name: '生成月度快照' }));
@@ -109,6 +109,13 @@ test('administrators can publish a month and grant scoped researcher access', as
   fireEvent.click(screen.getByRole('button', { name: '保存授权' }));
   await waitFor(() => expect(api.setResearchMember).toHaveBeenCalledWith('p1', { email: 'teacher@example.org', expires: '2026-12-31' }));
   await waitFor(() => expect(screen.getByRole('button', { name: '保存授权' })).toBeEnabled());
+});
+
+test('管理员研究数据不会在学校界面打开', async () => {
+  api.getResearchAccess.mockResolvedValue({ projects: [project], can_manage: true, role: 'admin' });
+  render(<MemoryRouter><SchoolResearch /></MemoryRouter>);
+  expect(await screen.findByText('请使用研究项目授权的教师或研究人员账号。')).toBeVisible();
+  expect(api.getResearchReleases).not.toHaveBeenCalled();
 });
 
 test('suppressed releases show the budget notice instead of fabricated charts', async () => {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Navbar, Container, Nav, Button,
@@ -12,7 +12,6 @@ import {
 } from 'react-icons/fa';
 import { CSSTransition, SwitchTransition } from 'react-transition-group';
 import 'animate.css';
-import { mainNavigation } from '../services/navigation';
 import MobileNavBar from './MobileNavBar';
 import MemberLayout from './MemberLayout';
 
@@ -85,22 +84,12 @@ const PageTransition = ({ children }) => {
 };
 
 const Layout = () => {
-  const { currentUser, isAdmin, logout } = useAuth();
-  const navigate = useNavigate();
+  const { workspace } = useAuth();
   const location = useLocation();
   const [brandHovered, setBrandHovered] = useState(false);
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch (error) {
-      console.error('登出失败:', error);
-    }
-  };
-
-  if (location.pathname === '/start' || (location.pathname === '/' && !currentUser)) return <Outlet />;
-  if (currentUser) return <MemberLayout />;
+  if (location.pathname === '/start' || (location.pathname === '/' && workspace !== 'student')) return <Outlet />;
+  if (workspace === 'student') return <MemberLayout />;
 
   return (
     <div className="layout-wrapper d-flex flex-column min-vh-100">
@@ -278,57 +267,14 @@ const Layout = () => {
                   <div className="nav-underline"></div>
                 </div>
 
-                {currentUser ? (
-                  <>
-                    {mainNavigation.filter(item => item.path !== '/').map(item => <Nav.Link key={item.path} as={Link} to={item.path} aria-current={location.pathname === item.path ? 'page' : undefined} className="text-white d-flex align-items-center">{item.label}</Nav.Link>)}
-
-                    {isAdmin && (
-                      <div className="nav-link-container position-relative">
-                        <Nav.Link
-                          as={Link}
-                          to="/admin"
-                          className="text-warning d-flex align-items-center border-0 nav-link fw-medium"
-                        >
-                          <FaShieldAlt className="me-2" /> 管理后台
-                        </Nav.Link>
-                        <div className="nav-underline"></div>
-                      </div>
-                    )}
-
-                    <AnimatedButton
-                      variant="danger"
-                      onClick={handleLogout}
-                      className="ms-2 rounded-pill px-4 fw-medium"
-                    >
-                      登出
-                    </AnimatedButton>
-                  </>
-                ) : (
-                  <>
-                    <div className="nav-link-container position-relative">
-                      <Nav.Link
-                        as={Link}
-                        to="/login"
-                        className="text-white d-flex align-items-center border-0 nav-link"
-                      >
-                        用户登录
-                      </Nav.Link>
-                      <div className="nav-underline"></div>
-                    </div>
-
-                    <Nav.Link as={Link} to="/research" className="text-white">学校端</Nav.Link>
-                    <Nav.Link as={Link} to="/admin/login" className="text-white">管理员登录</Nav.Link>
-
-                    <AnimatedButton
-                      as={Link}
-                      to="/register"
-                      variant="warning"
-                      className="ms-2 text-dark rounded-pill px-4 fw-medium text-decoration-none"
-                    >
-                      注册
-                    </AnimatedButton>
-                  </>
-                )}
+                <div className="nav-link-container position-relative">
+                  <Nav.Link as={Link} to="/login" className="text-white d-flex align-items-center border-0 nav-link">
+                    学生登录
+                  </Nav.Link>
+                  <div className="nav-underline"></div>
+                </div>
+                <AnimatedButton as={Link} to="/register" variant="warning"
+                  className="ms-2 text-dark rounded-pill px-4 fw-medium text-decoration-none">注册</AnimatedButton>
               </Nav>
             </Navbar.Collapse>
           </Container>

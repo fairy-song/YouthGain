@@ -6,7 +6,7 @@ import ResearchCharts from '../components/ResearchCharts';
 import './SchoolResearch.css';
 
 export function SchoolWorkspace() {
-  const { currentUser, logout } = useAuth();
+  const { workspace, logout } = useAuth();
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
@@ -24,9 +24,8 @@ export function SchoolWorkspace() {
     <header className="school-workspace-bar">
       <Link to="/research" className="school-workspace-brand"><span aria-hidden="true">青</span> 青盈学校端</Link>
       <nav aria-label="学校端导航">
-        <Link to="/">青盈首页</Link>
         {pathname !== '/research/demo' && <Link to="/research/demo">演示月报</Link>}
-        {currentUser && <button type="button" disabled={signingOut} onClick={leave}>{signingOut ? '正在退出…' : '退出登录'}</button>}
+        {workspace === 'school' && <button type="button" disabled={signingOut} onClick={leave}>{signingOut ? '正在退出…' : '退出登录'}</button>}
       </nav>
     </header>
     {error && <p role="alert" className="school-workspace-error">{error}</p>}

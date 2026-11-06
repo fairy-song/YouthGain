@@ -6,7 +6,7 @@ import ResearchCharts from '../components/ResearchCharts';
 import { getResearchAccess, createResearchProject, setResearchMember, getResearchReleases, publishResearchRelease, exportResearchRelease, sendResearchVerification, refreshResearchIdentity, researchError } from '../services/research';
 import './SchoolResearch.css';
 
-export default function SchoolResearch() {
+export default function SchoolResearch({ managementMode = false }) {
   const { currentUser } = useAuth() || {};
   const [access, setAccess] = useState(null);
   const [selected, setSelected] = useState('');
@@ -28,11 +28,17 @@ export default function SchoolResearch() {
     let active = true;
     getResearchAccess().then(data => {
       if (!active) return;
+      if (Boolean(data.can_manage) !== managementMode) {
+        setAccess(null);
+        setSelected('');
+        setError(managementMode ? '当前账号无法管理研究项目。' : '请使用研究项目授权的教师或研究人员账号。');
+        return;
+      }
       setAccess(data);
       setSelected(value => data.projects.some(p => p.id === value) ? value : data.projects[0]?.id || '');
     }).catch(e => { if (active) { setAccess(null); setSelected(''); setError(researchError(e)); } });
     return () => { active = false; };
-  }, [reload]);
+  }, [managementMode, reload]);
   useEffect(() => {
     let active = true;
     setReleases([]);
@@ -50,6 +56,7 @@ export default function SchoolResearch() {
     return () => { active = false; };
   }, [selected, reload]);
   const project = access?.projects.find(p => p.id === selected);
+  const noAccess = access && !access.requires_email_verification && !access.can_manage && !access.projects.length;
   const snapshot = releasesFor === selected ? releases.find(entry => entry.month === reportMonth) || releases[0] : null;
   async function run(action, message = '', refresh = true) {
     setBusy(true); setError(''); setNotice('');
@@ -59,11 +66,11 @@ export default function SchoolResearch() {
   }
   const field = (key, value) => setForm(previous => ({ ...previous, [key]: value }));
   return <div className="school-research">
-    <header className="research-masthead">
+    {!managementMode && <header className="research-masthead">
       <div><span>YOUTHGAIN / 校园研究</span><h1>学校研究</h1></div>
-      <Link to="/research/login">切换账号</Link>
-    </header>
-    <p className="research-intro">查看获授权项目的月度群体统计，了解消费结构与预算安排。真实统计来自自愿参与者，不直接代表全校学生。</p>
+      {!noAccess && <Link to="/research/login">切换账号</Link>}
+    </header>}
+    {!managementMode && <p className="research-intro">查看获授权项目的月度群体统计，了解消费结构与预算安排。真实统计来自自愿参与者，不直接代表全校学生。</p>}
     {error && <Alert variant="danger">{error}<Button variant="link" onClick={() => { setError(''); setReload(v => v + 1); }}>重试</Button></Alert>}
     {notice && <p role="status" className="text-success">{notice}</p>}
     {!access && !error && <p role="status">正在核对学校端访问权限…</p>}
@@ -75,16 +82,21 @@ export default function SchoolResearch() {
       <Button size="sm" variant="outline-primary" className="me-2" disabled={busy || verificationSent} onClick={() => run(async () => { await sendResearchVerification(); setVerificationSent(true); })}>发送邮箱验证链接</Button>
       <Button size="sm" variant="outline-primary" disabled={busy} onClick={() => run(refreshResearchIdentity)}>已验证，刷新权限</Button>
     </section>}
-    {access && !access.requires_email_verification && !access.can_manage && !access.projects.length && <section className="research-access-state" aria-labelledby="research-denied-title">
+    {noAccess && <section className="research-access-state" aria-labelledby="research-denied-title">
       <h2 id="research-denied-title">当前账号没有有效的学校研究授权</h2>
       {currentUser?.email && <p>当前账号：<strong>{currentUser.email}</strong></p>}
       <p>请把当前登录邮箱发给项目负责人，请对方添加项目授权并确认截止日期。若授权的是另一个邮箱，请切换账号。</p>
       <div className="research-access-actions"><Button size="sm" variant="outline-success" disabled={busy} onClick={() => {
         setError(''); setAccess(null); setReload(value => value + 1);
-      }}>重新检查授权</Button><Link to="/research/demo">先看演示月报</Link><Link to="/research/participation">我是学生，查看研究参与</Link></div>
+      }}>重新检查授权</Button><Link to="/research/login">切换账号</Link><Link to="/research/demo">先看演示月报</Link></div>
     </section>}
     {access?.can_manage && <details className="research-management">
-      <summary>研究项目管理</summary>
+      <summary>项目设置与发布指南</summary>
+      <ol className="small text-muted mt-3">
+        <li>建立或选择研究项目，核对学校、研究期和数据来源。</li>
+        <li>在下方「发布与授权」生成已结束月份的月报。</li>
+        <li>用老师注册青盈时的邮箱添加授权，设置截止日期，再把学校端入口发给老师。</li>
+      </ol>
       <p className="small text-muted">真实研究平台累计隐私预算：已用 {access.global_budget.spent_milli / 1000} / {access.global_budget.total_milli / 1000} ε。各项目共用此上限，模拟发布不消耗真实预算。</p>
       <details className="mb-3"><summary>查看发布预算记录</summary>
         {!access.global_budget.entries?.length ? <p className="small mt-2">暂无发布记录。</p> : <div className="table-responsive mt-2"><table className="table table-sm">

@@ -11,6 +11,7 @@ const sections = [
   { path: '/admin/knowledge', title: '知识库管理', description: '核对采集内容与出处，维护面向学生发布的资料。' },
   { path: '/admin/podcasts', title: '音频博客目录', description: '核对单集、来源和使用范围，再决定是否推荐给学生。' },
   { path: '/admin/coach', title: 'AI 教练配置', description: '调整教练的角色、语气和系统指令。' },
+  { path: '/admin/research', title: '研究项目管理', description: '建立研究项目、发布月报并管理研究者授权。' },
 ];
 
 export default function AdminLayout() {
@@ -32,10 +33,6 @@ export default function AdminLayout() {
     <a className="admin-skip" href="#admin-content" onClick={event => focusContent(event, 'admin-content')}>跳转到管理内容</a>
     <header className="admin-workspace-bar">
       <Link to="/admin" className="admin-wordmark"><b aria-hidden="true">青</b> 青盈管理</Link>
-      <div className="admin-workspace-links">
-        <Link to="/research">学校研究管理</Link>
-        <Link to="/" target="_blank" rel="noopener noreferrer">预览用户端 <span aria-hidden="true">↗</span></Link>
-      </div>
       <div className="admin-account"><span className="admin-account-email" title={currentUser?.email}>{currentUser?.email}</span>
         <button type="button" className="btn btn-outline-secondary btn-sm" disabled={leaving} onClick={handleLogout}>{leaving ? '退出中…' : '退出登录'}</button>
       </div>

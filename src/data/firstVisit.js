@@ -50,15 +50,19 @@ const newId = () => {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 };
 
-export const freshDraft = () => ({ version: QUESTIONNAIRE_VERSION, submission_id: newId(),
+export const draftOwner = user => user?.email?.trim().toLowerCase() || user?.uid || null;
+
+export const freshDraft = (owner = null) => ({ version: QUESTIONNAIRE_VERSION, submission_id: newId(), owner,
   answers: emptyAnswers(), step: 0, complete: false, updated_at: Date.now() });
 
 export const clearDraft = () => sessionStorage.removeItem(DRAFT_KEY);
-export const readDraft = () => {
+export const readDraft = (owner = null) => {
   try {
     const draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY));
     if (draft?.version === QUESTIONNAIRE_VERSION && draft.answers && draft.submission_id &&
-        Date.now() - draft.updated_at < MAX_AGE_MS) return draft;
+        Object.prototype.hasOwnProperty.call(draft, 'owner') &&
+        Number.isInteger(draft.step) && draft.step >= 0 && draft.step < questions.length &&
+        Date.now() - draft.updated_at < MAX_AGE_MS) return (draft.owner ?? null) === owner ? draft : null;
   } catch (_) { /* Start afresh when a stale draft cannot be parsed. */ }
   clearDraft();
   return null;

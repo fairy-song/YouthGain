@@ -20,5 +20,5 @@ test('existing reminders can be marked handled without creating a transaction', 
   render(<UpcomingExpenses />);
   fireEvent.click(await screen.findByRole('button', { name: '标记已处理' }));
   await waitFor(() => expect(updateUpcoming).toHaveBeenCalledWith('u1', true));
-  expect(await screen.findByText('已标记处理；实际支出请另行记账。')).toBeInTheDocument();
+  expect(await screen.findByText('已标记处理；如已付款且尚未记账，可去记这笔支出。')).toBeInTheDocument();
 });

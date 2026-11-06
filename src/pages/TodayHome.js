@@ -12,53 +12,41 @@ import { DAILY_FUNDS_BREAKDOWN_ENABLED, LIVING_FUNDS_STRESS_TEST_ENABLED } from 
 import './TodayHome.css';
 
 const yuan = value => `¥${Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const readers = { learning: getAdaptiveLearning, ledger: () => listTransactions(1), upcoming: async () => (await getLearning()).entries || [] };
+const pending = { loading: true };
 
 export default function TodayHome() {
   const { currentUser } = useAuth();
-  const [practice, setPractice] = useState(null);
-  const [ledger, setLedger] = useState(null);
-  const [entries, setEntries] = useState(null);
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [reload, setReload] = useState(0);
-  const version = useRef(0);
-  const requestRefresh = useCallback(() => setReload(value => value + 1), []);
-
-  const refresh = useCallback(async () => {
-    const current = ++version.current;
-    setLoading(true);
-    const [learningResult, ledgerResult, entriesResult] = await Promise.allSettled([
-      getAdaptiveLearning(), listTransactions(1), getLearning(),
-    ]);
-    if (current !== version.current) return;
-    setPractice(learningResult.status === 'fulfilled' ? learningResult.value : null);
-    setLedger(ledgerResult.status === 'fulfilled' ? ledgerResult.value : null);
-    setEntries(entriesResult.status === 'fulfilled' ? entriesResult.value.entries || [] : null);
-    setErrors({ learning: learningResult.status === 'rejected', ledger: ledgerResult.status === 'rejected' });
-    setLoading(false);
+  const [sections, setSections] = useState({});
+  const requests = useRef({});
+  const refresh = useCallback(async key => {
+    const request = Symbol(key);
+    requests.current[key] = request;
+    setSections(current => ({ ...current, [key]: { ...current[key], loading: true, error: false } }));
+    let result;
+    try { result = { data: await readers[key]() }; }
+    catch { result = { error: true }; }
+    if (requests.current[key] === request) setSections(current => ({ ...current, [key]: result }));
   }, []);
+  const refreshLedger = useCallback(() => refresh('ledger'), [refresh]);
 
   useEffect(() => {
-    setPractice(null); setLedger(null); setEntries(null); setErrors({});
-  }, [currentUser?.uid]);
-
-  useEffect(() => {
-    refresh();
-    return () => { version.current += 1; };
-  }, [currentUser?.uid, reload, refresh]);
-
-  useEffect(() => {
-    const update = () => setReload(value => value + 1);
+    const update = () => Object.keys(readers).forEach(refresh);
+    update();
     window.addEventListener('transaction-saved', update);
     window.addEventListener('learning-saved', update);
     window.addEventListener('focus', update);
     return () => {
+      requests.current = {};
       window.removeEventListener('transaction-saved', update);
       window.removeEventListener('learning-saved', update);
       window.removeEventListener('focus', update);
     };
-  }, []);
+  }, [refresh]);
 
+  const { data: practice, loading: practiceLoading, error: practiceError } = sections.learning || pending;
+  const { data: ledger, loading: ledgerLoading, error: ledgerError } = sections.ledger || pending;
+  const { data: entries, loading: entriesLoading } = sections.upcoming || pending;
   const item = practice?.next_item;
   const budget = ledger?.monthly_budget;
   const cashflow = ledger?.monthly_cashflow;
@@ -78,21 +66,21 @@ export default function TodayHome() {
         <section className="today-panel today-money-story" aria-labelledby="today-ledger-title">
           <span className="today-eyebrow">01 / 现在</span>
           <h2 id="today-ledger-title">手里的钱还能怎么安排？</h2>
-          {errors.ledger ? <p role="status">账本暂时无法读取。<button type="button" className="today-inline-button" onClick={requestRefresh}>重试</button></p>
-            : !budget ? <p role="status">{loading ? '正在读取本月记录…' : '暂无可汇总的账本记录。'}</p>
+          {ledgerError ? <p role="status">账本暂时无法读取。<button type="button" className="today-inline-button" onClick={refreshLedger}>重试</button></p>
+            : !budget ? <p role="status">{ledgerLoading ? '正在读取本月记录…' : '暂无可汇总的账本记录。'}</p>
               : budget.complete !== false && budget.spent != null ? <>
-                <MonthlyAvailableFunds key={currentUser?.uid} funds={ledger?.funds} enableDailyBreakdown={DAILY_FUNDS_BREAKDOWN_ENABLED} refreshing={loading} onRefresh={requestRefresh} />
+                <MonthlyAvailableFunds key={currentUser?.uid} funds={ledger?.funds} enableDailyBreakdown={DAILY_FUNDS_BREAKDOWN_ENABLED} refreshing={ledgerLoading} onRefresh={refreshLedger} />
                 <div className="today-cashflow" aria-label="本月收支"><div><span>本月支出</span><strong>{yuan(cashflow?.spent ?? budget.spent)}</strong></div><div><span>本月收入</span><strong>{cashflow?.complete ? yuan(cashflow.income) : '暂未汇总'}</strong></div></div>
                 <p>仅按已记录收支计算，退款抵减支出。{cashflow?.complete && (cashflow.has_expense_records === false || cashflow.has_income_records === false) && ' 本月有一侧尚无记录，结余可能不完整。'}</p>
               </> : <p>部分记录暂时无法汇总，请到账本核对。</p>}
-          {LIVING_FUNDS_STRESS_TEST_ENABLED && <LivingFundsStressTest key={currentUser?.uid} funds={ledger?.funds} entries={entries} refreshing={loading} />}
+          {LIVING_FUNDS_STRESS_TEST_ENABLED && <LivingFundsStressTest key={currentUser?.uid} funds={ledger?.funds} entries={entries} refreshing={ledgerLoading} />}
           <div className="today-panel-links"><Link to="/dashboard">打开账本记一笔 <span aria-hidden="true">→</span></Link></div>
         </section>
 
         <section className="today-panel today-next" aria-labelledby="today-next-title">
           <span className="today-eyebrow">02 / 接下来</span>
           <h2 id="today-next-title">近期要留的钱</h2>
-          {entries == null ? <p role="status">{loading ? '正在读取开支安排…' : '暂时无法读取开支安排。'}</p>
+          {entries == null ? <p role="status">{entriesLoading ? '正在读取开支安排…' : <>暂时无法读取开支安排。<button type="button" className="today-inline-button" onClick={() => refresh('upcoming')}>重试开支</button></>}</p>
             : upcoming.length ? <ol className="today-timeline">{upcoming.map(entry => <li key={entry.id}>
               <time dateTime={entry.due_date}>{entry.due_date}</time>
               <strong>{entry.title}</strong>
@@ -104,8 +92,8 @@ export default function TodayHome() {
 
       <section className="today-task" aria-labelledby="today-task-title">
         <div className="today-task-top"><span className="today-eyebrow">03 / 今日练习</span></div>
-        {loading && !practice && !errors.learning ? <div role="status" className="today-task-body">正在准备今天的练习…</div>
-          : errors.learning ? <div className="today-task-body"><h2 id="today-task-title">暂时没能读取练习</h2><p>你的记录仍在。可以重试，或稍后从学习页进入。</p><button type="button" className="today-retry" onClick={() => setReload(value => value + 1)}>重新加载</button></div>
+        {practiceLoading && !practice ? <div role="status" className="today-task-body">正在准备今天的练习…</div>
+          : practiceError ? <div className="today-task-body"><h2 id="today-task-title">暂时没能读取练习</h2><p>你的记录仍在。可以重试，或稍后从学习页进入。</p><button type="button" className="today-retry" onClick={() => refresh('learning')}>重新加载</button></div>
             : item ? <div className="today-task-body">
               <span className="today-task-step">{item.scenario_title || item.level || '情境练习'}{item.steps_total ? ` · 第 ${item.step} / ${item.steps_total} 步` : ''}</span>
               <h2 id="today-task-title">{item.scenario_context || item.question}</h2>

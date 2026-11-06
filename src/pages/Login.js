@@ -1,74 +1,76 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 import { app } from '../services/firebase';
 import { useAuth, translateFirebaseError } from '../contexts/AuthContext';
-import { readDraft } from '../data/firstVisit';
+import { authDestination } from '../utils/authDestination';
+
+const RESET_NOTICE = '如果该邮箱已注册，你会收到密码重置邮件。也可以查看垃圾邮件文件夹。';
 
 const Login = ({ adminMode = false, schoolMode = false }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
+  const [notice, setNotice] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, currentUser } = useAuth();
+  const { login, currentUser, workspace } = useAuth();
+  const loginWorkspace = adminMode ? 'admin' : schoolMode ? 'school' : 'student';
+
+  const toggleReset = () => {
+    setResetMode(!resetMode);
+    setPassword('');
+    setNotice('');
+    setError('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
 
-    if (!email || !password) {
+    if (!email.trim() || (!resetMode && !password)) {
       return setError('请填写所有必填字段');
     }
 
     try {
       setError('');
+      setNotice('');
       setLoading(true);
-      const result = await login(email.trim(), password);
-      if (schoolMode) {
-        navigate('/research', { replace: true });
+      if (resetMode) {
+        await sendPasswordResetEmail(getAuth(app), email.trim());
+        setNotice(RESET_NOTICE);
         return;
       }
-      // 管理员登录后进入管理后台，普通用户进入账本
-      if (adminMode && result?.role !== 'admin') {
-        setError('该账号没有管理员权限，请使用已授权的管理员邮箱，或切换到用户登录');
-        return;
-      }
-      const coachEntry = location.state?.coachEntry;
-      if (!adminMode && coachEntry && typeof coachEntry.prompt === 'string') {
-        navigate('/coach', { replace: true, state: { prompt: coachEntry.prompt.slice(0, 2000), returnTo: '/' } });
-      } else if (!adminMode && result?.role !== 'admin' && new URLSearchParams(location.search).get('from') === 'questionnaire' && readDraft()?.complete) {
-        navigate('/onboarding/complete', { replace: true });
-      } else {
-        const from = location.state?.from;
-        const returnTo = typeof from === 'string' && /^\/(?!\/)/.test(from) && !/[\\\r\n]/.test(from)
-          && !/^\/(?:admin|login|register)(?:[/?#]|$)/.test(from) ? from : '/dashboard';
-        navigate(result?.role === 'admin' ? '/admin' : returnTo, { replace: true });
-      }
+      await login(email.trim(), password, loginWorkspace);
+      const destination = authDestination(location.state, { schoolMode, adminMode });
+      navigate(destination.to, { replace: true, state: destination.state });
     } catch (err) {
-      console.error('登录失败:', err);
-      setError(err.code?.startsWith('auth/') ? translateFirebaseError(err.code) : (err.message || '登录失败，请稍后重试'));
+      if (resetMode) {
+        if (err.code === 'auth/user-not-found') setNotice(RESET_NOTICE);
+        else setError('暂时无法发送重置邮件，请检查邮箱和网络后重试。');
+      } else {
+        setError(err.code?.startsWith('auth/') ? translateFirebaseError(err.code) : (err.message || '登录失败，请稍后重试'));
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className={schoolMode ? 'school-access-page' : 'min-h-[calc(100vh-170px)] flex items-center justify-center bg-neutral-50 py-12 px-4 sm:px-6 lg:px-8'}>
+    <div className={schoolMode ? 'school-access-page' : 'min-h-screen flex items-center justify-center bg-neutral-50 py-12 px-4 sm:px-6 lg:px-8'}>
       <div className={schoolMode ? 'school-access-form' : 'max-w-md w-full bg-white rounded-lg shadow-md p-8'}>
-        {!schoolMode && <nav aria-label="登录身份" className="d-flex flex-wrap gap-2 mb-4">
-          <Link to="/login" aria-current={!adminMode ? 'page' : undefined} className={`btn flex-fill ${!adminMode ? 'btn-primary' : 'btn-outline-secondary'}`}>用户登录</Link>
-          <Link to="/research" className="btn flex-fill btn-outline-secondary">学校端登录</Link>
-          <Link to="/admin/login" aria-current={adminMode ? 'page' : undefined} className={`btn flex-fill ${adminMode ? 'btn-dark' : 'btn-outline-secondary'}`}>管理员登录</Link>
-        </nav>}
+        {loginWorkspace === 'student' && <Link to="/" className="d-inline-block mb-3 text-primary-700">← 返回青盈首页</Link>}
         {schoolMode ? <header className="school-access-heading">
           <p>教师与研究人员</p>
-          <h1>登录学校端</h1>
-          <p>使用研究项目负责人授权的邮箱和你的青盈密码。登录后可查看获授权项目的月报。</p>
+          <h1>{resetMode ? '重置学校端密码' : '登录学校端'}</h1>
+          <p>{resetMode ? '请输入注册青盈时使用的邮箱。' : '使用研究项目负责人授权的邮箱和你的青盈密码。登录后可查看获授权项目的月报。'}</p>
         </header> : <>
-          <h1 className="text-2xl font-bold mb-3 text-center">{adminMode ? '管理员登录' : '欢迎回到青盈'}</h1>
-          <p className="text-center text-muted mb-4">{adminMode ? '管理用户、查看平台数据与维护知识库' : '登录后继续你的健康成长计划'}</p>
+          <h1 className="text-2xl font-bold mb-3 text-center">{resetMode ? '重置青盈密码' : adminMode ? '管理员登录' : '欢迎回到青盈'}</h1>
+          <p className="text-center text-muted mb-4">{resetMode ? '请输入注册青盈时使用的邮箱。' : adminMode ? '管理用户、查看平台数据与维护知识库' : '登录后查看今日收支，或继续刚才的操作。'}</p>
         </>}
-        {schoolMode && currentUser?.email && <p className="school-access-current">当前账号：<strong>{currentUser.email}</strong> · <Link to="/research">用此账号进入</Link></p>}
+        {schoolMode && workspace === 'school' && currentUser?.email && <p className="school-access-current">当前账号：<strong>{currentUser.email}</strong> · <Link to="/research">用此账号进入</Link></p>}
         {adminMode && <p className="alert alert-light border">仅限已授权的管理员账号。账号权限由系统核验，选择此入口不会授予管理权限。</p>}
         {!app && <p role="status" className={schoolMode ? 'school-access-local' : 'alert alert-warning'}>当前为本地开发模拟登录，密码不会被验证。{adminMode ? '请使用后台已配置的管理员邮箱；本项目本地示例为 admin@youthgain.com。' : schoolMode ? '请使用本地研究项目已授权的邮箱和任意非空测试密码。' : '请输入邮箱和任意非空密码。'}</p>}
 
@@ -77,6 +79,7 @@ const Login = ({ adminMode = false, schoolMode = false }) => {
             {error}
           </div>
         )}
+        {notice && <p role="status" className="alert alert-success">{notice}</p>}
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
@@ -87,6 +90,7 @@ const Login = ({ adminMode = false, schoolMode = false }) => {
               autoComplete="username"
               type="email"
               id="email"
+              name="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -95,7 +99,7 @@ const Login = ({ adminMode = false, schoolMode = false }) => {
             />
           </div>
 
-          <div className="mb-6">
+          {!resetMode && <div className="mb-6">
             <label htmlFor="password" className="block text-neutral-700 font-medium mb-2">
               密码
             </label>
@@ -103,27 +107,30 @@ const Login = ({ adminMode = false, schoolMode = false }) => {
               autoComplete="current-password"
               type="password"
               id="password"
+              name="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="********"
               required
             />
-          </div>
+          </div>}
 
           <button
             type="submit"
             disabled={loading}
             className={schoolMode ? 'school-access-primary' : `w-full bg-primary-500 text-neutral-950 py-2 px-4 rounded-md font-medium ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-600'}`}
           >
-            {loading ? '正在验证身份…' : schoolMode ? '登录并查看研究项目' : adminMode ? '登录管理后台' : '进入青盈'}
+            {resetMode ? (loading ? '正在发送…' : '发送重置邮件') : loading ? '正在验证身份…' : schoolMode ? '登录并查看研究项目' : adminMode ? '登录管理后台' : '进入青盈'}
           </button>
         </form>
 
-        {!adminMode && !schoolMode && <div className="mt-6 text-center">
+        {app && <button type="button" disabled={loading} className="btn btn-link px-0 mt-2" onClick={toggleReset}>{resetMode ? '返回登录' : '忘记密码？'}</button>}
+
+        {!adminMode && !schoolMode && !resetMode && <div className="mt-6 text-center">
           <p className="text-neutral-600">
             还没有账号？{' '}
-            <Link to={location.search.includes('from=questionnaire') ? '/register?from=questionnaire' : '/register'} className="text-primary-700 hover:underline">
+            <Link to="/register" state={location.state} className="text-primary-700 hover:underline">
               立即注册
             </Link>
           </p>

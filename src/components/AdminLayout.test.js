@@ -16,15 +16,16 @@ function setup(path = '/admin') {
     </Route>
   </Routes></MemoryRouter>);
 }
-test('后台提供平台概览和学校研究入口，不包含用户业务入口', () => {
+test('后台保留研究项目管理，所有工作区链接都留在管理端', () => {
   setup();
   expect(screen.getByRole('link', { name: '青盈管理' }).getAttribute('href')).toBe('/admin');
-  expect(screen.getByRole('link', { name: '学校研究管理' }).getAttribute('href')).toBe('/research');
+  expect(screen.getByRole('link', { name: '研究项目管理' }).getAttribute('href')).toBe('/admin/research');
   expect(screen.getByRole('heading', { name: '平台概览' })).toBeTruthy();
   expect(screen.getByRole('link', { name: '平台概览' }).getAttribute('aria-current')).toBe('page');
-  expect(screen.getByRole('navigation', { name: '后台功能导航' }).querySelectorAll('a')).toHaveLength(5);
+  expect(screen.getByRole('navigation', { name: '后台功能导航' }).querySelectorAll('a')).toHaveLength(6);
   ['每日打卡', '健康评估', 'AI 教练', '返回个人中心'].forEach(text => expect(screen.queryByText(text)).toBeNull());
-  expect(screen.getByRole('link', { name: /预览用户端/ }).getAttribute('target')).toBe('_blank');
+  expect(screen.queryByRole('link', { name: /预览用户端/ })).toBeNull();
+  expect(screen.getAllByRole('link').every(link => /^\/admin|^#admin-content$/.test(link.getAttribute('href')))).toBe(true);
 });
 test('深链接恢复当前管理页面且可返回平台概览', async () => {
   setup('/admin/users');

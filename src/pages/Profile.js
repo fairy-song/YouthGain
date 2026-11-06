@@ -227,8 +227,7 @@ export default function Profile() {
       <h2 className="h5">研究与隐私</h2>
       <p className="text-muted mb-3">你可以自主决定是否参与研究；学校研究功能按账户授权开放。</p>
       <div className="d-flex flex-wrap gap-2">
-        <Button as={Link} to="/research/participation" variant="outline-primary">参与研究</Button>
-        <Button as={Link} to="/research" variant="outline-secondary">学校研究</Button>
+        <Button as={Link} to="/profile/research" variant="outline-primary">参与研究</Button>
       </div>
     </Card.Body></Card>
 

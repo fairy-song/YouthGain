@@ -28,7 +28,7 @@ import './DashboardUI.css';
 
 const Dashboard = () => {
   const { currentUser } = useAuth();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const tab = ['goals', 'upcoming', 'analysis'].includes(params.get('tab')) ? params.get('tab') : 'overview';
 
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -103,10 +103,39 @@ const Dashboard = () => {
     planned: '', purpose: '',
   });
   const [recordResult, setRecordResult] = useState(null); // 记账成功后的机会成本即时反馈
+  const [upcomingDraft, setUpcomingDraft] = useState(false);
+  const [pendingUpcoming, setPendingUpcoming] = useState(null);
   const [savedExpense, setSavedExpense] = useState(null);
   const [expandedExpense, setExpandedExpense] = useState(null);
   const [recordError, setRecordError] = useState('');
   const [savingRecord, setSavingRecord] = useState(false);
+  const recordHeading = useRef(null);
+
+  useEffect(() => {
+    if (tab === 'overview' && (upcomingDraft || pendingUpcoming)) recordHeading.current?.focus();
+  }, [tab, upcomingDraft, pendingUpcoming]);
+
+  const prefillUpcomingExpense = entry => {
+    setRecordForm({ transaction_type: 'expense', amount: String(entry.amount), category: '其他',
+      date: dateKey(), merchant: '', items: entry.title, note: '', hour: '', planned: 'planned', purpose: '' });
+    setRecordError('');
+    setRecordResult(null);
+    setSavedExpense(null);
+    setUpcomingDraft(true);
+    setPendingUpcoming(null);
+  };
+
+  const openUpcomingExpense = entry => {
+    if (savingRecord) return;
+    const fields = ['amount', 'merchant', 'items', 'note', 'hour', 'planned', 'purpose'];
+    const hasDraft = fields.some(field => recordForm[field]) || recordForm.transaction_type === 'income'
+      || recordForm.category !== '餐饮' || recordForm.date !== dateKey();
+    if (hasDraft) setPendingUpcoming(entry);
+    else prefillUpcomingExpense(entry);
+    const nextParams = new URLSearchParams(params);
+    nextParams.delete('tab');
+    setParams(nextParams);
+  };
   const isIncome = recordForm.transaction_type === 'income';
   const handleRecordType = (event) => {
     const transaction_type = event.target.value;
@@ -251,6 +280,7 @@ const Dashboard = () => {
       const savedRecord = await createTransaction(payload);
       saved = true;
       if (feedback !== feedbackVersion.current) return;
+      setUpcomingDraft(false);
       if (!isIncome && SPENDING_MONEY_VISUAL_ENABLED) setSavedExpense({ amount: savedRecord?.amount ?? amount, key: feedback });
       setRecordForm((f) => ({ ...f, amount: '', merchant: '', items: '', note: '', hour: '', planned: '', purpose: '' }));
       // Refresh immediately after saving; optional feedback runs independently.
@@ -413,7 +443,7 @@ const Dashboard = () => {
           {report?.basis && <p className="small mt-2">分析范围：{report.basis.start} 至 {report.basis.end}，{report.basis.record_count} 笔。{report.basis.message}</p>}
           {report?.warnings?.map((warning, index) => <p key={index} className="small mb-0">{warning}</p>)}
         </Alert><LedgerAnalysis {...{ surplus, income, avgSpending, spending, discretionary, goal, patterns, pca }} /></>}
-        {tab === 'upcoming' && <UpcomingExpenses key={currentUser?.uid} />}
+        {tab === 'upcoming' && <UpcomingExpenses key={currentUser?.uid} onRecordExpense={openUpcomingExpense} />}
         {tab === 'overview' && <>
         {/* 保留旧锚点，兼容已有的记账链接。 */}
         <Row className="mb-5" id="record-expense">
@@ -424,7 +454,7 @@ const Dashboard = () => {
                   <div className="icon-container bg-success-light rounded-circle d-flex align-items-center justify-content-center me-3">
                     <FaPiggyBank className="text-success" />
                   </div>
-                  <h5 className="card-title mb-0">记一笔收支</h5>
+                  <h5 ref={recordHeading} tabIndex={-1} className="card-title mb-0">记一笔收支</h5>
                   <span className="text-muted small ms-2">{isIncome ? '记录实际到账，更新可用资金；本人转账不算收入' : '记录日常支出，了解这笔钱相当于几天结余'}</span>
                   <Button variant="outline-success" size="sm" className="rounded-pill" onClick={() => setShowBackfillModal(true)}>补记账单</Button>
                   <Button variant="outline-success" size="sm" className="rounded-pill" onClick={() => setImportMode('expense')}>导入支出账单</Button>
@@ -438,6 +468,11 @@ const Dashboard = () => {
                     <FaMicrophone className="me-1" />语音记支出
                   </Button>
                 </div>
+                {upcomingDraft && <Alert variant="info" role="status">已带入计划的事项和金额。请确认这笔钱已支付且尚未记账，再核对实际金额、日期和类别。</Alert>}
+                {pendingUpcoming && <Alert variant="warning" role="status">表单里已有未保存的账单。是否改为填写「{pendingUpcoming.title}」？
+                  <div><Button type="button" variant="link" disabled={savingRecord} onClick={() => prefillUpcomingExpense(pendingUpcoming)}>替换草稿</Button>
+                    <Button type="button" variant="link" onClick={() => setPendingUpcoming(null)}>保留当前草稿</Button></div>
+                </Alert>}
                 <Form onSubmit={handleRecordTransaction}><fieldset disabled={savingRecord}>
                   <Form.Group controlId="record-type" className="mb-3">
                     <Form.Label>收支类型</Form.Label>

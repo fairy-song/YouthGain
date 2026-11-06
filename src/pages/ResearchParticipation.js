@@ -28,7 +28,7 @@ export default function ResearchParticipation() {
   return <Container className="py-4" style={{ maxWidth: 900 }}>
     <h1 className="h3">参与消费研究</h1>
     <p className="text-muted">自主选择是否提供研究贡献，帮助学校了解参与者的消费结构与预算安排。</p>
-    <p><Link to="/profile">返回我的资料</Link> · <Link to="/research">学校研究入口</Link></p>
+    <p><Link to="/profile">返回我的资料</Link></p>
     {error && <Alert variant="danger">{error}<Button variant="link" onClick={() => { setError(''); setReload(v => v + 1); }}>重试</Button></Alert>}
     {loading ? <Spinner animation="border" aria-label="加载研究项目" /> : !projects.length && <Alert variant="light">
       <h5 className="alert-heading">研究功能正在内测</h5>

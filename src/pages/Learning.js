@@ -33,6 +33,9 @@ function LearningContent() {
   const location = useLocation();
   const requestedTab = new URLSearchParams(location.search).get('tab');
   const tab = ['practice', 'decision', 'review', 'growth'].includes(requestedTab) ? requestedTab : 'practice';
+  const isReview = tab === 'review';
+  const trialAmount = Number(location.state?.trialAmount);
+  const hasTrialAmount = tab === 'decision' && Number.isFinite(trialAmount) && trialAmount > 0 && trialAmount <= 100000000;
   const [data, setData] = useState(null);
   const [profile, setProfile] = useState(blankProfile);
   const [facts, setFacts] = useState(null);
@@ -41,10 +44,11 @@ function LearningContent() {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [factsRetry, setFactsRetry] = useState(0);
   const [selected, setSelected] = useState('');
   const [showLessons, setShowLessons] = useState(false);
   const [reflection, setReflection] = useState('');
-  const [decision, setDecision] = useState(blankDecision);
+  const [decision, setDecision] = useState(() => hasTrialAmount ? { ...blankDecision, amount: String(trialAmount) } : blankDecision);
   const [comparison, setComparison] = useState(null);
   const [review, setReview] = useState({ observation: '', next_action: '', principle: '', previous_action_result: '', pressure: 'neutral' });
   const [outcomeDrafts, setOutcomeDrafts] = useState({});
@@ -54,19 +58,24 @@ function LearningContent() {
 
   useEffect(() => {
     let active = true;
-    setData(null); setError(''); setFacts(null); setFactsError('');
-    Promise.allSettled([getLearning(), getWeeklyFacts()]).then(([learning, weekly]) => {
+    setData(null); setError('');
+    getLearning().then(learning => {
       if (!active) return;
-      if (learning.status === 'fulfilled') {
-        setData(learning.value);
-        setProfile({ ...blankProfile, ...learning.value.profile,
-          monthly_income: learning.value.profile.monthly_income ?? '', income_day: learning.value.profile.income_day ?? '' });
-      } else setError(learningError(learning.reason));
-      if (weekly.status === 'fulfilled') setFacts(weekly.value);
-      else setFactsError('本周账目暂时加载失败，仍可填写自主复盘。');
-    });
+      setData(learning);
+      setProfile({ ...blankProfile, ...learning.profile,
+        monthly_income: learning.profile.monthly_income ?? '', income_day: learning.profile.income_day ?? '' });
+    }).catch(e => { if (active) setError(learningError(e)); });
     return () => { active = false; };
   }, [currentUser?.uid, retry]);
+
+  useEffect(() => {
+    if (!isReview) return undefined;
+    let active = true;
+    setFacts(null); setFactsError('');
+    getWeeklyFacts().then(weekly => { if (active) setFacts(weekly); })
+      .catch(() => { if (active) setFactsError('本周账目暂时加载失败，仍可填写自主复盘。'); });
+    return () => { active = false; };
+  }, [currentUser?.uid, isReview, factsRetry]);
 
   const run = async (action, message) => {
     setBusy(true); setError(''); setNotice('');
@@ -89,7 +98,8 @@ function LearningContent() {
   const orderedLessons = [...data.lessons].sort((a, b) => Number(b.topic === profile.topic) - Number(a.topic === profile.topic) || a.day - b.day);
   const lesson = data.lessons.find(l => l.id === selected) || orderedLessons.find(l => !completed.includes(l.id)) || orderedLessons[0];
   const reviews = entries.filter(e => e.kind === 'review');
-  const previousReview = reviews.find(e => e.week !== facts?.start);
+  const previousReview = facts && reviews.find(e => e.week !== facts.start);
+  const currentReview = facts && reviews.find(e => e.week === facts.start);
   const upcomingEntries = entries.filter(e => e.kind === 'upcoming');
   const pendingExpenses = upcomingEntries.filter(e => !e.handled).sort((a, b) => a.due_date.localeCompare(b.due_date));
   const setDecisionField = (field, value) => { setDecision({ ...decision, [field]: value }); setComparison(null); };
@@ -101,6 +111,7 @@ function LearningContent() {
       {tab !== 'practice' && <p className="text-muted">买之前比较影响，买之后回看体验。</p>}
     </div>
     {error && <Alert variant="warning" role="alert">{error} <Button variant="link" disabled={busy} onClick={() => setRetry(v => v + 1)}>刷新重试</Button></Alert>}
+    {hasTrialAmount && <p className="small text-muted">已带入刚才试算的消费金额。你可以核对或修改，再决定是否保存。</p>}
     {notice && <Alert variant="success" role="status" dismissible onClose={() => setNotice('')}>{notice}</Alert>}
     {tab !== 'practice' && data.profile.monthly_income == null && <Alert variant="info">先设置生活费或月收入，让消费试算有依据；情境练习不需要先填写资料。 <Button as={Link} to="/profile" variant="link">设置我的资料</Button></Alert>}
     {tab !== 'practice' && <SectionNav label="消费决策功能" active={tab} items={[
@@ -171,10 +182,11 @@ function LearningContent() {
     </>}
 
     {tab === 'review' && <Card className="border-0 shadow-sm"><Card.Body className="p-4"><h2 className="h4">简短回看这一周</h2>
-      {factsError && <Alert variant="warning">{factsError}<Button variant="link" onClick={() => setRetry(v => v + 1)}>重试</Button></Alert>}
+      {!facts && !factsError && <p role="status" className="text-muted">正在汇总本周账目，可以先填写下方的复盘。</p>}
+      {factsError && <Alert variant="warning">{factsError}<Button variant="link" onClick={() => setFactsRetry(v => v + 1)}>重试账目</Button></Alert>}
       {facts && <Alert variant="light">{facts.start} 至 {facts.end}：已记录 {facts.count} 笔，共 ¥{facts.total.toFixed(2)}。<div className="small">{facts.message}{facts.limited && ' 当前只读取最近 2000 笔，汇总可能不完整。'}</div></Alert>}
       {previousReview && <Alert variant="info">上次想尝试：{previousReview.next_action}</Alert>}
-      {reviews.find(e => e.week === facts?.start) && <p className="text-success">本周已复盘，重新保存会更新本周记录。<Button variant="link" onClick={() => setReview(reviews.find(e => e.week === facts?.start))}>继续编辑</Button></p>}
+      {currentReview && <p className="text-success">本周已复盘，重新保存会更新本周记录。<Button variant="link" onClick={() => setReview(currentReview)}>继续编辑</Button></p>}
       <Form onSubmit={e => { e.preventDefault(); run(() => saveLearningEntry('review', review), '本周复盘已保存，下周可以回看这次行动。'); }}>
         <WritingField label="这周哪笔消费值得回看？（没有消费也可以回看计划）" value={review.observation} onChange={v => setReview({ ...review, observation: v })} />
         <div className="fv-prompt-chips" aria-label="下周行动灵感">{['周日花五分钟检查下周必要开支', '下次临时购物前先比较两个方案', '周末回看一笔消费是否符合预期'].map(v => <button type="button" key={v} onClick={() => setReview({ ...review, next_action: v })}>{v}</button>)}</div><WritingField label="下周想保持或调整什么？" maxLength={500} value={review.next_action} onChange={v => setReview({ ...review, next_action: v })} />

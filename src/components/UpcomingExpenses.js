@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Button, Card, Col, Form, Row, Spinner } from 'react-bootstrap';
 import { getLearning, saveLearningEntry, updateUpcoming, learningError } from '../services/learning';
 
-export default function UpcomingExpenses() {
+export default function UpcomingExpenses({ onRecordExpense }) {
   const [entries, setEntries] = useState(null);
   const [upcoming, setUpcoming] = useState({ title: '', amount: '', due_date: '' });
   const [busy, setBusy] = useState(false);
@@ -37,7 +37,13 @@ export default function UpcomingExpenses() {
           <Col md={4}><Form.Control required aria-label="未来开支日期" type="date" value={upcoming.due_date} onChange={e => setUpcoming({ ...upcoming, due_date: e.target.value })} /></Col>
         </Row><Button type="submit" variant="outline-primary" disabled={busy}>保存开支安排</Button>
       </Form>
-      {upcomingEntries.map(e => <div key={e.id} className="d-flex flex-wrap align-items-center justify-content-between border-bottom py-2"><span>{e.due_date} · {e.title} · ¥{e.amount} {e.handled && '（已处理）'}</span><Button variant="link" disabled={busy} onClick={() => run(() => updateUpcoming(e.id, !e.handled), e.handled ? '已恢复提醒。' : '已标记处理；实际支出请另行记账。')}>{e.handled ? '恢复提醒' : '标记已处理'}</Button></div>)}
+      {upcomingEntries.map(e => <div key={e.id} className="d-flex flex-wrap align-items-center justify-content-between border-bottom py-2">
+        <span>{e.due_date} · {e.title} · ¥{e.amount} {e.handled && '（已处理）'}</span>
+        <div className="d-flex flex-wrap">
+          {e.handled && onRecordExpense && <Button variant="link" disabled={busy} onClick={() => onRecordExpense(e)}>去记这笔支出</Button>}
+          <Button variant="link" disabled={busy} onClick={() => run(() => updateUpcoming(e.id, !e.handled), e.handled ? '已恢复提醒。' : '已标记处理；如已付款且尚未记账，可去记这笔支出。')}>{e.handled ? '恢复提醒' : '标记已处理'}</Button>
+        </div>
+      </div>)}
     {entries && !upcomingEntries.length && <p className="text-muted mt-3">暂无安排，可以先记下一笔考试费、房租或订阅续费。</p>}
     <p className="small text-muted mt-3">标记已处理不会自动记账，也不会自动扣除预算。</p>
   </Card.Body></Card>;

@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { browserSessionPersistence, initializeAuth, inMemoryPersistence } from 'firebase/auth';
 
 // Firebase配置 (这些值应该从环境变量中获取)
 const firebaseConfig = {
@@ -18,3 +19,4 @@ const hasFirebaseConfig = Boolean(
 );
 
 export const app = hasFirebaseConfig ? initializeApp(firebaseConfig) : null;
+if (app) initializeAuth(app, { persistence: [browserSessionPersistence, inMemoryPersistence] });

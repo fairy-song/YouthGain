@@ -54,6 +54,20 @@ test('shows one practice task and refreshes the ledger amount after a saved tran
   await waitFor(() => expect(screen.getByText('¥35.00')).toBeInTheDocument());
 });
 
+test('账本和练习不等未来开支，且只重试失败的开支安排', async () => {
+  let failUpcoming;
+  getLearning.mockImplementationOnce(() => new Promise((_, reject) => { failUpcoming = reject; }));
+  render(<MemoryRouter><TodayHome /></MemoryRouter>);
+  expect(await screen.findByText('¥20.00')).toBeVisible();
+  expect(await screen.findByRole('heading', { name: '这笔消费前先确认什么？' })).toBeVisible();
+  expect(screen.getByText('正在读取开支安排…')).toBeVisible();
+  await act(async () => { failUpcoming(new Error('fixture')); });
+  fireEvent.click(await screen.findByRole('button', { name: '重试开支' }));
+  expect(await screen.findByText(/还没有待处理的开支安排/)).toBeVisible();
+  expect(listTransactions).toHaveBeenCalledTimes(1);
+  expect(getAdaptiveLearning).toHaveBeenCalledTimes(1);
+});
+
 test('shows separate recorded spending income and remaining after a refund', async () => {
   listTransactions.mockResolvedValue({
     monthly_budget: { spent: 80, complete: true },

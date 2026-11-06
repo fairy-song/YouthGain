@@ -19,12 +19,11 @@ import AdminDashboard from './pages/AdminDashboard';
 import PodcastAdmin from './pages/PodcastAdmin';
 import NotFound from './pages/NotFound';
 import Onboarding from './pages/Onboarding';
-import FirstVisit, { Welcome } from './pages/FirstVisit';
+import FirstVisit, { TryLivingFunds, Welcome } from './pages/FirstVisit';
 import OnboardingComplete from './pages/OnboardingComplete';
 import SchoolResearch from './pages/SchoolResearch';
 import { SchoolWorkspace, SchoolReportDemo } from './pages/SchoolAccess';
 import ResearchParticipation from './pages/ResearchParticipation';
-import { getLearningProfile, getQuestionnaires } from './services/learning';
 
 // 信息页面组件
 import { 
@@ -43,6 +42,12 @@ import AdminLayout from './components/AdminLayout';
 
 // API连接状态组件
 const ApiStatusIndicator = () => {
+  const { pathname } = useLocation();
+  if (['/try', '/start', '/research/demo'].includes(pathname)) return null;
+  return <ApiHealthWarning />;
+};
+
+const ApiHealthWarning = () => {
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let active = true;
@@ -56,8 +61,10 @@ const ApiStatusIndicator = () => {
 };
 
 // 受保护的路由组件
-const ProtectedRoute = ({ children, loginPath = '/login' }) => {
-  const { currentUser, loading, initializing } = useAuth();
+const workspaceLogin = { student: '/login', school: '/research/login', admin: '/admin/login' };
+
+const ProtectedRoute = ({ children, workspace = 'student' }) => {
+  const { currentUser, workspace: activeWorkspace, isAdmin, loading, initializing } = useAuth();
   const location = useLocation();
   
   // initializing: 首次挂载时正在恢复登录状态（Firebase 异步），此时不能判定未登录
@@ -65,100 +72,45 @@ const ProtectedRoute = ({ children, loginPath = '/login' }) => {
     return <div className="flex justify-center items-center h-screen">加载中...</div>;
   }
   
-  if (!currentUser) {
-    return <Navigate to={loginPath} replace state={{ from: location.pathname + location.search }} />;
+  if (!currentUser || activeWorkspace !== workspace || (workspace === 'admin' ? !isAdmin : isAdmin)) {
+    return <Navigate to={workspaceLogin[workspace]} replace state={{ from: location.pathname + location.search }} />;
   }
   
   return <React.Fragment key={currentUser.uid}>{children}</React.Fragment>;
 };
 
 const HomeEntry = () => {
-  const { currentUser, loading, initializing } = useAuth();
+  const { currentUser, workspace, loading, initializing } = useAuth();
   if (loading || initializing) return <div className="flex justify-center items-center h-screen">加载中...</div>;
-  return currentUser ? <TodayHome /> : <Welcome />;
-};
-
-const OnboardingRoute = ({ children }) => {
-  const { currentUser, loading, initializing } = useAuth();
-  const location = useLocation();
-  const userId = currentUser?.uid;
-  const userEmail = currentUser?.email;
-  const [checking, setChecking] = useState(true);
-  const [complete, setComplete] = useState(false);
-  const [checkError, setCheckError] = useState('');
-  useEffect(() => {
-    if (!userId) { setChecking(false); return; }
-    let active = true;
-    setChecking(true); setCheckError('');
-    const localDone = userEmail && localStorage.getItem(`onboarding_complete:${userEmail.toLowerCase()}`) === 'true';
-    if (localDone) { setComplete(true); setChecking(false); return; }
-    Promise.all([getLearningProfile(), getQuestionnaires()]).then(([profile, questionnaires]) => {
-      if (active) setComplete(profile?.onboarding_complete === true || !!questionnaires.latest);
-    }).catch(() => { if (active) setCheckError('暂时无法读取你的入门资料，请刷新重试。'); }).finally(() => { if (active) setChecking(false); });
-    return () => { active = false; };
-  }, [userId, userEmail]);
-  if (loading || initializing || checking) return <div className="flex justify-center items-center h-screen">准备你的理财空间…</div>;
-  if (!currentUser) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
-  if (checkError) return <div role="alert" className="alert alert-warning m-4">{checkError}</div>;
-  return complete ? children : <Navigate to="/start" replace />;
-};
-
-// 管理员专属路由，等待角色恢复后再判断权限。
-const AdminRoute = ({ children }) => {
-  const { currentUser, isAdmin, loading, initializing } = useAuth();
-
-  if (loading || initializing) {
-    return <div className="flex justify-center items-center h-screen">加载中...</div>;
-  }
-
-  if (!currentUser) {
-    return <Navigate to="/admin/login" replace />;
-  }
-
-  if (!isAdmin) {
-    return <Navigate to="/admin/login" replace />;
-  }
-
-  return <React.Fragment key={currentUser.uid}>{children}</React.Fragment>;
-};
-
-// 重定向组件 - 处理各种路径情况
-const RedirectHandler = () => {
-  const location = useLocation();
-  
-  useEffect(() => {
-    // 当访问根路径且没有使用hash路由格式时重定向
-    if (location.pathname === '/' && !location.hash) {
-      window.location.replace('/#/');
-    }
-  }, [location]);
-  
-  return null;
+  return workspace === 'student' ? <TodayHome key={currentUser.uid} /> : <Welcome />;
 };
 
 function App() {
   return (
     <AuthProvider>
-      <RedirectHandler />
       <Routes>
         {/* 重定向YouthGain路径到主页 */}
         <Route path="/YouthGain/*" element={<Navigate to="/" replace />} />
         <Route path="YouthGain/*" element={<Navigate to="/" replace />} />
         
+        <Route path="/login" element={<Login key="student" />} />
+        <Route path="/register" element={<Register key="student" />} />
+        <Route path="/try" element={<TryLivingFunds />} />
         <Route path="/admin/login" element={<main className="admin-login"><Login key="admin" adminMode /></main>} />
         <Route path="/research" element={<SchoolWorkspace />}>
-          <Route index element={<ProtectedRoute loginPath="/research/login"><SchoolResearch /></ProtectedRoute>} />
+          <Route index element={<ProtectedRoute workspace="school"><SchoolResearch /></ProtectedRoute>} />
           <Route path="login" element={<Login key="school" schoolMode />} />
           <Route path="register" element={<Register key="school" schoolMode />} />
           <Route path="demo" element={<SchoolReportDemo />} />
         </Route>
-        <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+        <Route path="/admin" element={<ProtectedRoute workspace="admin"><AdminLayout /></ProtectedRoute>}>
           <Route index element={<AdminDashboard />} />
           <Route path="stats" element={<AdminDashboard />} />
           <Route path="users" element={<AdminDashboard section="users" />} />
           <Route path="knowledge" element={<AdminDashboard section="kb" />} />
           <Route path="coach" element={<AdminDashboard section="coach" />} />
           <Route path="podcasts" element={<PodcastAdmin />} />
+          <Route path="research" element={<SchoolResearch managementMode />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>
 
@@ -166,20 +118,15 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<HomeEntry />} />
           <Route path="start" element={<FirstVisit />} />
-          <Route path="login" element={<Login />} />
-          <Route path="register" element={<Register />} />
           
           {/* 受保护的路由 */}
-          <Route path="dashboard" element={
-            <OnboardingRoute>
-              <Dashboard />
-            </OnboardingRoute>
-          } />
+          <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="onboarding/complete" element={<ProtectedRoute><OnboardingComplete /></ProtectedRoute>} />
           <Route path="learning" element={<ProtectedRoute><Learning /></ProtectedRoute>} />
           <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="research/participation" element={<ProtectedRoute><ResearchParticipation /></ProtectedRoute>} />
+          <Route path="research/participation" element={<Navigate to="/profile/research" replace />} />
+          <Route path="profile/research" element={<ProtectedRoute><ResearchParticipation /></ProtectedRoute>} />
           <Route path="assessment" element={
             <ProtectedRoute>
               <Assessment />

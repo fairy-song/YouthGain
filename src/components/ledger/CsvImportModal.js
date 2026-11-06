@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Button, Form, Modal, Table } from 'react-bootstrap';
 import { confirmBillImport, deleteBillCategory, editBillImportRow, getBillImport, listBillImports, listBillCategories, previewBillImport, revertBillImportEdit, undoBillImport } from '../../services/api';
 import { dateKey } from '../FinanceVisuals';
@@ -31,8 +31,23 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
   const busy = operationBusy || childBusy;
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const refreshBatches = async () => setBatches(await listBillImports());
-  useEffect(() => { refreshBatches().catch(() => {}); }, []);
+  const [batchError, setBatchError] = useState(false);
+  const [ledgerError, setLedgerError] = useState(false);
+  const batchRequest = useRef(0);
+  const refreshBatches = useCallback(async () => {
+    const id = ++batchRequest.current;
+    try {
+      const result = await listBillImports();
+      if (batchRequest.current === id) { setBatches(result); setBatchError(false); }
+    } catch {
+      if (batchRequest.current === id) setBatchError(true);
+    }
+  }, []);
+  const refreshLedger = async () => {
+    try { await onSaved?.(); setLedgerError(false); }
+    catch { setLedgerError(true); }
+  };
+  useEffect(() => { refreshBatches(); return () => { batchRequest.current += 1; }; }, [refreshBatches]);
   useEffect(() => { let active = true; listBillCategories().then(rows => { if (active) setCustomOptions(rows); }).catch(e => { if (active) setError(errorText(e)); }); return () => { active = false; }; }, []);
   const upsertOption = option => setCustomOptions(current => [option, ...current.filter(row => row.id !== option.id)]);
   const categoryCreated = async option => {
@@ -107,7 +122,7 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
       const result = await confirmBillImport(file, source, preview.sha256, selected, overrides, edits);
       setMessage(result.created ? `账本已更新；这份文件当前共保存 ${result.count} 笔。待核对记录不参与收支统计。` : '所选记录已导入，未重复记账。');
       setPreview(null); setSelected([]); setEdits({});
-      await Promise.all([refreshBatches(), onSaved?.()]);
+      await Promise.all([refreshBatches(), refreshLedger()]);
     } catch (e) { setError(errorText(e)); }
     finally { setBusy(false); }
   };
@@ -115,9 +130,9 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
     setBusy(true); setError('');
     try {
       await undoBillImport(digest);
-      setMessage('已撤销这批账单，概览和图表已更新。');
+      setMessage('已撤销这批账单。');
       setActiveBatch(null);
-      await Promise.all([refreshBatches(), onSaved?.()]);
+      await Promise.all([refreshBatches(), refreshLedger()]);
     } catch (e) { setError(errorText(e)); }
     finally { setBusy(false); }
   };
@@ -133,8 +148,8 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
     setBusy(true); setError('');
     try {
       setActiveBatch(await editBillImportRow(activeBatch.sha256, row.row_id, change));
-      setRowDrafts({}); setMessage('已保存这笔修改，三项金额已更新。');
-      await onSaved?.();
+      setRowDrafts({}); setMessage('已保存这笔修改。');
+      await refreshLedger();
     } catch (e) { setError(errorText(e)); }
     finally { setBusy(false); }
   };
@@ -143,7 +158,7 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
     try {
       setActiveBatch(await revertBillImportEdit(activeBatch.sha256));
       setRowDrafts({}); setMessage('已撤销上次逐笔修改。');
-      await onSaved?.();
+      await refreshLedger();
     } catch (e) { setError(errorText(e)); }
     finally { setBusy(false); }
   };
@@ -201,7 +216,7 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
   const addedPurchase = async (purchase, imported = false) => {
     const setter = imported ? setActiveBatch : setPreview;
     setter(current => ({ ...current, purchase_options: [...(current.purchase_options || []), purchase] }));
-    await Promise.all([refreshBatches(), onSaved?.()]);
+    await Promise.all([refreshBatches(), refreshLedger()]);
     setMessage('原支出已补录。若取消退款导入，原支出仍保留，可在批次中撤销。');
   };
   const bulkRows = preview?.rows.filter(row => selected.includes(row.row_id)) || [];
@@ -226,6 +241,7 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
       <p className="text-muted small">先预览，再确认入账。含收支两方向的完整流水只需上传一次，系统会逐行分类；退款抵减原支出，不计为收入。未关联退款可在预览中选择原支出。原始文件不会保存在青盈。</p>
       {error && <Alert variant="danger" role="alert">{error}</Alert>}
       {message && <Alert variant="success" role="status">{message}</Alert>}
+      {ledgerError && <Alert variant="warning" role="status">账本暂未刷新，已完成的操作无需再次提交。 <Button variant="link" disabled={busy} onClick={async () => { setBusy(true); await refreshLedger(); setBusy(false); }}>只刷新账本</Button></Alert>}
       <div className="d-flex flex-wrap gap-2 align-items-end mb-3">
         <Form.Group controlId="csv-source"><Form.Label>账单来源</Form.Label><Form.Select value={source} disabled={busy} onChange={e => { setSource(e.target.value); clearPreview(); }}><option value="wechat">微信支付</option><option value="standard">青盈标准 CSV</option><option value="auto">自动识别</option></Form.Select></Form.Group>
         <Form.Group controlId="csv-file"><Form.Label>文件（CSV / XLSX，最多 2 MB、1500 行）</Form.Label><Form.Control type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={busy} onChange={e => { setFile(e.target.files?.[0] || null); clearPreview(); }} /></Form.Group>
@@ -244,7 +260,8 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
           onAdded={purchase => addedPurchase(purchase)} onError={setError} onBusyChange={setChildBusy} onDeleteCategory={categoryDeleted} />
         <Button variant="success" disabled={busy || selected.length === 0} onClick={commit}>确认导入 {selected.length} 行</Button>
       </>}
-      {batches.some(batch => batch.status === 'committed') && <div className="mt-4"><h6>已导入批次</h6>{batches.filter(batch => batch.status === 'committed').map(batch => <div className="d-flex gap-2 align-items-center mb-2" key={batch.sha256}><span className="small">{batch.created_at?.slice(0, 16)} · {batch.source === 'wechat' ? '微信支付' : '青盈标准账单'} · {batch.count} 行</span><Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => openBatch(batch.sha256)}>查看并修改</Button><Button size="sm" variant="outline-danger" disabled={busy} onClick={() => undo(batch.sha256)}>撤销整批</Button></div>)}</div>}
+      {batchError ? <Alert variant="warning" role="status" className="mt-4">暂时无法读取导入历史。 <Button variant="link" disabled={busy} onClick={async () => { setBusy(true); await refreshBatches(); setBusy(false); }}>只刷新导入历史</Button></Alert>
+        : batches.some(batch => batch.status === 'committed') && <div className="mt-4"><h6>已导入批次</h6>{batches.filter(batch => batch.status === 'committed').map(batch => <div className="d-flex gap-2 align-items-center mb-2" key={batch.sha256}><span className="small">{batch.created_at?.slice(0, 16)} · {batch.source === 'wechat' ? '微信支付' : '青盈标准账单'} · {batch.count} 行</span><Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => openBatch(batch.sha256)}>查看并修改</Button><Button size="sm" variant="outline-danger" disabled={busy} onClick={() => undo(batch.sha256)}>撤销整批</Button></div>)}</div>}
       {activeBatch?.status === 'committed' && <div className="mt-3 border rounded p-3">
         <div className="d-flex flex-wrap gap-2 align-items-center mb-2"><h6 className="mb-0">逐笔修改</h6><Button size="sm" variant="outline-secondary" disabled={busy || !activeBatch.can_revert_edit} onClick={revertEdit}>撤销上次修改</Button>{!preview && <Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => setShowCategoryCreate(true)}>自定义分类</Button>}</div>
         <p className="small text-muted">可改分类、收款类型和退款关联；待核对记录确认类型并补齐关联后才计入统计。可在最近账单删除单笔记录，通过“撤销上次修改”恢复。金额或日期有误时，也可撤销整批后重新导入。</p>
