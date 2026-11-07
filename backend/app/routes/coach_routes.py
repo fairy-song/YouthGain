@@ -1,6 +1,6 @@
 """Authenticated educational coaching; the server determines account identity."""
 import logging
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from app.services.auth_service import require_auth
 from app.services.coach_evidence import compute_facts, VERSION
 from app.services.knowledge_retriever import retrieve_knowledge
@@ -52,7 +52,7 @@ def chat(user_info):
                 'task': task, 'financial_context_authorized': data.get('use_learning_context') is True}
     try:
         from app.services.admin_service import list_kb_articles
-        articles, error = list_kb_articles(limit=2000)
+        articles, error = list_kb_articles()
         articles = [article for article in articles if article.get('region', 'CN') == 'CN']
         if error:
             raise RuntimeError(error)
@@ -95,6 +95,26 @@ def chat(user_info):
             return jsonify(status='error', message='成长记录读取失败。请重试，或关闭引用记录后继续对话。'), 503
     evidence['facts'] = fact_catalog(evidence['calculation'], snapshot, message=data['message'], history=history,
                                      purchase_amount=amount)
+    if current_app.config.get('COACH_ADAPTIVE_ENABLED', True):
+        from app.services.coach_policy import plan, direct_response
+        policy = plan(data['message'].strip(), history, evidence, zhipuai_service)
+        evidence['policy'] = policy
+        if policy['action'] == 'retrieve' and evidence['knowledge_status'] == 'available':
+            try:
+                extra = retrieve_knowledge(data['message'].strip(), articles, limit=5)
+                if extra['sources']:
+                    evidence.update(extra)
+                policy['retrieval_rounds'] = 2
+                policy['action'] = 'answer'
+                policy['evidence_state'] = 'retrieved_not_verified' if evidence.get('sources') else 'no_sources'
+            except Exception:
+                policy['action'] = 'defer'
+                policy['reason'] = '补充检索暂不可用，未生成确定结论'
+        elif policy['action'] == 'retrieve':
+            policy['action'] = 'defer'
+        direct = direct_response(policy, evidence)
+        if direct:
+            return jsonify(direct)
     response = zhipuai_service.get_chat_response({'message': data['message'].strip(), 'user_id': user_info['uid'],
                                                   'chat_history': history[-10:], 'learning_context': context,
                                                   'evidence': evidence})

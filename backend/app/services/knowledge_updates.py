@@ -49,6 +49,8 @@ def database():
           base_id TEXT, reviewer TEXT, reviewed_at TEXT, UNIQUE(document_id,fingerprint));
         CREATE TABLE IF NOT EXISTS ku_releases(id TEXT PRIMARY KEY, document_id TEXT NOT NULL,
           version_id TEXT, actor TEXT NOT NULL, created_at TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS ku_screenings(id INTEGER PRIMARY KEY AUTOINCREMENT,
+          version_id TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL);
         CREATE TRIGGER IF NOT EXISTS ku_version_content_immutable BEFORE UPDATE OF payload,fingerprint,document_id,base_id ON ku_versions
           BEGIN SELECT RAISE(ABORT,'knowledge version content is immutable'); END;
         CREATE TRIGGER IF NOT EXISTS ku_versions_no_delete BEFORE DELETE ON ku_versions
@@ -184,6 +186,14 @@ def fingerprint(title, content):
     return hashlib.sha256(normalized.encode('utf-8')).hexdigest()
 
 
+def body_fingerprint(document):
+    body = re.sub(r'\s+', '', unicodedata.normalize('NFKC', document['content']))
+    title = re.sub(r'\s+', '', unicodedata.normalize('NFKC', document['title']))
+    if title and body.startswith(title):
+        body = body[len(title):]
+    return hashlib.sha256(body.encode()).hexdigest()
+
+
 def save_source(data, source_id=None):
     if not isinstance(data, dict):
         raise ValueError('来源必须为对象')
@@ -192,15 +202,20 @@ def save_source(data, source_id=None):
         if source_id and not row:
             raise ValueError('来源不存在')
         old = json.loads(row['payload']) if row else {}
-        value = {**old, **{k: v for k, v in data.items() if k in ('name', 'url', 'kind', 'region', 'enabled')}}
+        value = {**old, **{k: v for k, v in data.items() if k in ('name', 'url', 'kind', 'region', 'enabled', 'usage_confirmed', 'publish_policy')}}
         value['url'] = safe_url(value.get('url', ''))
         if not isinstance(value.get('name'), str) or not 0 < len(value['name'].strip()) <= 160 or value.get('kind', 'page') not in ('page', 'index'):
             raise ValueError('请填写名称，来源类型须为正文或目录')
         if type(value.get('enabled', False)) is not bool or value.get('region', 'CN') not in ('CN', 'HK', 'general'):
             raise ValueError('来源启用状态或适用地区无效')
+        if type(value.get('usage_confirmed', False)) is not bool or value.get('publish_policy', 'manual') not in ('manual', 'basic_auto'):
+            raise ValueError('来源发布策略无效')
+        if value.get('publish_policy') == 'basic_auto' and not value.get('usage_confirmed'):
+            raise ValueError('启用基础内容自动发布前，须确认来源的站内使用范围')
         value.update(id=source_id or str(uuid4()), kind=value.get('kind', 'page'), region=value.get('region', 'CN'), enabled=value.get('enabled', False))
         if row and value['url'] != old['url']:
             value.update(etag=None, last_modified=None, next_check=None)
+            value.update(publish_policy='manual', usage_confirmed=False)
         conn.execute('INSERT OR REPLACE INTO ku_sources VALUES(?,?)', (value['id'], dump(value)))
         return value
 
@@ -229,7 +244,51 @@ def stage(source, url, body, headers=None):
                        region=source.get('region', 'CN'), date=published, checked_at=stamp(), fingerprint=digest)
         conn.execute('INSERT INTO ku_versions VALUES(?,?,?,?,?,?,?,?)',
                      (version['id'], doc_id, digest, dump(version), 'pending', document['current_id'] if document else None, None, None))
-        return True
+    screen_version(version['id'])
+    return True
+
+
+def screen_version(version_id):
+    from .knowledge_screening import evaluate
+    from .knowledge_capacity import check, current_articles
+    if not current_app.config.get('KNOWLEDGE_SCREENING_ENABLED', True):
+        return None
+    with database() as conn:
+        row = conn.execute('SELECT v.*,d.source_id,d.current_id FROM ku_versions v JOIN ku_documents d ON d.id=v.document_id WHERE v.id=?', (version_id,)).fetchone()
+        if not row or row['status'] != 'pending':
+            raise ValueError('只能筛选待处理版本')
+        document = json.loads(row['payload'])
+        source = json.loads(conn.execute('SELECT payload FROM ku_sources WHERE id=?', (row['source_id'],)).fetchone()[0])
+        previous = conn.execute('SELECT payload FROM ku_versions WHERE id=?', (row['current_id'],)).fetchone()
+        # Content equivalence ignores titles; syndicated titles must not defeat duplicate checks.
+        others = conn.execute('SELECT payload FROM ku_versions WHERE document_id!=?', (row['document_id'],)).fetchall()
+        duplicate = any(body_fingerprint(json.loads(v[0])) == body_fingerprint(document) for v in others)
+        # Reserve a short lease before the external call, with no transaction held during inference.
+        leased = conn.execute('SELECT payload FROM ku_screenings WHERE version_id=? ORDER BY id DESC LIMIT 1', (version_id,)).fetchone()
+        if leased and json.loads(leased[0]).get('lease_until', '') > stamp():
+            return {'decision': 'running'}
+        conn.execute('INSERT INTO ku_screenings(version_id,payload,created_at) VALUES(?,?,?)',
+                     (version_id, dump({'decision': 'running', 'lease_until': (now()+timedelta(minutes=1)).isoformat()}), stamp()))
+    result = evaluate(document, source, json.loads(previous[0]) if previous else None, duplicate)
+    with database() as conn:
+        latest = conn.execute('SELECT current_id,source_id FROM ku_documents WHERE id=?', (row['document_id'],)).fetchone()
+        latest_source = json.loads(conn.execute('SELECT payload FROM ku_sources WHERE id=?', (latest['source_id'],)).fetchone()[0])
+        status = conn.execute('SELECT status FROM ku_versions WHERE id=?', (version_id,)).fetchone()[0]
+        if status != 'pending' or latest['current_id'] != row['current_id'] or latest_source != source:
+            result.update(auto_publish=False, decision='review')
+            result['reasons'].append('筛选期间来源、发布状态或版本变化，需重新核对')
+        elif result['auto_publish']:
+            try:
+                check(current_articles(conn, document, 'dynamic-'+row['document_id']))
+                conn.execute("UPDATE ku_versions SET status='approved',reviewer=?,reviewed_at=? WHERE id=?", ('automatic:'+result['policy'], stamp(), version_id))
+                conn.execute('UPDATE ku_documents SET current_id=?,withdrawn=0 WHERE id=?', (version_id, row['document_id']))
+                conn.execute('INSERT INTO ku_releases VALUES(?,?,?,?,?)', (str(uuid4()), row['document_id'], version_id, 'automatic:'+result['policy'], stamp()))
+                result['decision'] = 'published'
+            except ValueError as error:
+                result.update(auto_publish=False, decision='capacity_wait')
+                result['reasons'].append(str(error))
+        conn.execute('INSERT INTO ku_screenings(version_id,payload,created_at) VALUES(?,?,?)', (version_id, dump(result), stamp()))
+    return result
 
 
 def check_source(source_id):
@@ -320,6 +379,21 @@ def run_due(limit=2):
         if source['enabled'] and (source.get('next_check') or '') <= stamp() and (source.get('lease_until') or '') <= stamp():
             check_source(source['id'])
             limit -= 1
+    if current_app.config.get('KNOWLEDGE_SCREENING_ENABLED', True):
+        with database() as conn:
+            cutoff = (now()-timedelta(days=1)).isoformat()
+            pending = conn.execute("SELECT v.id FROM ku_versions v LEFT JOIN ku_screenings s ON s.id=(SELECT MAX(id) FROM ku_screenings WHERE version_id=v.id) WHERE v.status='pending' AND (s.id IS NULL OR s.created_at<?) ORDER BY v.rowid LIMIT 2", (cutoff,)).fetchall()
+        for row in pending:
+            try:
+                screen_version(row[0])
+            except ValueError:
+                pass  # Concurrent human review wins; check again on the next run.
+    # Rebuild only the changed public snapshot; inference is not needed for this step.
+    from .admin_service import list_kb_articles
+    from .knowledge_retriever import _index, LocalModels
+    articles, error = list_kb_articles()
+    if not error:
+        _index([a for a in articles if a.get('region', 'CN') == 'CN'], LocalModels(), False)
 
 
 def release(document_id, version_id, actor):
@@ -328,6 +402,9 @@ def release(document_id, version_id, actor):
         version = conn.execute('SELECT * FROM ku_versions WHERE id=? AND document_id=?', (version_id, document_id)).fetchone() if version_id else None
         if not doc or (version_id and (not version or version['status'] != 'approved')):
             raise ValueError('仅能回退到同一文章已审核的版本')
+        if version:
+            from .knowledge_capacity import check, current_articles
+            check(current_articles(conn, json.loads(version['payload']), 'dynamic-'+document_id))
         conn.execute('UPDATE ku_documents SET current_id=?,withdrawn=? WHERE id=?', (version_id, not bool(version_id), document_id))
         conn.execute('INSERT INTO ku_releases VALUES(?,?,?,?,?)', (str(uuid4()), document_id, version_id, actor, stamp()))
 
@@ -347,9 +424,18 @@ def review(version_id, data, actor):
         doc = conn.execute('SELECT * FROM ku_documents WHERE id=?', (version['document_id'],)).fetchone()
         if doc['current_id'] != data.get('expected_current'):
             raise ValueError('当前发布版本已变化，请重新核对差异后采集新版本')
+        from .knowledge_capacity import check, current_articles
+        check(current_articles(conn, json.loads(version['payload']), 'dynamic-'+version['document_id']))
         conn.execute('UPDATE ku_versions SET status=?,reviewer=?,reviewed_at=? WHERE id=?', ('approved', actor, stamp(), version_id))
         conn.execute('UPDATE ku_documents SET current_id=?,withdrawn=0 WHERE id=?', (version_id, doc['id']))
         conn.execute('INSERT INTO ku_releases VALUES(?,?,?,?,?)', (str(uuid4()), doc['id'], version_id, actor, stamp()))
+
+
+def public_article(payload, document_id):
+    value = dict(payload)
+    value.update(version=value['id'], id='dynamic-'+document_id, category='safety',
+                 tags=['动态来源', value['region']], summary=value['content'][:160], readTime=5)
+    return value
 
 
 def published():
@@ -359,9 +445,7 @@ def published():
         rows = conn.execute('SELECT v.payload,d.id FROM ku_documents d JOIN ku_versions v ON d.current_id=v.id JOIN ku_sources s ON d.source_id=s.id WHERE d.withdrawn=0 AND v.status=\'approved\'').fetchall()
         result = []
         for row in rows:
-            value = json.loads(row['payload'])
-            value.update(version=value['id'], id='dynamic-'+row['id'], category='safety', tags=['动态来源', value['region']], summary=value['content'][:160], readTime=5)
-            result.append(value)
+            result.append(public_article(json.loads(row['payload']), row['id']))
         return result
 
 
@@ -375,5 +459,10 @@ def overview():
             value.pop('payload', None)
             old = conn.execute('SELECT payload FROM ku_versions WHERE id=?', (row['current_id'],)).fetchone()
             value['previous_content'] = json.loads(old[0])['content'] if old else ''
+            screened = conn.execute('SELECT payload,created_at FROM ku_screenings WHERE version_id=? ORDER BY id DESC LIMIT 1', (row['id'],)).fetchone()
+            value['screening'] = dict(json.loads(screened[0]), checked_at=screened[1]) if screened else None
             versions.append(value)
-    return dict(sources=sources, versions=versions)
+        counts = dict(conn.execute('SELECT status,COUNT(*) FROM ku_versions GROUP BY status').fetchall())
+        from .knowledge_capacity import current_articles, report
+        articles = current_articles(conn)
+    return dict(sources=sources, versions=versions, version_counts=counts, capacity=report(articles))

@@ -61,6 +61,15 @@ class Config:
     PODCAST_HSTU_MODEL_PATH = model_path('PODCAST_HSTU_MODEL_PATH', MODEL_ROOT / 'hstu/model.pt')
     PODCAST_HSTU_ALLOW_DEMO = os.environ.get('PODCAST_HSTU_ALLOW_DEMO', 'false').lower() == 'true'
     COACH_RETRIEVAL_MODE = os.environ.get('COACH_RETRIEVAL_MODE', 'hybrid')
+    KNOWLEDGE_MAX_ARTICLES = int(os.environ.get('KNOWLEDGE_MAX_ARTICLES', '1000'))
+    KNOWLEDGE_MAX_PASSAGES = int(os.environ.get('KNOWLEDGE_MAX_PASSAGES', '20000'))
+    KNOWLEDGE_INDEX_DB_PATH = os.environ.get('KNOWLEDGE_INDEX_DB_PATH')
+    KNOWLEDGE_PERSISTENT_INDEX = os.environ.get('KNOWLEDGE_PERSISTENT_INDEX', 'true').lower() == 'true'
+    KNOWLEDGE_SCREENING_ENABLED = os.environ.get('KNOWLEDGE_SCREENING_ENABLED', 'true').lower() == 'true'
+    KNOWLEDGE_SCREENING_AI = os.environ.get('KNOWLEDGE_SCREENING_AI', 'true').lower() == 'true'
+    KNOWLEDGE_SCREENING_MODEL = os.environ.get('KNOWLEDGE_SCREENING_MODEL') or os.environ.get('ZHIPUAI_MODEL', 'glm-4-flash')
+    COACH_ADAPTIVE_ENABLED = os.environ.get('COACH_ADAPTIVE_ENABLED', 'true').lower() == 'true'
+    COACH_POLICY_MODEL = os.environ.get('COACH_POLICY_MODEL') or os.environ.get('ZHIPUAI_MODEL', 'glm-4-flash')
     COACH_EMBEDDING_PATH = model_path('COACH_EMBEDDING_PATH', MODEL_ROOT / 'coach/embedding')
     COACH_RERANKER_PATH = model_path('COACH_RERANKER_PATH', MODEL_ROOT / 'coach/reranker')
     COACH_SEMANTIC_MIN_SCORE = os.environ.get('COACH_SEMANTIC_MIN_SCORE', '0.45')

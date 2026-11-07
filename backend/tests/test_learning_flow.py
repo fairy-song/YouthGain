@@ -199,6 +199,8 @@ def test_assessment_scores_derived_from_answers_not_client_totals(client):
 
 
 def test_coach_uses_authenticated_identity_and_explicit_context(client, monkeypatch):
+    # Exercise the legacy generation path; adaptive clarification has dedicated tests.
+    client.application.config['COACH_ADAPTIVE_ENABLED'] = False
     from app.routes import coach_routes
     coach = Mock()
     coach.get_chat_response.return_value = {'status': 'success', 'reply': '它满足什么需要？'}

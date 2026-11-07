@@ -582,8 +582,24 @@ export default apiService;
 
 // 用户端和管理员端读取同一份知识库内容。
 export const fetchKnowledgeArticles = async () => {
-  const response = await api.get('/knowledge');
-  return response.data.articles || [];
+  // Retry the entire catalogue once if a publication changes between pages.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let articles = [], offset = 0, snapshot;
+    try {
+      do {
+        const response = await api.get('/knowledge', { params: { offset, limit: 200, snapshot } });
+        articles = articles.concat(response.data.articles || []);
+        snapshot = response.data.snapshot;
+        const next = response.data.next_offset;
+        if (next != null && (!Number.isInteger(next) || next <= offset)) throw new Error('知识库分页无效');
+        offset = next;
+      } while (offset != null);
+      return articles;
+    } catch (error) {
+      if (error.response?.status !== 409 || attempt === 1) throw error;
+    }
+  }
+  return [];
 };
 
 export const getGoalPlan = async () => (await api.get('/decision/goal-plan')).data;

@@ -7,8 +7,10 @@ export default function CoachEvidence({ evidence, validation, runtime }) {
   const unused = (evidence.sources || []).filter(s => !used.some(u => u.source_id === s.source_id));
   return <details className="coach-evidence mt-3 border-top pt-2">
     <summary>查看本次依据</summary>
-    {runtime && <p className="small">本次回答方式：{({ model: 'AI 生成并经检查', rule: '程序事实或资料整理', unavailable: '未生成回答' })[runtime.generation_mode] || '未标注'}。
+    {runtime && <p className="small">本次回答方式：{({ model: 'AI 生成并经检查', rule: '程序事实或资料整理', guided: '确认关键信息后再继续', unavailable: '未生成回答' })[runtime.generation_mode] || '未标注'}。
       {runtime.model && `模型：${runtime.model}。`}版本：{runtime.protocol_version || '未标注'}。这些信息不代表回答效果评分。</p>}
+    {evidence.policy && <p className="small">本轮处理：{({ clarify: '先确认缺失条件', retrieve: '补充检索', calculate: '解释已有计算', answer: '结合现有信息回答', defer: '暂缓确定结论' })[evidence.policy.action]}。
+      {evidence.policy.mode === 'model+constraints' ? '由模型选择并经过程序约束。' : '当前采用程序规则。'}检索 {evidence.policy.retrieval_rounds} 轮；资料相关不代表足以支持所有结论。</p>}
     {validation?.fallback && <p>本次完整分析暂未生成，已展示可核对的事实或资料。</p>}
     {evidence.retrieval?.degraded && <p>本次知识检索部分功能暂不可用，已采用备用检索。</p>}
     {evidence.knowledge_status === 'unavailable' && <p>知识库暂不可用，本次没有知识片段依据。</p>}

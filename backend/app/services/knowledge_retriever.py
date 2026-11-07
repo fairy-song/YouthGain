@@ -52,10 +52,13 @@ class LocalModels:
     """The same adapters are injectable into the offline evaluation and tests."""
     @property
     def signature(self):
-        return str(_config('COACH_EMBEDDING_PATH', ''))
+        path = Path(_config('COACH_EMBEDDING_PATH', ''))
+        files = [(p.name, p.stat().st_size, p.stat().st_mtime_ns) for p in path.glob('*')
+                 if p.is_file() and p.suffix in ('.json', '.safetensors', '.bin')]
+        return str(path) + ':' + hashlib.sha256(repr(sorted(files)).encode()).hexdigest()[:16]
 
     def encode(self, texts, *, query=False):
-        model = _load_encoder(self.signature)
+        model = _load_encoder(str(_config('COACH_EMBEDDING_PATH', '')))
         if query:
             texts = ['为这个句子生成表示以用于检索相关文章：' + text for text in texts]
         return np.asarray(model.encode(texts, normalize_embeddings=True,
@@ -70,17 +73,17 @@ class LocalModels:
 
 def passages(articles):
     result = []
-    for article in articles[:2000]:
+    for article in articles:
         if not isinstance(article, dict) or not article.get('id') or not article.get('content'):
             continue
-        content = str(article['content'])[:40000]
+        content = str(article['content']).strip()
         title = str(article.get('title') or '')[:160]
         offset = 0
-        for paragraph in re.split(r'\n\s*\n', content):
+        for paragraph in [content]:
             paragraph = paragraph.strip()
             for start in range(0, len(paragraph), 700):
                 excerpt = paragraph[start:start+800]
-                if len(excerpt) < 12:
+                if not excerpt:
                     continue
                 body_terms = Counter(tokens(excerpt))
                 title_terms = Counter(tokens(title + ' ' + str(article.get('summary') or '')))
@@ -95,18 +98,26 @@ def passages(articles):
 
 
 def _index(articles, models, dense):
-    documents = passages(articles)
-    fingerprint = hashlib.sha256(json.dumps(
-        [{k: v for k, v in d.items() if not k.startswith('_')} for d in documents],
-        sort_keys=True, ensure_ascii=False).encode()).hexdigest()
-    key = (fingerprint, models.signature if dense else 'bm25')
+    from .knowledge_capacity import corpus_digest
+    from .knowledge_index_store import read_snapshot, persist_snapshot, cached_vectors, save_vectors
+    fingerprint = 'fulltext-v3-' + corpus_digest(articles)
+    # Scope memory caches to the backing store; test/deployment stores never share snapshots.
+    from flask import has_app_context
+    from .knowledge_index_store import index_path
+    store_id = str(index_path()) if has_app_context() else 'memory-only'
+    cache_key = (store_id, fingerprint, models.signature if dense else 'bm25')
     with _lock:
-        if key in _indexes:
-            _indexes.move_to_end(key)
-            return _indexes[key]
+        documents = read_snapshot(fingerprint)
+        if documents is None:
+            documents = passages(articles)
+            persist_snapshot(documents, fingerprint)
+        if cache_key in _indexes:
+            _indexes.move_to_end(cache_key)
+            return _indexes[cache_key]
         matrix = None
         if dense and documents:
             keys = [(models.signature, hashlib.sha256(d['_text'].encode()).hexdigest()) for d in documents]
+            _vectors.update(cached_vectors([k for k in keys if k not in _vectors]))
             missing = {}
             for key, doc in zip(keys, documents):
                 if key not in _vectors:
@@ -116,6 +127,7 @@ def _index(articles, models, dense):
                 if encoded.ndim != 2 or encoded.shape[0] != len(missing) or not np.isfinite(encoded).all():
                     raise ValueError('invalid_document_embeddings')
                 _vectors.update(zip(missing, encoded))
+                save_vectors(dict(zip(missing, encoded)))
             matrix = np.stack([_vectors[key] for key in keys])
             for key in keys:
                 _vectors.move_to_end(key)
@@ -124,7 +136,7 @@ def _index(articles, models, dense):
             if matrix.ndim != 2 or matrix.shape[0] != len(documents) or not np.isfinite(matrix).all():
                 raise ValueError('invalid_document_embeddings')
         value = (documents, matrix, fingerprint)
-        _indexes[key] = value
+        _indexes[cache_key] = value
         while len(_indexes) > 4:
             _indexes.popitem(last=False)
         return value
@@ -139,7 +151,7 @@ def _bm25(query, docs):
         df = sum(term in d['_terms'] for d in docs)
         idf = math.log(1 + (n-df+.5)/(df+.5))
         for i, doc in enumerate(docs):
-            tf = doc['_terms'][term]
+            tf = doc['_terms'].get(term, 0)
             length = sum(doc['_terms'].values())
             if tf and terms.intersection(doc['_body_terms']):
                 scores[i] += idf * tf * 2.5 / (tf + 1.5*(.25+.75*length/max(1, avg)))
@@ -159,8 +171,15 @@ def retrieve_knowledge(query, articles, limit=3, *, models=None, mode=None):
         docs, matrix, digest = _index(articles, models, dense)
     except Exception:
         log.warning('Semantic knowledge index unavailable; using BM25', exc_info=False)
-        docs, matrix, digest = _index(articles, models, False)
         trace.update(degraded=True, reason='semantic_model_unavailable')
+        try:
+            docs, matrix, digest = _index(articles, models, False)
+        except Exception:
+            # A disk/cache failure must not make the current public corpus unusable.
+            # Rebuild only from the caller's current articles, never a stale snapshot.
+            from .knowledge_capacity import corpus_digest
+            docs, matrix, digest = passages(articles), None, 'fulltext-v3-' + corpus_digest(articles)
+            trace.update(reason='persistent_index_unavailable')
     trace['corpus_version'] = digest
     if not docs or not tokens(query):
         return {'sources': [], 'retrieval': trace}

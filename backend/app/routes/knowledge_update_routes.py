@@ -48,6 +48,12 @@ def review(user_info, version_id):
     return jsonify(saved=True)
 
 
+@knowledge_updates_bp.post('/versions/<version_id>/screen')
+@require_admin
+def screen(user_info, version_id):
+    return jsonify(screening=service.screen_version(version_id))
+
+
 @knowledge_updates_bp.post('/documents/<document_id>/release')
 @require_admin
 def release(user_info, document_id):

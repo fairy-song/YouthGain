@@ -430,7 +430,7 @@ def _count_firestore_docs(collection_ref, limit=1000):
 # 知识库内容管理
 # ============================================================
 
-def list_kb_articles(limit=200):
+def list_kb_articles(limit=None):
     """Legacy/manual articles plus reviewed dynamic publications."""
     from .knowledge_updates import published
     original, error = _list_manual_kb_articles(limit)
@@ -442,15 +442,16 @@ def list_kb_articles(limit=200):
         from flask import current_app
         current_app.logger.exception('Dynamic knowledge unavailable; retaining manual articles')
         dynamic = []
-    return (dynamic + original)[:limit], None
+    return sorted(dynamic + original, key=lambda a: str(a.get('id', '')))[:limit], None
 
 
-def _list_manual_kb_articles(limit=200):
+def _list_manual_kb_articles(limit=None):
     """返回知识库文章列表（新到旧）。"""
     if is_mysql_mode():
         _ensure_mysql_kb_table()
         rows = MySQLHelper.execute_query(
-            "SELECT * FROM kb_articles ORDER BY created_at DESC LIMIT %s", (limit,))
+            "SELECT * FROM kb_articles ORDER BY created_at DESC" + (" LIMIT %s" if limit is not None else ""),
+            (limit,) if limit is not None else ())
         articles = []
         for row in rows:
             articles.append({
@@ -475,7 +476,8 @@ def _list_manual_kb_articles(limit=200):
     if not db:
         return [], "数据库未初始化"
     try:
-        docs = db.collection(get_public_collection_path('knowledge_base')).limit(limit).get()
+        query = db.collection(get_public_collection_path('knowledge_base'))
+        docs = (query.limit(limit) if limit is not None else query).get()
         articles = []
         for doc in docs:
             article = doc.to_dict()
@@ -487,6 +489,17 @@ def _list_manual_kb_articles(limit=200):
 
 
 def create_kb_article(data):
+    from .knowledge_updates import database
+    from .knowledge_capacity import check, current_articles
+    try:
+        with database() as conn:
+            check(current_articles(conn, _normalize_article(data)))
+            return _create_kb_article(data)
+    except ValueError as error:
+        return None, str(error)
+
+
+def _create_kb_article(data):
     """新增知识库文章，返回 (article, error)。"""
     article = _normalize_article(data)
     if is_mysql_mode():
@@ -519,6 +532,17 @@ def create_kb_article(data):
 
 
 def update_kb_article(article_id, data):
+    from .knowledge_updates import database
+    from .knowledge_capacity import check, current_articles
+    try:
+        with database() as conn:
+            check(current_articles(conn, _normalize_article(data), article_id))
+            return _update_kb_article(article_id, data)
+    except ValueError as error:
+        return None, str(error)
+
+
+def _update_kb_article(article_id, data):
     """更新知识库文章，返回 (article, error)。"""
     article = _normalize_article(data)
     if is_mysql_mode():
