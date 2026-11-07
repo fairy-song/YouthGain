@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+  <title id="title">青盈 YouthGain · 看懂花费，安排生活</title>
+  <desc id="desc">暖白与森林绿的青盈封面，纸币与硬币沿曲线展开，连接消费感知、智能辅导与自主行动。</desc>
+  <rect width="1280" height="420" rx="24" fill="#f7f6ef"/>
+  <path d="M790 0h490v420H950C1050 265 740 232 790 0" fill="#e6eee3"/>
+  <g font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif">
+    <rect x="64" y="48" width="44" height="44" rx="13" fill="#28785c"/>
+    <text x="86" y="78" text-anchor="middle" font-size="25" font-weight="700" fill="#fff">青</text>
+    <text x="124" y="78" fill="#28785c" font-size="19" font-weight="600" letter-spacing="4">YOUTHGAIN</text>
+    <text x="64" y="176" fill="#173f32" font-size="59" font-weight="700">看懂花费，安排生活。</text>
+    <text x="67" y="225" fill="#52655b" font-size="22">让每一笔消费，都成为理解自己的开始。</text>
+    <path d="M68 275H690" stroke="#ccd8cb"/>
+    <text x="68" y="320" fill="#28785c" font-size="17" letter-spacing="2">消费感知</text>
+    <text x="226" y="320" fill="#28785c" font-size="17" letter-spacing="2">情境化 AI 辅导</text>
+    <text x="450" y="320" fill="#28785c" font-size="17" letter-spacing="2">自主行动与回顾</text>
+    <text x="68" y="374" fill="#738176" font-size="13" letter-spacing="2">BEHAVIOR · KNOWLEDGE · PRACTICE</text>
+  </g>
+  <path d="M830 304c90 50 315-30 323-168" fill="none" stroke="#a9c4a9" stroke-width="2" stroke-dasharray="5 8"/>
+  <g transform="translate(840 96) rotate(-12 139 78)">
+    <rect width="278" height="156" rx="14" fill="#bdd9c1" stroke="#7fab8b"/>
+    <rect x="12" y="12" width="254" height="132" rx="10" fill="none" stroke="#7fab8b" stroke-dasharray="3 4"/>
+    <circle cx="66" cy="78" r="30" fill="#dceadd"/>
+    <text x="66" y="89" text-anchor="middle" font-family="Georgia,serif" font-size="31" fill="#28785c">¥</text>
+    <text x="164" y="99" text-anchor="middle" font-family="Georgia,serif" font-size="58" fill="#205c44">100</text>
+  </g>
+  <g fill="#e9cc87" stroke="#b99a53" stroke-width="2">
+    <circle cx="1108" cy="295" r="44"/><circle cx="987" cy="327" r="30"/>
+  </g>
+  <g fill="none" stroke="#c2a565"><circle cx="1108" cy="295" r="36"/><circle cx="987" cy="327" r="24"/></g>
+  <g text-anchor="middle" font-family="Georgia,serif" fill="#735b2e"><text x="1108" y="307" font-size="36">1</text><text x="987" y="336" font-size="23">0.5</text></g>
+</svg>

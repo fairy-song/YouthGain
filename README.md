@@ -1,20 +1,22 @@
 <div align="center">
 
+<img src="docs/assets/readme-cover.svg" width="100%" alt="青盈 YouthGain：看懂花费，安排生活" />
+
 # 青盈 · YouthGain
 
-**看懂花费，安排生活。**
+**融合行为经济学与情境化智能辅导及推荐的大学生财商实践平台**
 
-融合行为经济学与情境化智能辅导及推荐的大学生财商实践平台。<br />
 从一笔真实消费开始，连接消费感知、资金安排、知识学习与自主回顾。
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-168575?style=flat-square)](LICENSE)
-[![React 18](https://img.shields.io/badge/React-18-149eca?style=flat-square&logo=react&logoColor=white)](package.json)
-[![Flask](https://img.shields.io/badge/Backend-Flask-333333?style=flat-square&logo=flask&logoColor=white)](backend/requirements.txt)
-[![Project status](https://img.shields.io/badge/Status-Active%20Development-d99b36?style=flat-square)](#project-status)
+[![License: MIT](https://img.shields.io/badge/License-MIT-28785c?style=flat-square)](LICENSE) [![React 18](https://img.shields.io/badge/React-18-149eca?style=flat-square&logo=react&logoColor=white)](package.json) [![Flask](https://img.shields.io/badge/Backend-Flask-333333?style=flat-square&logo=flask&logoColor=white)](backend/requirements.txt) [![Status](https://img.shields.io/badge/Status-Research%20Prototype-b18b46?style=flat-square)](#project-status)
 
-[快速开始](#quick-start) · [功能概览](#features) · [系统设计](#architecture) · [文档](#documentation) · [参与贡献](#contributing)
+[产品预览](#preview) · [快速开始](#quick-start) · [三端入口](#workspaces) · [系统设计](#architecture) · [文档](#documentation)
+
+[报告问题](https://github.com/fairy-song/YouthGain/issues) · [参与贡献](#contributing)
 
 </div>
+
+---
 
 ## 为什么做青盈
 
@@ -22,9 +24,18 @@
 
 项目将记账、目标规划、情境练习与 AI 教练放在同一条使用路径里，让金融知识可以回到日常生活中实践。应用不会代用户支付、自动转账或执行投资交易。
 
-```text
-记录或导入 → 看懂累计花费 → 确认自己的感受 → 辅导与知识推荐 → 自主行动与回顾
-```
+**记录或导入 → 看见钱的去向 → 理解消费选择 → 学习与辅导 → 行动与回顾**
+
+<a id="preview"></a>
+## 看见花费，才开始理解花费
+
+<img src="docs/assets/spending-awareness.png" width="100%" alt="青盈真实界面的模拟场景：186.50 元餐饮净支出被展开为纸币和硬币" />
+
+<p align="center"><sub>实际界面 · 模拟数据：把 ¥186.50 展开成纸币和硬币，让抽象数字变得可感知。</sub></p>
+
+| 看见消费 | 理解选择 | 形成行动 |
+| :--- | :--- | :--- |
+| 分类累计支出、退款口径与钱币展开，让花费有具体形态。 | 情境化教练结合已确认事实与知识依据，帮助梳理条件。 | 把观察带入学习与复盘，记录自主选择和后续体验。 |
 
 <a id="features"></a>
 ## 功能概览
@@ -39,11 +50,17 @@
 | 知识与音频 | 阅读金融教育资料；自动筛选可信来源的增量更新，按来源策略发布或复核；从已审核目录推荐具体音频单集，支持收藏和反馈 |
 | 管理与研究 | 管理用户、知识与音频内容；研究参与单独授权，学校端按权限查看群体统计 |
 
-### 情境化实践试用版
+<details>
+<summary><strong>当前实现与验证边界</strong></summary>
 
-首页使用后端的完整月度分类汇总，区分支出、退款和净支出；没有记录不等于没有花费。用户自行判断是否符合预期，再选择带入教练或复盘，进入后仍需确认发送或保存。已有推荐服务保持独立，不会根据首页临时选择实时重排。
+首页使用完整月度分类汇总，区分支出、退款和净支出；没有记录不等于没有花费。用户确认感受后，自主选择带入教练或复盘。已有推荐服务保持独立，不会根据首页临时选择实时重排。
 
-当前尚无真实用户试用结论。自动化与模拟使用用于验证流程和数据边界，不代表已经证明财商提升或推荐有效。实施步骤、验收结果与试用任务见[情境化财商实践改进计划](docs/青盈情境化财商实践改进计划.md)。设置 `REACT_APP_SPENDING_JOURNEY=false` 后重新启动或构建可关闭本轮入口增强，已保存记录仍可在原页面访问。
+当前处于研究原型阶段，尚无真实用户试用或教育效果结论。模拟使用用于验证流程与数据边界。入口开关与试用任务见[情境化财商实践改进计划](docs/青盈情境化财商实践改进计划.md)。
+
+</details>
+
+<details>
+<summary><strong>财务口径、AI 辅导与自动知识库如何工作？</strong></summary>
 
 ### 财务计算与 AI 解释分开
 
@@ -59,6 +76,8 @@
 ### 自动知识库与自适应辅导
 
 知识管理页显示实际文章数、全文片段数、持久索引状态及可配置配额（默认 1,000 篇 / 20,000 片段，非实际库存或性能承诺）。自动筛选结合来源规则、模型分类与原文摘录校验；现有来源保留人工发布，确认使用范围后可逐来源开启合格基础内容自动发布，异常仍需复核。教练的动作选择采用模型与程序约束，并保留规则回退；目前未训练新策略模型，也未证明教育效果。实际库存、验证结果、限制及开关回退见[实施记录](docs/自动知识库与自适应辅导实施记录.md)。
+
+</details>
 
 <a id="quick-start"></a>
 ## 快速开始
@@ -85,6 +104,7 @@ Copy-Item .env.example .env.local
 APP_ENV=development
 DEV_MODE=true
 DB_TYPE=memory
+COACH_RETRIEVAL_MODE=bm25
 RESEARCH_LIVE_ENABLED=false
 PODCAST_RANKER_MODE=baseline
 ```
@@ -92,7 +112,7 @@ PODCAST_RANKER_MODE=baseline
 > [!IMPORTANT]
 > `DEV_MODE=true` 会使用模拟身份登录，不验证真实密码，仅用于可信的本机开发环境。不要填入常用真实密码，不要将开发服务暴露到公网。`DB_TYPE=memory` 的开发数据会持久化到本地文件，并非重启即清空。
 
-不填写 Firebase 前端配置与 AI 密钥也可先体验记账和基础学习。语音识别、完整模型回答等能力需要另外配置服务。
+这套入门配置使用关键词检索与规则推荐，可先体验记账和基础学习；无需填写 Firebase 前端配置与 AI 密钥。语音识别、完整模型回答等能力需要另外配置服务。
 
 ### 3. 启动
 
@@ -130,6 +150,22 @@ PODCAST_RANKER_MODE=baseline
 
 </details>
 
+<a id="workspaces"></a>
+## 三端入口
+
+启动后请按身份进入对应工作区，三个登录入口独立。
+
+| 工作区 | 本地入口 | 登录条件 |
+| --- | --- | --- |
+| 学生端 | [进入青盈](http://127.0.0.1:3000/#/) · [登录](http://127.0.0.1:3000/#/login) | 本地模拟模式使用测试邮箱；真实部署使用注册账号 |
+| 管理员端 | [管理员登录](http://127.0.0.1:3000/#/admin/login) | 邮箱需配置在 `ADMIN_EMAILS` 中，选择入口不会授予权限 |
+| 学校端 | [学校端登录](http://127.0.0.1:3000/#/research/login) · [报告演示](http://127.0.0.1:3000/#/research/demo) | 实际报告需启用研究功能，并由项目负责人授权；演示页可先查看 |
+
+本机地址需先启动服务。GitHub Pages 的静态页面不能替代后端服务。
+
+<details>
+<summary><strong>进阶配置：认证、模型、语音、存储与研究</strong></summary>
+
 ## 配置说明
 
 完整变量见 [.env.example](.env.example)。只为要启用的能力填写配置，密钥不应出现在前端源码或 Git 提交中。
@@ -145,6 +181,8 @@ PODCAST_RANKER_MODE=baseline
 | RSS 采集 | `PODCAST_RSS_ALLOWED_HOSTS` | 仅采集经过核准的来源 |
 | 管理权限 | `ADMIN_EMAILS` | 按登录邮箱核验角色 |
 | 学校研究 | `RESEARCH_LIVE_ENABLED`、`RESEARCH_DB_PATH` | 默认不启用真实研究；需单独配置、授权与验收 |
+
+</details>
 
 <a id="architecture"></a>
 ## 系统设计
@@ -169,6 +207,9 @@ flowchart LR
 - **数据边界**：财务事实由程序计算，模型负责解释；个人记录引用与研究参与分别授权。
 
 模型准备、训练与验证步骤见 [AI 教练与 HSTU 实现说明](docs/AI教练与HSTU实现说明.md)。合成训练指标不能证明真实校园推荐效果或金融素养提升。
+
+<details>
+<summary><strong>开发者指南：目录、测试、部署与项目状态</strong></summary>
 
 ### 仓库结构
 
@@ -214,11 +255,13 @@ GitHub Pages 只能托管静态前端，完整功能需要单独部署后端，�
 
 项目处于持续开发阶段，适合本地体验、课程研究与功能验证。知识内容审核、真实服务联调和推荐效果评价仍需持续完善。
 
-**本次增强**：已纳入花销钱币可视化、知识来源增量更新、播客候选兜底及全站交互修复。动态知识来源在新环境默认停用，启用后先进入审核台账，审核通过才发布；本地已采集文章和用户数据不随源码上传。
+**本次增强**：已纳入花销钱币可视化、知识来源增量更新、播客候选兜底及全站交互修复。动态知识来源在新环境默认停用，启用后自动筛选；默认人工发布，逐来源确认使用范围后可启用合格基础内容自动发布；本地已采集文章和用户数据不随源码上传。
 
 本地回退脚本依赖 `tmp/` 中对应的修改前快照，这些快照不随仓库分发；新克隆环境请通过 Git 历史管理代码回退，并单独备份数据库。
 
 后续方向见[长期迭代思路](docs/青盈长期迭代里程思路.md)。
+
+</details>
 
 <a id="documentation"></a>
 ## 文档导航
@@ -256,3 +299,8 @@ GitHub Pages 只能托管静态前端，完整功能需要单独部署后端，�
 项目采用 [MIT License](LICENSE)。本项目由 [XiaoCow666 / 财赋思](https://github.com/XiaoCow666/Caifusi) 演进而来，当前由 [fairy-song](https://github.com/fairy-song) 重构与维护；保留原始作者与维护者的版权声明。
 
 青盈用于财商教育、记录与试算，不提供确定收益承诺，也不替代专业金融决策。
+
+
+---
+
+<p align="center"><strong>让金融知识回到日常生活，让每一次选择更有意识。</strong><br /><sub>YouthGain · 青盈</sub></p>
