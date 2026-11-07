@@ -2,6 +2,7 @@ import os
 import re
 import json
 import logging
+from datetime import datetime, timezone
 from zhipuai import ZhipuAI
 from .coach_validator import validate_reply, _bind_literal_scenario
 from .coach_tools import safe_reply, bind_purchase_input
@@ -43,6 +44,19 @@ class ZhipuAIService:
         self.max_history_length = 10
 
     def get_chat_response(self, data):
+        result = self._get_chat_response(data)
+        fallback = result.get('validation', {}).get('fallback') is True
+        mode = 'unavailable' if result.get('status') != 'success' else 'rule' if fallback else 'model'
+        result['runtime'] = {
+            'generation_mode': mode,
+            'model': os.environ.get('ZHIPUAI_MODEL', 'glm-4-flash') if mode == 'model' else None,
+            'protocol_version': 'qingying-coach-20261107',
+            'generated_at': datetime.now(timezone.utc).isoformat(),
+            'retrieval_mode': ((data.get('evidence') or {}).get('retrieval') or {}).get('used', 'unknown'),
+        }
+        return result
+
+    def _get_chat_response(self, data):
         """
         获取AI聊天回复，支持对话记忆和问卷结果集成
         :param data: 包含消息内容、用户ID、可选的聊天历史和问卷结果的字典
@@ -188,6 +202,7 @@ facts 中存在 F:purchase_amount 时，必须先在正文中引用 {{F:purchase
 直接输出自然中文 Markdown 正文，不输出 JSON。允许数字、公式、编号步骤和具体例子。
 分析时选择相关的预算约束、机会成本、边际收益、激励、风险与不确定性、时间价值等视角，解释因果和取舍，不强行罗列所有概念。区分事实、假设和观点；结论有条件时明确说明。
 目标：帮助用户了解自己、理解取舍、面对不确定性、独立决定。不是替用户裁定该不该花钱。
+必要生活支出超过可用资源时，明确这是资源约束，不归因于不自律；先核实必要性、时间与可获得的支持，不默认要求压缩吃饭、医疗或学习等必要开支。允许用户保持原安排或暂缓判断。
 回答长度按问题需要调整，简单消费问题优先用三小段：直接结论、具体依据、一个可执行的下一步。不要重复劝告或堆砌通用建议。涉及金额只引用系统计算或用户明确提供的数据；区分账户估算余额、本月预算剩余和月均结余，不自行补全收入、余额或支出。缺少决定性信息时说明缺项并问一个具体问题。
 回答顺序：开头直接回答用户的问题，说明必要条件；接着把相关知识融入理由、生活例子和具体做法。整段回答必须独立完整，即使用户不打开任何资料也能理解并行动。
 知识库使用规则：阅读提供的片段，提炼与当前问题有关的观点，用自己的话整合到答案里。禁止原样输出 [K1][K2][K3] 等索引条目，禁止罗列资料标题、原始摘录或用资料清单代替回答。参考编号仅用于理解材料，不在正文展示。

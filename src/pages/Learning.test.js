@@ -17,6 +17,7 @@ jest.mock('../services/learning', () => ({
 }));
 
 const state = {
+  review_week: '2026-09-21',
   profile: {}, topics: [{ id: 'budget', title: '安排收支', description: '安排优先顺序' }],
   lessons: [{ id: 'needs', day: 1, topic: 'budget', title: '我的钱要照顾什么', concept: '先安排必要开支', scenario: '月底需要交费', prompt: '写下你的安排' }],
   entries: [], summary: { completed_lessons: [], practice_count: 0, decision_count: 0, review_count: 0, checkin: { total_days: 0 }, abilities: [] },
@@ -32,6 +33,20 @@ test('review handoff requires confirmation, preserves existing writing and does 
   expect(input).toHaveValue('我已经写的想法\n2026-10 餐饮累计净支出 80 元。');
   expect(saveLearningEntry).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: '将观察带入复盘' })).not.toBeInTheDocument();
+});
+
+test('saved weekly writing is restored before handoff and requires explicit update confirmation', async () => {
+  getLearning.mockResolvedValue({ ...state, entries: [{ kind: 'review', week: state.review_week, observation: '原观察', next_action: '原行动', principle: '原原则', pressure: 'helpful' }] });
+  render(<MemoryRouter initialEntries={[{ pathname: '/learning', search: '?tab=review', state: { spendingObservation: '新观察' } }]}><Learning /></MemoryRouter>);
+  const observation = await screen.findByLabelText('这周哪笔消费值得回看？（没有消费也可以回看计划）');
+  await waitFor(() => expect(observation).toHaveValue('原观察'));
+  fireEvent.click(screen.getByRole('button', { name: '将观察带入复盘' }));
+  expect(observation).toHaveValue('原观察\n新观察');
+  expect(screen.getByLabelText('下周想保持或调整什么？')).toHaveValue('原行动');
+  expect(screen.getByRole('button', { name: '保存本周复盘' })).toBeDisabled();
+  fireEvent.click(screen.getByLabelText('我已核对，更新本周已有复盘'));
+  fireEvent.click(screen.getByRole('button', { name: '保存本周复盘' }));
+  await waitFor(() => expect(saveLearningEntry).toHaveBeenCalledWith('review', expect.objectContaining({ observation: '原观察\n新观察', principle: '原原则', expected_week: state.review_week })));
 });
 
 beforeEach(() => {

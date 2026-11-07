@@ -48,6 +48,9 @@ def test_valid_response_does_not_retry(monkeypatch):
         '{"explanation":"先检查自动续费项目，取消已经不用的订阅。","source_ids":[]}')
     result = service.get_chat_response({'message': '怎么减少订阅支出', 'evidence': {'sources': []}})
     assert result['validation']['fallback'] is False
+    assert result['runtime']['generation_mode'] == 'model'
+    assert result['runtime']['model']
+    assert result['runtime']['protocol_version'] == 'qingying-coach-20261107'
     service.client.chat.completions.create.assert_called_once()
 
 
@@ -75,6 +78,13 @@ def test_empty_answer_never_becomes_success(monkeypatch):
     assert result['status'] == 'error'
     assert 'reply' not in result
     assert service.client.chat.completions.create.call_count == 2
+
+
+def test_unavailable_provider_is_not_labelled_model_generation(monkeypatch):
+    monkeypatch.delenv('ZHIPUAI_API_KEY', raising=False)
+    result = ZhipuAIService().get_chat_response({'message': '预算', 'evidence': {'sources': []}})
+    assert result['runtime']['generation_mode'] == 'unavailable'
+    assert result['runtime']['model'] is None
 
 
 def test_presentation_validation_allows_examples_and_removes_thinking():

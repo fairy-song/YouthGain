@@ -127,7 +127,7 @@ const CoachChat = () => {
       
       if (response && response.reply) {
         const aiMessage = { id: Date.now() + 1, sender: 'ai', text: response.reply,
-          evidence: response.evidence, validation: response.validation };
+          evidence: response.evidence, validation: response.validation, runtime: response.runtime };
         setMessages(prevMessages => [...prevMessages, aiMessage]);
       } else {
         throw new Error('empty_coach_response');
@@ -219,7 +219,7 @@ const CoachChat = () => {
                       }`}
                     >
                       <MarkdownRenderer>{message.text}</MarkdownRenderer>
-                      {message.sender === 'ai' && <CoachEvidence evidence={message.evidence} validation={message.validation} />}
+                      {message.sender === 'ai' && <CoachEvidence evidence={message.evidence} validation={message.validation} runtime={message.runtime} />}
                       <small className="message-time text-muted d-block text-end mt-1">{formatMessageTime()}</small>
                     </div>
                     

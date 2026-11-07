@@ -43,7 +43,9 @@ function SpendingObservation({ snapshot, refreshing }) {
     {perception && !refreshing && <div className="journey-next-step">
       <p role="status">{perception === 'surprised' ? '可以先看看是否有计划内的大额开支或漏记退款，再决定要不要调整。' : perception === 'expected' ? '符合预期的消费也值得了解。可以记录哪些安排对你有帮助。' : '先了解用途和当时的需要，再判断是否符合自己的安排。'}</p>
       <div className="journey-links"><Link className="today-primary" to="/coach" state={{ returnTo: '/', prompt: `${observation} 请先问我一个问题，了解这些支出的用途和我的生活安排，再帮我分析；不要直接认定我浪费或冲动消费。` }}>带着这次观察问教练 →</Link>
-        <Link to="/learning?tab=review" state={{ spendingObservation: observation }}>记下观察与下一步 →</Link></div>
+        <Link to="/learning?tab=review" state={{ spendingObservation: observation }}>记下观察与下一步 →</Link>
+        <Link to="/dashboard?tab=upcoming">先看看接下来要留的钱 →</Link></div>
+      <p className="journey-note">也可以保持原来的安排，或暂时不作判断。必要生活开支不用为了减少数字而压缩。</p>
       <p className="journey-note">进入教练后核对并发送，才会将这段观察提交给 AI；其他个人资料仍需单独授权。复盘也需确认保存。</p>
     </div>}
     <a className="journey-recommendation" href="#today-podcast" onClick={event => { event.preventDefault(); document.getElementById('today-podcast')?.focus(); document.getElementById('today-podcast')?.scrollIntoView({ block: 'start' }); }}>想先了解一点知识？看看本次推荐 ↓</a>

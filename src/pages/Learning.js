@@ -55,7 +55,17 @@ function LearningContent() {
   const [decision, setDecision] = useState(() => hasTrialAmount ? { ...blankDecision, amount: String(trialAmount) } : blankDecision);
   const [comparison, setComparison] = useState(null);
   const [review, setReview] = useState({ observation: '', next_action: '', principle: '', previous_action_result: '', pressure: 'neutral' });
+  const [reviewInitialized, setReviewInitialized] = useState(false);
+  const [confirmReviewUpdate, setConfirmReviewUpdate] = useState(false);
+  const reviewWeek = data?.review_week || facts?.start;
   const [outcomeDrafts, setOutcomeDrafts] = useState({});
+
+  useEffect(() => {
+    if (!data || !reviewWeek || reviewInitialized) return;
+    const saved = data.entries.find(entry => entry.kind === 'review' && entry.week === reviewWeek);
+    if (saved) setReview(current => ({ ...current, ...saved }));
+    setReviewInitialized(true);
+  }, [data, reviewWeek, reviewInitialized]);
 
   useEffect(() => { setNotice(''); setError(''); }, [tab]);
 
@@ -102,8 +112,8 @@ function LearningContent() {
   const orderedLessons = [...data.lessons].sort((a, b) => Number(b.topic === profile.topic) - Number(a.topic === profile.topic) || a.day - b.day);
   const lesson = data.lessons.find(l => l.id === selected) || orderedLessons.find(l => !completed.includes(l.id)) || orderedLessons[0];
   const reviews = entries.filter(e => e.kind === 'review');
-  const previousReview = facts && reviews.find(e => e.week !== facts.start);
-  const currentReview = facts && reviews.find(e => e.week === facts.start);
+  const previousReview = reviews.filter(e => e.week < reviewWeek).sort((a, b) => b.week.localeCompare(a.week))[0];
+  const currentReview = reviews.find(e => e.week === reviewWeek);
   const upcomingEntries = entries.filter(e => e.kind === 'upcoming');
   const pendingExpenses = upcomingEntries.filter(e => !e.handled).sort((a, b) => a.due_date.localeCompare(b.due_date));
   const setDecisionField = (field, value) => { setDecision({ ...decision, [field]: value }); setComparison(null); };
@@ -196,12 +206,15 @@ function LearningContent() {
       {facts && <Alert variant="light">{facts.start} 至 {facts.end}：已记录 {facts.count} 笔，共 ¥{facts.total.toFixed(2)}。<div className="small">{facts.message}{facts.limited && ' 当前只读取最近 2000 笔，汇总可能不完整。'}</div></Alert>}
       {previousReview && <Alert variant="info">上次想尝试：{previousReview.next_action}</Alert>}
       {currentReview && <p className="text-success">本周已复盘，重新保存会更新本周记录。<Button variant="link" onClick={() => setReview(currentReview)}>继续编辑</Button></p>}
-      <Form onSubmit={e => { e.preventDefault(); run(() => saveLearningEntry('review', review), '本周复盘已保存，下周可以回看这次行动。'); }}>
+      <Form onSubmit={e => { e.preventDefault(); if (!reviewInitialized || (currentReview && !confirmReviewUpdate)) return; run(async () => { await saveLearningEntry('review', { ...review, expected_week: reviewWeek }); setConfirmReviewUpdate(false); }, '本周复盘已保存，下周可以回看这次行动。'); }}>
         <WritingField label="这周哪笔消费值得回看？（没有消费也可以回看计划）" value={review.observation} onChange={v => setReview({ ...review, observation: v })} />
         <div className="fv-prompt-chips" aria-label="下周行动灵感">{['周日花五分钟检查下周必要开支', '下次临时购物前先比较两个方案', '周末回看一笔消费是否符合预期'].map(v => <button type="button" key={v} onClick={() => setReview({ ...review, next_action: v })}>{v}</button>)}</div><WritingField label="下周想保持或调整什么？" maxLength={500} value={review.next_action} onChange={v => setReview({ ...review, next_action: v })} />
         <details className="mb-3"><summary>补充行动反馈和个人原则（可选）</summary><WritingField label="上次的小行动有没有帮助？（可选）" required={false} maxLength={500} value={review.previous_action_result} onChange={v => setReview({ ...review, previous_action_result: v })} /><WritingField required={false} label="我的理财原则初稿" maxLength={500} value={review.principle} onChange={v => setReview({ ...review, principle: v })} />
         <Form.Group controlId="review-pressure" className="mb-3"><Form.Label>这些练习带给我的感受</Form.Label><Form.Select value={review.pressure} onChange={e => setReview({ ...review, pressure: e.target.value })}><option value="helpful">更清楚自己的想法</option><option value="neutral">暂时没有明显变化</option><option value="pressure">有些压力，想放慢节奏</option></Form.Select></Form.Group>
-        </details><Button type="submit" disabled={busy}>保存本周复盘</Button>
+        </details>
+        {!reviewInitialized && <p role="status">正在确认复盘周次，核对完成后可以保存。</p>}
+        {currentReview && <Form.Check id="confirm-review-update" className="mb-3" label="我已核对，更新本周已有复盘" checked={confirmReviewUpdate} onChange={e => setConfirmReviewUpdate(e.target.checked)} />}
+        <Button type="submit" disabled={busy || !reviewInitialized || (!!currentReview && !confirmReviewUpdate)}>保存本周复盘</Button>
       </Form>
     </Card.Body></Card>}
 

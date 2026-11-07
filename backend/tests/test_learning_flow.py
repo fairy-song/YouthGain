@@ -32,6 +32,16 @@ def test_upcoming_missing_date_reports_the_date_instead_of_exercise_text(client)
     assert '思考内容' not in response.json['message']
 
 
+def test_review_week_is_server_owned_and_stale_save_preserves_existing(client):
+    week = call(client, 'get', '/api/learning').json['review_week']
+    draft = {'observation': '原观察', 'next_action': '原行动', 'pressure': 'neutral', 'expected_week': week}
+    assert call(client, 'post', '/api/learning/entries/review', draft).status_code == 201
+    stale = call(client, 'post', '/api/learning/entries/review', {**draft, 'expected_week': '2000-01-03', 'observation': '不应写入'})
+    assert stale.status_code == 409
+    entries = call(client, 'get', '/api/learning').json['entries']
+    assert next(e for e in entries if e['kind'] == 'review')['observation'] == '原观察'
+
+
 def test_small_expense_never_claims_zero_days_of_surplus(client):
     response = call(client, 'post', '/api/decision/opportunity-cost', {'amount': 0.66, 'monthly_income': 3000})
     assert response.status_code == 200

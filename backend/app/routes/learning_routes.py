@@ -116,7 +116,9 @@ def balance_profile(uid, record):
 def overview(user_info):
     entries = store.read_entries(user_info['uid'])
     profile = next((e for e in entries if e['id'] == 'profile'), {})
-    return jsonify(profile=balance_profile(user_info['uid'], profile), topics=TOPICS, lessons=LESSONS,
+    today = datetime.now(BEIJING).date()
+    return jsonify(review_week=(today - timedelta(days=today.weekday())).isoformat(),
+                   profile=balance_profile(user_info['uid'], profile), topics=TOPICS, lessons=LESSONS,
                    entries=[e for e in entries if e['id'] != 'profile' and e.get('kind') != 'import_batch'],
                    summary=learning_summary(entries))
 
@@ -148,7 +150,10 @@ def profile(user_info):
 @learning_bp.route('/entries/<kind>', methods=['POST'])
 @require_auth
 def save_entry(user_info, kind):
-    entry_id, record = validate_entry(kind, payload())
+    data = payload()
+    entry_id, record = validate_entry(kind, data)
+    if kind == 'review' and data.get('expected_week') is not None and data['expected_week'] != record['week']:
+        return jsonify(message='复盘周次已变化，内容尚未保存。请保留草稿并刷新后核对。'), 409
     if entry_id is None:
         entry_id = f'{kind}:{uuid4()}'
     return jsonify(entry=store.write_entry(user_info['uid'], entry_id, record)), 201
