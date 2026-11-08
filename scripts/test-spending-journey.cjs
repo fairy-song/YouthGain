@@ -5,7 +5,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const root = path.resolve('tmp/build-spending-journey');
+const root = path.resolve(process.env.YG_TEST_BUILD || 'tmp/build-spending-journey');
 const server = http.createServer((req, res) => {
   const pathname = new URL(req.url, 'http://127.0.0.1').pathname;
   const file = path.resolve(root, '.' + (pathname === '/' ? '/index.html' : pathname));
@@ -63,6 +63,7 @@ const podcast = { reason: '你选择了收支主题。', selection_tier: 'explor
             await story.getByText(/这不代表你没有花钱/).waitFor();
             await story.getByRole('link', { name: /记一笔或导入账单/ }).click();
             await page.waitForURL('**/#/dashboard');
+            await page.getByText('更多记账方式', { exact: true }).click();
             await page.getByRole('button', { name: '导入支出账单' }).waitFor();
           } else if (scenario === 'retry') {
             await story.getByRole('button', { name: '重试消费汇总' }).waitFor();

@@ -7,7 +7,7 @@ import { getDecisionReport, listTransactions, getUserGoals, createTransaction, g
 import { getLearning, getLearningProfile } from '../services/learning';
 import { dateKey } from '../components/FinanceVisuals';
 jest.mock('../config/features', () => ({ SPENDING_MONEY_VISUAL_ENABLED: true }));
-const funds = available => ({ month: dateKey().slice(0, 7), complete: true, available_remaining_month: available,
+const funds = available => ({ month: dateKey().slice(0, 7), complete: true, available_complete: true, available_remaining_month: available,
   carryover_month: 2000, savings_locked_total: 0, savings_net_transfer_month: 0 });
 const cashflow = (spent, category = '餐饮') => ({
   month: dateKey().slice(0, 7), spent, gross_expense: spent, refunds: 0,
@@ -52,6 +52,28 @@ test('small expenses show less than one day instead of zero days', async () => {
   fireEvent.click(screen.getByRole('button', { name: '记一笔' }));
   expect(await screen.findByText('不到 1 天')).toBeInTheDocument();
   expect(screen.queryByText('0 天')).not.toBeInTheDocument();
+});
+
+test('first expense needs no income setup and hides optional fields without losing them', async () => {
+  getLearningProfile.mockResolvedValue({});
+  listTransactions.mockResolvedValue({ transactions: [], monthly_cashflow: cashflow(12.5),
+    funds: { available_complete: false, complete: true, available_remaining_month: -12.5 } });
+  render(<MemoryRouter><Dashboard /></MemoryRouter>);
+  await screen.findByRole('heading', { name: '记一笔收支' });
+  expect(screen.getByPlaceholderText('商户（可选）')).not.toBeVisible();
+  expect(screen.getByRole('button', { name: '补记账单', hidden: true })).not.toBeVisible();
+  expect(screen.getByText('资金资料待核对')).toBeVisible();
+  expect(screen.queryByText('¥-12.50')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText('补充详情（可选）'));
+  fireEvent.change(screen.getByPlaceholderText('商户（可选）'), { target: { value: '示例食堂' } });
+  fireEvent.click(screen.getByText('补充详情（可选）'));
+  fireEvent.change(screen.getByLabelText('支出金额（元）'), { target: { value: '12.5' } });
+  fireEvent.click(screen.getByRole('button', { name: '记一笔' }));
+  expect(await screen.findByText('支出已保存，可以继续记下一笔。')).toBeVisible();
+  expect(createTransaction).toHaveBeenCalledWith(expect.objectContaining({ amount: 12.5, merchant: '示例食堂', transaction_type: 'expense' }));
+  expect(getOpportunityCost).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByText('想进一步了解这笔钱对生活安排的影响？'));
+  expect(screen.getByRole('link', { name: /补充试算资料/ })).toHaveAttribute('href', '/profile?edit=finance&from=ledger');
 });
 
 test('failed saves and income never show a spending money animation', async () => {
@@ -101,6 +123,7 @@ test('disabling the switch restores the original amount display and successful e
 test('manual entry saves consumption content and displays it in recent transactions', async () => {
   render(<MemoryRouter><Dashboard /></MemoryRouter>);
   await screen.findByRole('heading', { name: '记一笔收支' });
+  fireEvent.click(screen.getByText('补充详情（可选）'));
   expect(screen.getByRole('heading', { name: '记一笔收支' }).compareDocumentPosition(screen.getByRole('heading', { name: '消费概览' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   fireEvent.change(screen.getByPlaceholderText('金额（元）'), { target: { value: '20' } });
   fireEvent.change(screen.getByLabelText('消费内容（可选）'), { target: { value: ' 午餐、奶茶 ' } });
@@ -137,6 +160,7 @@ test('shows a single available amount instead of the old cashflow and budget bal
   expect(within(summary).queryByText('预算剩余')).not.toBeInTheDocument();
   expect(within(summary).queryByText('¥-50.00')).not.toBeInTheDocument();
   expect(screen.getByText(/原支付 ¥100.00 · 已退 ¥20.00 · 实际支出 ¥80.00/)).toBeInTheDocument();
+  fireEvent.click(screen.getByText('更多记账方式'));
   expect(screen.getByRole('button', { name: '导入支出账单' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '导入收款账单' })).toBeInTheDocument();
 });
@@ -160,6 +184,7 @@ test('manual entry retains consumption content when saving fails', async () => {
   createTransaction.mockRejectedValue(new Error('网络暂不可用'));
   render(<MemoryRouter><Dashboard /></MemoryRouter>);
   await screen.findByRole('heading', { name: '记一笔收支' });
+  fireEvent.click(screen.getByText('补充详情（可选）'));
   fireEvent.change(screen.getByPlaceholderText('金额（元）'), { target: { value: '20' } });
   fireEvent.change(screen.getByLabelText('消费内容（可选）'), { target: { value: '教材' } });
   fireEvent.click(screen.getByRole('button', { name: '记一笔' }));
@@ -172,6 +197,7 @@ test('income entry updates funds without consumption feedback or reflection', as
   render(<MemoryRouter><Dashboard /></MemoryRouter>);
   await screen.findByRole('heading', { name: '记一笔收支' });
   fireEvent.change(screen.getByLabelText('收支类型'), { target: { value: 'income' } });
+  fireEvent.click(screen.getByText('补充详情（可选）'));
   expect(screen.queryByLabelText('这次消费是怎样决定的？')).not.toBeInTheDocument();
   expect(screen.getByLabelText('收入来源')).toHaveValue('生活费');
   fireEvent.change(screen.getByLabelText('收入来源'), { target: { value: '红包' } });
@@ -279,8 +305,9 @@ test('backfilled spending refreshes monthly budget as well as the transaction li
   listTransactions.mockResolvedValue({ transactions: [], funds: funds(1900), monthly_budget: { month: '2026-10', budget: 2000, spent: 100, remaining: 1900 } });
   render(<MemoryRouter><Dashboard /></MemoryRouter>);
   expect(await screen.findByText('¥1,900.00')).toBeInTheDocument();
+  fireEvent.click(screen.getByText('更多记账方式'));
   fireEvent.click(screen.getByRole('button', { name: '补记账单' }));
-  fireEvent.change(screen.getByLabelText('金额（元）'), { target: { value: '25' } });
+  fireEvent.change(within(screen.getByRole('dialog')).getByLabelText('金额（元）'), { target: { value: '25' } });
   listTransactions.mockResolvedValue({ transactions: [], funds: funds(1875), monthly_budget: { month: '2026-10', budget: 2000, spent: 125, remaining: 1875 } });
   fireEvent.click(screen.getByRole('button', { name: '保存补记账单' }));
   expect(await screen.findByText('¥1,875.00')).toBeInTheDocument();

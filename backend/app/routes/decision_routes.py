@@ -41,7 +41,7 @@ def _income(user_id, supplied=None):
     profile = learning_store.read_entry(user_id, 'profile') or {}
     value = supplied if supplied is not None else profile.get('monthly_income')
     if value is None:
-        raise ValueError('请先在“理财成长 → 我的资料”设置月收入或生活费，再进行试算。')
+        raise ValueError('请在“我的 → 财务资料设置”填写月收入或生活费，再进行试算。')
     return number(value, '月收入')
 
 

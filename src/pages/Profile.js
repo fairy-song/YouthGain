@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { hasAvailableFunds, formatMoney } from '../utils/availableFunds';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Alert, Button, Card, Col, Container, Form, Row, Spinner, ProgressBar } from 'react-bootstrap';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,7 +12,7 @@ function ProfileWritingField({ label, value, onChange, maxLength }) {
   return <Form.Group controlId={id} className="mb-3"><Form.Label>{label}</Form.Label><Form.Control as="textarea" rows={2} maxLength={maxLength} value={value || ''} onChange={e => onChange(e.target.value)} /></Form.Group>;
 }
 
-function fmt(n) { return n == null ? '—' : `¥${Number(n).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}`; }
+const fmt = formatMoney;
 
 function levelFrom(practiceCount, focus) {
   if (practiceCount >= 20) return { name: '进阶实践者', color: '#2F7D5F', desc: '你已经建立了稳定的记账和反思习惯' };
@@ -34,7 +35,14 @@ export default function Profile() {
   const [leaving, setLeaving] = useState(false);
   const [logoutError, setLogoutError] = useState('');
   const [retry, setRetry] = useState(0);
-  const [showEdit, setShowEdit] = useState(false);
+  const [showEdit, setShowEdit] = useState(() => new URLSearchParams(location.search).get('edit') === 'finance');
+  const financeHeading = useRef(null);
+  useEffect(() => {
+    if (data && new URLSearchParams(location.search).get('edit') === 'finance') {
+      setShowEdit(true);
+      financeHeading.current?.focus();
+    }
+  }, [location.search, data]);
   const [funds, setFunds] = useState(null);
   useEffect(() => {
     const refresh = () => setRetry(v => v + 1);
@@ -154,7 +162,7 @@ export default function Profile() {
       <Col md={4}>
         <Card className="h-100 border-0 shadow-sm"><Card.Body className="p-3">
           <div className="text-muted small">本月可用剩余</div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#2F7D5F' }}>{funds?.available_remaining_month != null ? fmt(funds.available_remaining_month) : '待确认'}</div>
+          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#2F7D5F' }}>{hasAvailableFunds(funds) ? fmt(funds.available_remaining_month) : '资金资料待核对'}</div>
           <div className="text-muted small mt-1">上月结转 {funds?.carryover_month != null ? fmt(funds.carryover_month) : '未确认'}</div>
         </Card.Body></Card>
       </Col>
@@ -236,9 +244,10 @@ export default function Profile() {
     {notice && <Alert variant="success" role="status">{notice}</Alert>}
     {!data ? !error && <Spinner role="status" /> : <Card className="border-0 shadow-sm"><Card.Body className="p-4">
       <div className="d-flex justify-content-between align-items-center mb-2">
-        <h2 className="h5 mb-0">财务资料设置</h2>
+        <h2 ref={financeHeading} tabIndex={-1} className="h5 mb-0">财务资料设置</h2>
         <Button variant="outline-primary" size="sm" onClick={() => setShowEdit(!showEdit)}>{showEdit ? '收起' : '编辑资料'}</Button>
       </div>
+      {new URLSearchParams(location.search).get('from') === 'ledger' && <p className="mt-2"><Link to="/dashboard">返回账本 →</Link> · 已保存的账目无需重复填写</p>}
       {!showEdit ? (
         <p className="text-muted mb-0">修改余额、开支等参数后，目标规划和消费试算会自动使用新资料。</p>
       ) : <>

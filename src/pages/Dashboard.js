@@ -22,10 +22,6 @@ import { SPENDING_MONEY_VISUAL_ENABLED } from '../config/features';
 import { getLearningProfile, getLearning } from '../services/learning';
 import './DashboardUI.css';
 
-// 月收入默认值。
-// TODO: 月收入应作为用户档案的一部分持久化，目前由前端写死传入后端。
-
-
 const Dashboard = () => {
   const { currentUser } = useAuth();
   const [params, setParams] = useSearchParams();
@@ -289,6 +285,10 @@ const Dashboard = () => {
         if (feedback === feedbackVersion.current) setRecordResult({ income: true, message: '收入已保存。' });
         return;
       }
+      if (monthlyIncome == null) {
+        setRecordResult({ unavailable: true, profile_required: true, message: '账目已保存。' });
+        return;
+      }
       getOpportunityCost(amount, monthlyIncome).then(cost => {
         if (feedback === feedbackVersion.current) setRecordResult(cost);
       }).catch(costErr => {
@@ -422,7 +422,7 @@ const Dashboard = () => {
           </Alert>
         )}
 
-        {report && !report.has_data && (
+        {tab === 'analysis' && report && !report.has_data && (
           <Alert variant="info" className="rounded-4">
             <FaLightbulb className="me-2" />
             {report.message || '暂无消费记录。记录第一笔消费后即可生成分析报告。'}
@@ -435,7 +435,7 @@ const Dashboard = () => {
             <strong className="ledger-summary-amount">{monthlyCashflow?.complete ? `¥${Number(monthlyCashflow.spent).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '暂无法汇总'}</strong>
             <small>{monthlyCashflow?.complete ? `原支付 ¥${Number(monthlyCashflow.gross_expense).toFixed(2)} − 已关联退款 ¥${Number(monthlyCashflow.refunds).toFixed(2)}` : '已记录支出扣除已关联退款'}</small></div>
           <div className="ledger-metric"><span className="ledger-summary-label">本月收入</span><strong className="ledger-summary-amount">{monthlyCashflow?.complete ? `¥${Number(monthlyCashflow.income).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '暂无法汇总'}</strong><small>{monthlyCashflow?.complete ? `红包 ¥${Number(monthlyCashflow.income_breakdown?.red_packet || 0).toFixed(2)} · 他人转入 ¥${Number(monthlyCashflow.income_breakdown?.external_transfer || 0).toFixed(2)}` : '退款和本人转账不计收入'}</small></div>
-          <MonthlyAvailableFunds key={currentUser?.uid} funds={funds} editable onSaved={refreshLedger} />
+          <MonthlyAvailableFunds key={currentUser?.uid} funds={funds} editable initiallyOpen={params.get('funds') === 'confirm'} onSaved={refreshLedger} />
         </section>}
         {tab === 'analysis' && <><Alert variant="light">
           <strong>月收入或生活费：{monthlyIncome == null ? '尚未设置' : `¥${monthlyIncome}`}</strong>
@@ -455,18 +455,20 @@ const Dashboard = () => {
                     <FaPiggyBank className="text-success" />
                   </div>
                   <h5 ref={recordHeading} tabIndex={-1} className="card-title mb-0">记一笔收支</h5>
-                  <span className="text-muted small ms-2">{isIncome ? '记录实际到账，更新可用资金；本人转账不算收入' : '记录日常支出，了解这笔钱相当于几天结余'}</span>
-                  <Button variant="outline-success" size="sm" className="rounded-pill" onClick={() => setShowBackfillModal(true)}>补记账单</Button>
-                  <Button variant="outline-success" size="sm" className="rounded-pill" onClick={() => setImportMode('expense')}>导入支出账单</Button>
-                  <Button variant="outline-success" size="sm" className="rounded-pill" onClick={() => setImportMode('receipt')}>导入收款账单</Button>
+                  <span className="text-muted small ms-2">{isIncome ? '记录实际到账，更新可用资金；本人转账不算收入' : '填金额和类别即可；日期可改，详情稍后补充'}</span>
+                  <details className="record-methods ms-auto"><summary>更多记账方式</summary><div className="d-flex flex-wrap gap-2 py-2">
+                  <Button variant="outline-success" size="sm" className="rounded-pill" disabled={savingRecord} onClick={() => setShowBackfillModal(true)}>补记账单</Button>
+                  <Button variant="outline-success" size="sm" className="rounded-pill" disabled={savingRecord} onClick={() => setImportMode('expense')}>导入支出账单</Button>
+                  <Button variant="outline-success" size="sm" className="rounded-pill" disabled={savingRecord} onClick={() => setImportMode('receipt')}>导入收款账单</Button>
                   <Button
                     variant="outline-success"
                     size="sm"
                     className="rounded-pill ms-auto"
-                    onClick={() => setShowVoiceModal(true)}
+                    disabled={savingRecord} onClick={() => setShowVoiceModal(true)}
                   >
                     <FaMicrophone className="me-1" />语音记支出
                   </Button>
+                  </div></details>
                 </div>
                 {upcomingDraft && <Alert variant="info" role="status">已带入计划的事项和金额。请确认这笔钱已支付且尚未记账，再核对实际金额、日期和类别。</Alert>}
                 {pendingUpcoming && <Alert variant="warning" role="status">表单里已有未保存的账单。是否改为填写「{pendingUpcoming.title}」？
@@ -482,8 +484,9 @@ const Dashboard = () => {
                     </Form.Select>
                   </Form.Group>
                   <Row className="g-3">
-                    <Col md={2}>
-                      <Form.Control
+                    <Col xs={6} md={4}>
+                      <Form.Label htmlFor="entry-amount">金额（元）</Form.Label>
+                      <Form.Control id="entry-amount"
                         aria-label={isIncome ? '收入金额（元）' : '支出金额（元）'}
                         type="number"
                         min="0"
@@ -494,8 +497,9 @@ const Dashboard = () => {
                         onChange={(e) => setRecordForm({ ...recordForm, amount: e.target.value })}
                       />
                     </Col>
-                    <Col md={2}>
-                      <Form.Select
+                    <Col xs={6} md={4}>
+                      <Form.Label htmlFor="entry-category">类别 / 来源</Form.Label>
+                      <Form.Select id="entry-category"
                         aria-label={isIncome ? '收入来源' : '支出类别'}
                         value={recordForm.category}
                         onChange={(e) => setRecordForm({ ...recordForm, category: e.target.value })}
@@ -505,8 +509,9 @@ const Dashboard = () => {
                           .map(category => <option key={category}>{category}</option>)}
                       </Form.Select>
                     </Col>
-                    <Col md={2}>
-                      <Form.Control
+                    <Col md={4}>
+                      <Form.Label htmlFor="entry-date">日期</Form.Label>
+                      <Form.Control id="entry-date"
                         type="date"
                         aria-label="收支日期"
                         max={isIncome ? dateKey() : undefined}
@@ -515,7 +520,9 @@ const Dashboard = () => {
                         onChange={(e) => setRecordForm({ ...recordForm, date: e.target.value })}
                       />
                     </Col>
-                    <Col md={2}>
+                  </Row>
+                  <details className="record-details mt-3"><summary>补充详情（可选）</summary><Row className="mt-2 g-3">
+                    <Col md={6}>
                       <Form.Control
                         type="text"
                         placeholder={isIncome ? '付款方（可选）' : '商户（可选）'}
@@ -523,7 +530,7 @@ const Dashboard = () => {
                         onChange={(e) => setRecordForm({ ...recordForm, merchant: e.target.value })}
                       />
                     </Col>
-                    <Col md={2}>
+                    <Col md={6}>
                       <Form.Select
                         value={recordForm.hour}
                         aria-label="收支时段（可选）"
@@ -534,11 +541,6 @@ const Dashboard = () => {
                           <option key={i} value={i}>{i} 时</option>
                         ))}
                       </Form.Select>
-                    </Col>
-                    <Col md={2} className="d-flex align-items-center">
-                      <Button type="submit" variant="success" className="rounded-pill w-100" disabled={savingRecord}>
-                        {savingRecord ? '保存中…' : '记一笔'}
-                      </Button>
                     </Col>
                   </Row>
                   <Row className="mt-2 g-3">
@@ -566,9 +568,20 @@ const Dashboard = () => {
                     </Col>
                   </Row>
                   {!isIncome && <TransactionIntent value={recordForm} onChange={setRecordForm} />}
+                  </details>
+                    <div className="mt-3">
+                      <Button type="submit" variant="success" className="rounded-pill px-4" disabled={savingRecord}>
+                        {savingRecord ? '保存中…' : '记一笔'}
+                      </Button>
+                    </div>
                 </fieldset></Form>
 
                 {recordError && <Alert variant="danger" className="mt-3 mb-0 small">{recordError}</Alert>}
+                {recordResult && recordResult.unavailable && (
+                  <div className="mt-3"><p role="status" className="text-success mb-1">{recordResult.profile_required ? '支出已保存，可以继续记下一笔。' : recordResult.message}</p>
+                    {recordResult.profile_required && <details><summary>想进一步了解这笔钱对生活安排的影响？</summary><p className="small">试算需要月收入或生活费；记账不需要先填写。</p><Link to="/profile?edit=finance&from=ledger">补充试算资料 →</Link></details>}
+                  </div>
+                )}
                 {SPENDING_MONEY_VISUAL_ENABLED && savedExpense && <ExpenseMoney key={savedExpense.key} amount={savedExpense.amount} animate />}
 
                 {recordResult?.income && <Alert variant="success" className="mt-3 mb-0 small">{recordResult.message}</Alert>}
@@ -582,9 +595,6 @@ const Dashboard = () => {
                     </div>
                     <p className="text-muted small mb-0">{recordResult.message}</p>
                   </div>
-                )}
-                {recordResult && recordResult.unavailable && (
-                  <Alert variant="warning" className="mt-3 mb-0 small">{recordResult.message}</Alert>
                 )}
               </Card.Body>
             </Card>

@@ -14,7 +14,7 @@ jest.mock('../services/learning', () => ({
 }));
 
 const logout = jest.fn();
-const setup = () => render(<MemoryRouter initialEntries={['/profile']}><Routes>
+const setup = (path = '/profile') => render(<MemoryRouter initialEntries={[path]}><Routes>
   <Route path="/profile" element={<Profile />} />
   <Route path="/login" element={<h1>登录页面</h1>} />
 </Routes></MemoryRouter>);
@@ -25,6 +25,29 @@ beforeEach(() => {
   getLearning.mockResolvedValue({ profile: {}, topics: [] });
   getQuestionnaires.mockResolvedValue({ latest: null });
   authenticatedApi.get.mockResolvedValue({ data: { data: {}, goals: [] } });
+});
+
+test('a ledger link opens finance settings and preserves a route back', async () => {
+  setup('/profile?edit=finance&from=ledger');
+  const heading = await screen.findByRole('heading', { name: '财务资料设置' });
+  await waitFor(() => expect(heading).toHaveFocus());
+  expect(screen.getByRole('link', { name: /返回账本/ })).toHaveAttribute('href', '/dashboard');
+  expect(screen.getByRole('button', { name: '保存资料' })).toBeVisible();
+});
+
+test.each([0, 12.5, -12.5])('My page retains decimal precision for confirmed funds %s', async amount => {
+  authenticatedApi.get.mockResolvedValue({ data: { data: {
+    available_complete: true, complete: true, available_remaining_month: amount,
+  } } });
+  setup();
+  expect(await screen.findByText(`¥${amount.toFixed(2)}`)).toBeVisible();
+});
+
+test('My page does not present unconfirmed funds as an available balance', async () => {
+  authenticatedApi.get.mockResolvedValue({ data: { data: { available_complete: false, available_remaining_month: -12.5 } } });
+  setup();
+  expect(await screen.findByText('资金资料待核对')).toBeVisible();
+  expect(screen.queryByText('¥-12.50')).not.toBeInTheDocument();
 });
 
 test('the My page signs out and returns to login', async () => {
