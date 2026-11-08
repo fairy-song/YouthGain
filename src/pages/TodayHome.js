@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { needsGuide, saveGuide } from '../data/productGuide';
+import { PRODUCT_GUIDE_ENABLED } from '../config/features';
 import { useAuth } from '../contexts/AuthContext';
 import { listTransactions } from '../services/api';
 import { getAdaptiveLearning, getLearning } from '../services/learning';
@@ -18,6 +20,15 @@ const pending = { loading: true };
 
 export default function TodayHome() {
   const { currentUser } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const introDone = new URLSearchParams(location.search).get('intro') === 'done';
+  useEffect(() => {
+    if (introDone && currentUser?.uid) {
+      saveGuide(currentUser.uid, 2, 'done');
+      navigate(new URLSearchParams(location.search).get('first') === 'ledger' ? '/dashboard' : '/', { replace: true });
+    }
+  }, [introDone, currentUser?.uid, navigate, location.search]);
   const [sections, setSections] = useState({});
   const requests = useRef({});
   const refresh = useCallback(async key => {
@@ -55,12 +66,15 @@ export default function TodayHome() {
   const upcoming = (entries || []).filter(entry => entry.kind === 'upcoming' && !entry.handled && entry.due_date >= today)
     .sort((a, b) => a.due_date.localeCompare(b.due_date)).slice(0, 3);
   const name = currentUser?.displayName?.trim() || '同学';
+  if (PRODUCT_GUIDE_ENABLED && !introDone && !ledgerLoading && !ledgerError && !entriesLoading &&
+      needsGuide(currentUser?.uid, ledger, entries)) return <Navigate to="/guide" replace />;
   return <div className="today-page">
     <div className="today-wrap">
       <header className="today-intro">
         <div className="today-masthead"><span className="today-eyebrow">青盈 · 财商实践</span><time dateTime={today}>{today}</time></div>
         <h1>{name}，<br />{SPENDING_JOURNEY_ENABLED ? '看懂花费，安排生活' : '把接下来的钱安排好'}</h1>
         <p>{SPENDING_JOURNEY_ENABLED ? '从你关心的一笔花费开始，按自己的节奏回来。' : '看看要先留哪笔钱，再决定今天怎么花。'}</p>
+        {PRODUCT_GUIDE_ENABLED && <Link className="guide-reopen" to="/guide">使用引导 · 不知道从哪开始？</Link>}
       </header>
 
       {SPENDING_JOURNEY_ENABLED && <SpendingJourney cashflow={cashflow} loading={ledgerLoading} error={ledgerError} entries={entries} onRetry={refreshLedger} />}

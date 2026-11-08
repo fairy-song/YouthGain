@@ -8,6 +8,7 @@ import './mobile-styles.css'; // 添加移动端样式
 
 // 页面组件
 import TodayHome from './pages/TodayHome';
+import ProductGuide from './pages/ProductGuide';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -43,7 +44,7 @@ import AdminLayout from './components/AdminLayout';
 // API连接状态组件
 const ApiStatusIndicator = () => {
   const { pathname } = useLocation();
-  if (['/try', '/start', '/research/demo'].includes(pathname)) return null;
+  if (['/try', '/start', '/guide', '/research/demo'].includes(pathname)) return null;
   return <ApiHealthWarning />;
 };
 
@@ -96,6 +97,7 @@ function App() {
         <Route path="/login" element={<Login key="student" />} />
         <Route path="/register" element={<Register key="student" />} />
         <Route path="/try" element={<TryLivingFunds />} />
+        <Route path="/guide" element={<ProductGuide />} />
         <Route path="/admin/login" element={<main className="admin-login"><Login key="admin" adminMode /></main>} />
         <Route path="/research" element={<SchoolWorkspace />}>
           <Route index element={<ProtectedRoute workspace="school"><SchoolResearch /></ProtectedRoute>} />
