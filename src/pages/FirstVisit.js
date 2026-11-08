@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { questions, draftOwner, freshDraft, readDraft, writeDraft, normalizedAnswers, previewSummary } from '../data/firstVisit';
 import LivingFundsStressTest from '../components/LivingFundsStressTest';
 import './FirstVisit.css';
-import { PRODUCT_GUIDE_ENABLED } from '../config/features';
 
 const ledgerIntent = { from: '/dashboard' };
 
@@ -20,8 +19,7 @@ export function Welcome() {
       <h1>这一笔花出去，<br /><em>生活费还够用吗？</em></h1>
       <p className="welcome-intro">先用一个校园生活示例，看看一笔消费会怎样影响下次到账前的生活费。登录后就能记账、安排开支、练习消费决策。</p>
       <div className="welcome-actions">
-        {PRODUCT_GUIDE_ENABLED && <Link className="first-visit-primary" to="/guide">30 秒，认识青盈 <span aria-hidden="true">→</span></Link>}
-        <Link className={PRODUCT_GUIDE_ENABLED ? 'first-visit-secondary' : 'first-visit-primary'} to="/try">免登录试一笔 <span aria-hidden="true">→</span></Link>
+        <Link className="first-visit-primary" to="/try">免登录试一笔 <span aria-hidden="true">→</span></Link>
         <Link className="first-visit-secondary" to="/login" state={ledgerIntent}>登录去记账</Link>
       </div>
     </section>
