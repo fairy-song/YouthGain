@@ -86,7 +86,7 @@ export default function DailyPodcast({ userId }) {
   };
   if ((!result && !error) || (result && result.ownerId !== userId)) return <div className="daily-podcast daily-podcast-loading" role="status">正在挑选今天的一期音频…</div>;
   return <section ref={section} className="daily-podcast" aria-labelledby="daily-podcast-title">
-    <div className="daily-podcast-kicker">每天一期 · 音频博客</div>
+
     <h2 id="daily-podcast-title">今天推荐这一期</h2>
     {error && <p role="alert">{error} <button type="button" onClick={load}>重试</button></p>}
     {result?.program ? <>
@@ -97,16 +97,16 @@ export default function DailyPodcast({ userId }) {
       <div style={result.dismissed ? { filter: 'grayscale(0.8)', opacity: 0.5 } : undefined}>
       <h3>{result.program.episode_title}</h3>
       <p className="daily-podcast-publisher">来自《{result.program.name}》 · {result.program.publisher} · {result.program.episode_published_at}</p>
-      <p className="daily-podcast-description">{result.program.episode_summary}</p>
-      <p className="daily-podcast-reason">为什么适合你：{result.reason}</p>
+      <details><summary>这期讲什么</summary><p className="daily-podcast-description">{result.program.episode_summary}</p></details>
+      <details><summary>为什么推荐</summary><p className="daily-podcast-reason">{result.reason}</p></details>
       {result.selection_tier && result.selection_tier !== 'personalized' && <p className="daily-podcast-note">{
         ({ explore: '拓展推荐：从现有节目中选择相对合适的一期。', revisit: '重听推荐：近期新候选有限，推荐过不代表已经收听。',
           evergreen: '常青推荐：发布或来源更新较早，请结合当前情况理解。',
           evergreen_revisit: '常青重听：发布或来源更新较早，供你再次参考。' })[result.selection_tier]
       }</p>}
-      {result.demo_model && <p className="daily-podcast-note">当前为合成数据训练的演示推荐，尚未用校园数据验证推荐效果。</p>}
+      {result.demo_model && <p className="daily-podcast-note">演示模型推荐，效果待验证。</p>}
       {result.evidence?.length > 0 && <details><summary>查看推荐依据</summary>
-        <p>依据时间：{result.as_of?.slice(0, 10)}。只使用推荐时已记录的数据；锁定储蓄独立计算，预计收入不算实际到账。</p>
+        <p>{result.as_of?.slice(0, 10)} 已记录数据；不含预计收入。</p>
         <ul>{result.evidence.map(item => <li key={item.feature}>{item.label}：{Number(item.value).toFixed(2)} {item.unit}</li>)}</ul>
       </details>}
       <div className="daily-podcast-actions">
@@ -117,7 +117,7 @@ export default function DailyPodcast({ userId }) {
       </div>
       {SPENDING_JOURNEY_ENABLED && !result.dismissed && <div className="daily-podcast-apply">
         <Link to="/coach" state={{ returnTo: '/', prompt: `我看到青盈推荐了《${result.program.episode_title}》（${result.program.publisher || result.program.name}）。我想了解其中的知识怎样用于自己的生活。请先问我想解决什么问题；如果你没有获取节目全文，请明确说明，不要编造节目内容。` }}>这期知识怎么用在我的生活里？ →</Link>
-        <p className="daily-podcast-note">可以把标题带到教练，核对后发送。教练不一定能读取节目全文。</p>
+        <p className="daily-podcast-note">发送标题给教练，不含节目全文。</p>
       </div>}
       {result.program.platform_links.some(link => link.url !== result.program.episode_url) && <details className="daily-podcast-links"><summary>其他收听链接</summary>{result.program.platform_links.filter(link => link.url !== result.program.episode_url).map(link => <a key={link.url} href={link.url} onClick={() => feedback('view')}>{({ xiaoyuzhou: '小宇宙', ximalaya: '喜马拉雅', website: '网站', other: '其他平台' })[link.platform]} →</a>)}</details>}
       </div>
@@ -127,6 +127,5 @@ export default function DailyPodcast({ userId }) {
         <button type="button" disabled={!!busy} onClick={() => feedback('undislike')}>恢复本期推荐</button>
       </div>
     ) : result && <div className="daily-podcast-empty"><p>{result.message || '当前目录暂时没有可播放的已审核单集。'}</p><button type="button" onClick={load}>重新挑选</button></div>}
-    <p className="daily-podcast-note">收藏只影响青盈后续推荐，不会在外部平台收藏；收听不代表已经掌握知识。</p>
   </section>;
 }

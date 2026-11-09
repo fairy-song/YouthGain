@@ -86,7 +86,10 @@ test('shows one episode, its direct link, and saves follow and dislike feedback'
   render(<DailyPodcast userId="alice" />);
   expect(await screen.findByRole('heading', { name: '这一期谈预算' })).toBeInTheDocument();
   expect(screen.getByText('给生活费分配先后顺序。')).toBeInTheDocument();
-  expect(screen.getByText(/为什么适合你：你选择了收支主题/)).toBeInTheDocument();
+  const reason = screen.getByText('你选择了收支主题。');
+  expect(reason.closest('details')).not.toHaveAttribute('open');
+  fireEvent.click(screen.getByText('为什么推荐', { exact: true }));
+  expect(reason).toBeVisible();
   const listenLink = screen.getByRole('link', { name: /直接听这一期/ });
   expect(listenLink).toHaveAttribute('href', recommendation.program.episode_url);
   expect(listenLink).not.toHaveAttribute('target', '_blank');

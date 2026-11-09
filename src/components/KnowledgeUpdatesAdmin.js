@@ -50,21 +50,24 @@ export default function KnowledgeUpdatesAdmin() {
   };
 
   return <section className="admin-editorial-section" aria-label="知识来源与更新审核">
-    <div className="review-section-head"><div><h2>知识更新审核</h2><p>自动筛选整理新资料，异常内容在这里集中核对。</p></div>
+    <div className="review-section-head"><div><h2>知识更新审核</h2></div>
       <button type="button" className="btn btn-sm btn-outline-secondary" disabled={busy} onClick={refresh}>刷新更新台账</button></div>
     {error && <p role="alert" className="text-danger">{error}</p>}
     {notice && <p role="status" className="text-success">{notice}</p>}
     {!data && !error && <p role="status">正在读取审核队列…</p>}
     {data?.capacity && <section className="border-top border-bottom py-3 mb-3" aria-label="知识库实际容量">
       <h3 className="h5">知识库实际容量</h3>
-      <p className="mb-1">已发布 <strong>{data.capacity.published_articles}</strong> / {data.capacity.limits.articles} 篇 · 证据片段 <strong>{data.capacity.passages}</strong> / {data.capacity.limits.passages} 个</p>
-      <p className="small mb-1">正文 {data.capacity.body_characters.toLocaleString()} 字符 · {data.capacity.index_current ? `当前教练索引已保存 ${data.capacity.index.passages} 个片段` : '当前教练索引尚未就绪'} · 向量缓存 {data.capacity.index?.cached_vectors ?? 0} 条</p>
-      <p className="small text-muted mb-0">上限是配置额度，不是已收录数量或性能承诺。统计包含全部已发布文章；教练按适用地区检索。{data.capacity.index_error}</p>
+      <dl className="clarity-capacity">
+        <div><dt>文章</dt><dd><strong>{data.capacity.published_articles}</strong><span> / {data.capacity.limits.articles} 篇配额</span></dd><meter aria-label="文章配额" min="0" max={Math.max(1, data.capacity.limits.articles)} value={Math.min(data.capacity.published_articles, Math.max(1, data.capacity.limits.articles))} /></div>
+        <div><dt>知识片段</dt><dd><strong>{data.capacity.passages}</strong><span> / {data.capacity.limits.passages} 个配额</span></dd><meter aria-label="知识片段配额" min="0" max={Math.max(1, data.capacity.limits.passages)} value={Math.min(data.capacity.passages, Math.max(1, data.capacity.limits.passages))} /></div>
+      </dl>
+      <p className="small"><span className="clarity-state">{data.capacity.index_current ? '✓ 索引已更新' : '索引待更新'}</span>{data.capacity.index_error && <span role="status">{data.capacity.index_error}</span>}</p>
+      <details><summary>统计详情</summary><p className="small">正文 {data.capacity.body_characters.toLocaleString()} 字符 · 索引 {data.capacity.index?.passages ?? 0} 片段 · 向量缓存 {data.capacity.index?.cached_vectors ?? 0} 条。配额不是已收录量或性能承诺；教练按适用地区检索。</p></details>
       {data.capacity.over_capacity && <p role="alert" className="text-danger">现有内容已超过配置额度，请先处理容量再发布新内容。</p>}
     </section>}
     {data && <div className="review-workbench">
       <div className="review-queue">
-        <p className="small text-muted">展示最近 300 个采集版本，待审核总数按完整台账统计。</p>
+        <p className="small text-muted">最近300个版本 · 待审核数为完整台账统计</p>
         <label className="review-filter">版本状态<select className="form-select" value={filter} onChange={e => { setFilter(e.target.value); resetSelection(); }}>
           <option value="pending">待审核（{pending}，含待复核与排除建议）</option><option value="excluded">自动筛选建议排除</option><option value="approved">已审核</option><option value="rejected">已拒绝</option><option value="all">全部版本</option>
         </select></label>
@@ -106,7 +109,7 @@ export default function KnowledgeUpdatesAdmin() {
             <button type="button" className="btn btn-link btn-sm" disabled={busy} onClick={() => setReleaseChange(false)}>取消</button>
           </div> : <button type="button" className="btn btn-outline-secondary btn-sm" disabled={busy} onClick={() => setReleaseChange(true)}>{published ? '撤回发布' : '恢复此已审核版本'}</button>)}
           <button type="button" className="btn btn-link btn-sm" disabled={busy} onClick={() => { resetSelection(); selectedButton.current?.focus(); }}>关闭详情</button>
-        </> : <p className="text-muted">选择左侧版本，查看原文、发布时间和正文。</p>}
+        </> : <p className="text-muted">← 选择待审核内容</p>}
       </div>
     </div>}
     {data && <details className="review-source">

@@ -60,3 +60,21 @@ test('excluded suggestions remain inspectable and can be re-screened', async () 
   await waitFor(() => expect(knowledgeUpdatesApi).toHaveBeenCalledWith('POST', '/versions/v/screen', {}));
   await screen.findByText('筛选已完成，请查看结果与发布状态。');
 });
+
+
+test('capacity uses labelled meters and keeps technical counts behind details', async () => {
+  knowledgeUpdatesApi.mockResolvedValue({ ...value, capacity: { published_articles: 27, passages: 40,
+    body_characters: 14657, limits: { articles: 1000, passages: 20000 }, index_current: false,
+    index: { passages: 20, cached_vectors: 10 } } });
+  render(<KnowledgeUpdatesAdmin />);
+  const meter = await screen.findByLabelText('文章配额');
+  expect(meter.tagName).toBe('METER');
+  expect(meter).toHaveAttribute('value', '27');
+  expect(meter).toHaveAttribute('max', '1000');
+  expect(screen.getByLabelText('知识片段配额')).toHaveAttribute('value', '40');
+  expect(screen.getByText('索引待更新')).toBeVisible();
+  const detail = screen.getByText(/向量缓存 10 条/);
+  expect(detail.closest('details')).not.toHaveAttribute('open');
+  fireEvent.click(screen.getByText('统计详情', { exact: true }));
+  expect(detail).toBeVisible();
+});

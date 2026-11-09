@@ -22,7 +22,7 @@ function MoneyArt({ piece }) {
   </svg>;
 }
 
-export default function ExpenseMoney({ amount, animate = false, title = '这笔花了', note = '' }) {
+export default function ExpenseMoney({ amount, animate = false, title = '这笔花了', note = '', showHeading = true }) {
   const money = expenseMoney(amount);
   const cents = money?.cents;
   const [phase, setPhase] = useState('still');
@@ -38,8 +38,7 @@ export default function ExpenseMoney({ amount, animate = false, title = '这笔�
 
   if (!money) return null;
   return <section className={`expense-money expense-money-${phase}`} aria-label={`${title}的钱币展示`} style={{ '--expense-money-duration': `${ANIMATION_MS}ms` }}>
-    <div className="expense-money-heading"><span>{title}</span><strong>{expenseYuan(money.cents)}</strong></div>
-    <p className="expense-money-caption">把这笔支出，展开成看得见的钱。</p>
+    {showHeading && <div className="expense-money-heading"><span>{title}</span><strong>{expenseYuan(money.cents)}</strong></div>}
     <ul className="expense-money-pieces" aria-label="面额与数量">
       {money.pieces.map(piece => <li key={piece.cents}>
         <MoneyArt piece={piece} />
@@ -47,7 +46,7 @@ export default function ExpenseMoney({ amount, animate = false, title = '这笔�
         <small>{expenseYuan(piece.cents * piece.count)}</small>
       </li>)}
     </ul>
-    <p className="expense-money-total">合计 {expenseYuan(money.cents)}{animate ? ' · 已计入这笔支出' : ''}</p>
-    <p className="expense-money-note">{note || '按人民币面额拆分；图形为示意，数量以标注为准。记账不会实际扣款。'}</p>
+    {animate && <p className="expense-money-total">合计 {expenseYuan(money.cents)} · 已计入这笔支出</p>}
+    <p className="expense-money-note">{note || '示意图，数量以标注为准；不会实际扣款。'}</p>
   </section>;
 }

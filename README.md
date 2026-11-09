@@ -4,7 +4,7 @@
 
 # 青盈 · YouthGain
 
-**当前版本 [v1.3](CHANGELOG.md)**
+**当前版本 [v1.4](CHANGELOG.md)**
 
 **融合行为经济学与情境化智能辅导及推荐的大学生财商实践平台**
 
@@ -31,13 +31,24 @@
 <a id="preview"></a>
 ## 看见花费，才开始理解花费
 
-<img src="docs/assets/spending-awareness.png" width="100%" alt="青盈真实界面的模拟场景：186.50 元餐饮净支出被展开为纸币和硬币" />
+<img src="docs/assets/clarity-student-v1.4.png" width="100%" alt="青盈真实界面的模拟场景：186.50 元餐饮净支出被展开为纸币和硬币" />
 
 <p align="center"><sub>实际界面 · 模拟数据：把 ¥186.50 展开成纸币和硬币，让抽象数字变得可感知。</sub></p>
 
 | 看见消费 | 理解选择 | 形成行动 |
 | :--- | :--- | :--- |
 | 分类累计支出、退款口径与钱币展开，让花费有具体形态。 | 情境化教练结合已确认事实与知识依据，帮助梳理条件。 | 把观察带入学习与复盘，记录自主选择和后续体验。 |
+
+<details>
+<summary><strong>v1.4：少读说明，直接看结果</strong></summary>
+
+删去三端重复介绍，消费与复盘用并列数字呈现；知识容量使用带数字的进度条，说明与技术信息按需展开。默认教练回答更简短，要求详细时仍可展开。
+
+<img src="docs/assets/clarity-admin-v1.4.png" width="100%" alt="v1.4知识管理演示：文章及片段以数量和配额进度条呈现，统计详情按需查看" />
+
+<sub>程序界面 · 隔离演示数据。范围、对比与验证见[文字减负实施记录](docs/v1.4文字减负实施记录.md)。</sub>
+
+</details>
 
 <details>
 <summary><strong>v1.2：先轻松记下一笔</strong></summary>

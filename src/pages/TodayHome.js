@@ -60,7 +60,6 @@ export default function TodayHome() {
       <header className="today-intro">
         <div className="today-masthead"><span className="today-eyebrow">青盈 · 财商实践</span><time dateTime={today}>{today}</time></div>
         <h1>{name}，<br />{SPENDING_JOURNEY_ENABLED ? '看懂花费，安排生活' : '把接下来的钱安排好'}</h1>
-        <p>{SPENDING_JOURNEY_ENABLED ? '从你关心的一笔花费开始，按自己的节奏回来。' : '看看要先留哪笔钱，再决定今天怎么花。'}</p>
       </header>
 
       {SPENDING_JOURNEY_ENABLED && <SpendingJourney cashflow={cashflow} loading={ledgerLoading} error={ledgerError} entries={entries} onRetry={refreshLedger} />}
@@ -74,7 +73,7 @@ export default function TodayHome() {
               : budget.complete !== false && budget.spent != null ? <>
                 <MonthlyAvailableFunds key={currentUser?.uid} funds={ledger?.funds} enableDailyBreakdown={DAILY_FUNDS_BREAKDOWN_ENABLED} refreshing={ledgerLoading} onRefresh={refreshLedger} />
                 <div className="today-cashflow" aria-label="本月收支"><div><span>本月支出</span><strong>{yuan(cashflow?.spent ?? budget.spent)}</strong></div><div><span>本月收入</span><strong>{cashflow?.complete ? yuan(cashflow.income) : '暂未汇总'}</strong></div></div>
-                <p>仅按已记录收支计算，退款抵减支出。{cashflow?.complete && (cashflow.has_expense_records === false || cashflow.has_income_records === false) && ' 本月有一侧尚无记录，结余可能不完整。'}</p>
+                <p>仅含已记录收支。{cashflow?.complete && (cashflow.has_expense_records === false || cashflow.has_income_records === false) && ' 本月有一侧尚无记录，结余可能不完整。'}</p>
               </> : <p>部分记录暂时无法汇总，请到账本核对。</p>}
           {LIVING_FUNDS_STRESS_TEST_ENABLED && <LivingFundsStressTest key={currentUser?.uid} funds={ledger?.funds} entries={entries} refreshing={ledgerLoading} />}
           <div className="today-panel-links"><Link to="/dashboard">打开账本记一笔 <span aria-hidden="true">→</span></Link></div>

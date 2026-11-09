@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { sendMessageToCoach } from '../services/api';
-import { Container, Row, Col, Card, Form, Button, Badge, Spinner } from 'react-bootstrap';
-import { FaPaperPlane, FaRobot, FaUser, FaLightbulb, FaCoins, FaChartLine, FaMoneyBillWave } from 'react-icons/fa';
+import { Container, Row, Col, Card, Form, Button, Spinner } from 'react-bootstrap';
+import { FaPaperPlane, FaRobot, FaUser, FaCoins, FaChartLine, FaMoneyBillWave } from 'react-icons/fa';
 import 'animate.css';
 import ReactMarkdown from 'react-markdown';
 import '../components/FinanceVisuals.css';
@@ -46,19 +46,6 @@ const MarkdownRenderer = ({ children }) => {
   );
 };
 
-// 增强型徽章组件
-const EnhancedBadge = ({ children, bg, className = '' }) => {
-  return (
-    <Badge 
-      bg={bg} 
-      className={`custom-badge px-3 py-2 rounded-pill fw-normal position-relative overflow-hidden ${className}`}
-    >
-      <span className="badge-content position-relative">{children}</span>
-      <span className="badge-glow"></span>
-    </Badge>
-  );
-};
-
 const CoachChat = () => {
   const { currentUser } = useAuth();
   const [messages, setMessages] = useState([]);
@@ -73,7 +60,7 @@ const CoachChat = () => {
   
   useEffect(() => {
     requestVersion.current += 1;
-    setMessages([{ id: 1, sender: 'ai', text: '你好，我是青盈。我们可以从一件真实的小事开始：最近有没有一笔消费或一个计划，让你不知道怎样取舍？我会帮助你看清选择，最后由你决定。' }]);
+    setMessages([{ id: 1, sender: 'ai', text: '想聊哪笔消费或哪个计划？' }]);
     setInput(location.state?.prompt || '');
     setUseLearningContext(false);
     setPurchaseAmount('');
@@ -173,18 +160,12 @@ const CoachChat = () => {
       
       <Container className="py-5">
         <Link to={/^\/(dashboard|learning)(\?|$)/.test(location.state?.returnTo || '') ? location.state.returnTo : '/'} className="btn btn-link mb-3">← 返回刚才的页面</Link>
-        <Form.Check type="checkbox" id="share-learning-context" className="mb-3" label="允许教练引用资料、最近五条学习记录及消费汇总计算（会发送给 AI 服务）" checked={useLearningContext} onChange={e => changeConsent(e.target.checked)} />
-        {useLearningContext && <Form.Group controlId="coach-purchase-amount" className="mb-3"><Form.Label>本次试算金额（元，可选）</Form.Label><Form.Control type="number" min="0.01" max="100000000" step="0.01" value={purchaseAmount} onChange={e => setPurchaseAmount(e.target.value)} placeholder="填写明确金额，避免从聊天文字猜测" /><Form.Text>只做一次性支出试算，不自动记账。每次发送消息时使用此金额，可随时清空。</Form.Text></Form.Group>}
+        <Form.Check type="checkbox" id="share-learning-context" className="mb-3" label="引用我的资料与最近5条学习记录、消费汇总（发送给 AI）" checked={useLearningContext} onChange={e => changeConsent(e.target.checked)} />
+        {useLearningContext && <Form.Group controlId="coach-purchase-amount" className="mb-3"><Form.Label>本次试算金额（元，可选）</Form.Label><Form.Control type="number" min="0.01" max="100000000" step="0.01" value={purchaseAmount} onChange={e => setPurchaseAmount(e.target.value)} placeholder="填写金额" /><Form.Text>仅试算，不记账；清空即可取消。</Form.Text></Form.Group>}
         <Row className="justify-content-center mb-4">
           <Col md={10} lg={8}>
             <div className="text-center mb-4">
-              <EnhancedBadge bg="primary" className="mb-3">
-                <span className="fw-medium text-white">AI金融教练</span>
-              </EnhancedBadge>
-              <h1 className="display-5 fw-bold mb-3">青盈 AI 教练对话</h1>
-              <p className="lead text-muted">
-                从生活中的问题开始，理解一个概念，比较选择，形成自己的理由。
-              </p>
+              <h1 className="h3 fw-bold">AI 教练</h1>
             </div>
           </Col>
         </Row>
@@ -198,7 +179,6 @@ const CoachChat = () => {
                 </div>
                 <div>
                   <h5 className="mb-0 fw-bold">青盈 AI 教练</h5>
-                  <small className="text-white-50">陪你思考的理财学习教练</small>
                 </div>
               </Card.Header>
               
@@ -284,9 +264,7 @@ const CoachChat = () => {
             </Card>
             
             <div className="chat-tips mt-4 p-3 rounded-4 bg-light shadow-sm">
-              <h5 className="mb-3 d-flex align-items-center">
-                <FaLightbulb className="text-warning me-2" /> 提示:
-              </h5>
+
               <div className="fv-prompt-chips">{['我想买一件东西，帮我比较选择', '帮我安排这周的生活费', '一起回看我最近的一次消费'].map(prompt => <button type="button" key={prompt} onClick={() => setInput(prompt)}>{prompt}</button>)}</div>
       </div>
           </Col>

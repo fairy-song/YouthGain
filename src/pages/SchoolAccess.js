@@ -44,16 +44,15 @@ export function SchoolReportDemo() {
       <div><span>学校端 / 公开演示</span><h1>演示月报</h1></div>
       <Link to="/research/login">登录学校端 <span aria-hidden="true">→</span></Link>
     </header>
-    <p className="research-intro">这是一个使用固定模拟数据的示例，可先了解老师能看到什么。示例与任何学校或学生的真实记录无关。</p>
     <section className="research-project-summary">
       <p className="research-kicker">示例项目</p>
       <h2>新生生活费规划试点</h2>
-      <p className="research-source" data-kind="demo"><strong>模拟数据</strong> · 仅用于演示，不能用于研究结论。</p>
+      <p className="research-source" data-kind="demo"><strong>模拟数据</strong> · 非真实研究结果。</p>
     </section>
     <article className="research-report" aria-label="模拟项目月报">
       <header className="research-report-heading"><div><span className="research-kicker">月度报告 / 模拟</span><h2>2026-10</h2></div></header>
       <ResearchCharts charts={demoCharts} />
-      <p className="research-report-note">正式月报只能由已获项目授权的账号查看和导出。正式报告展示群体统计及适用范围。</p>
+      <p className="research-report-note">正式月报需项目授权。</p>
     </article>
   </div>;
 }

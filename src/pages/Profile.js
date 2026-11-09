@@ -98,7 +98,7 @@ export default function Profile() {
   const abilities = summary.abilities || [];
 
   return <Container className="py-4 pb-5" style={{ maxWidth: 900 }}>
-    <h1>我的</h1><p className="text-muted">你的财务状态、学习进度和个人资料。</p>
+    <h1>我的</h1>
     <div className="profile-hero" style={{ flexWrap: 'wrap' }}>
       <div className="profile-hero-avatar">{((currentUser?.displayName || currentUser?.email || '?')[0]).toUpperCase()}</div>
       <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
@@ -209,7 +209,6 @@ export default function Profile() {
     {/* 问卷结果 */}
     <Card className="mb-4 border-0 shadow-sm" id="questionnaire"><Card.Body className="p-4">
       <h2 className="h5">用户问卷</h2>
-      <p className="text-muted small">新版 12 题与原有记录分开保存。之前填写的财务资料仍在本页下方。</p>
       {location.state?.questionnaireSaved && <Alert variant="success" role="status">问卷已保存到你的账户。</Alert>}
       {questionnaireError ? <Alert variant="warning">{questionnaireError}<Button variant="link" onClick={() => setRetry(v => v + 1)}>重试</Button></Alert>
         : !questionnaires ? <Spinner role="status" />
@@ -226,7 +225,7 @@ export default function Profile() {
             </details>
             {questionnaires.history.length > 1 && <details className="mb-3"><summary className="text-primary" style={{ cursor: 'pointer' }}>查看过往问卷（{questionnaires.history.length - 1}）</summary><ul className="mt-3">{questionnaires.history.slice(1).map(item => <li key={item.id}>{new Date(item.created_at).toLocaleDateString('zh-CN')} · {item.summary.focus}</li>)}</ul></details>}
             <Button as={Link} to="/start" variant="outline-primary">重新填写问卷</Button>
-          </> : <><p className="text-muted">你还没有保存新版问卷。回答后可先看简要结果，再保存到这里。</p><Button as={Link} to="/start" variant="primary">开始 12 题</Button></>}
+          </> : <><p className="text-muted">尚未填写问卷。</p><Button as={Link} to="/start" variant="primary">开始 12 题</Button></>}
       <div className="mt-3 small"><Link to="/assessment">查看原有知识测验</Link></div>
     </Card.Body></Card>
 

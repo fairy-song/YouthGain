@@ -70,7 +70,7 @@ export default function SchoolResearch({ managementMode = false }) {
       <div><span>YOUTHGAIN / 校园研究</span><h1>学校研究</h1></div>
       {!noAccess && <Link to="/research/login">切换账号</Link>}
     </header>}
-    {!managementMode && <p className="research-intro">查看获授权项目的月度群体统计，了解消费结构与预算安排。真实统计来自自愿参与者，不直接代表全校学生。</p>}
+    {!managementMode && <p className="research-intro">获授权项目的月度群体统计，仅代表自愿参与者。</p>}
     {error && <Alert variant="danger">{error}<Button variant="link" onClick={() => { setError(''); setReload(v => v + 1); }}>重试</Button></Alert>}
     {notice && <p role="status" className="text-success">{notice}</p>}
     {!access && !error && <p role="status">正在核对学校端访问权限…</p>}

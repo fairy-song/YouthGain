@@ -66,7 +66,7 @@ export default function PodcastAdmin() {
   };
   return <div className="podcast-admin">
     <section className="admin-editorial-section" aria-label="播客单集审核">
-      <div className="review-section-head"><div><h2>单集审核</h2><p>核对一期音频的来源、发布日期和内容，再决定是否发布。</p></div>
+      <div className="review-section-head"><div><h2>单集审核</h2></div>
         <Button variant="outline-success" size="sm" disabled={busy || editorOpen} onClick={() => { setEditing(null); setForm(blank); setEditorOpen(true); }}>添加单集</Button></div>
       {error && <Alert variant="danger" role="alert">{error}</Alert>}
       {loadError && <Alert variant="warning" role="alert">{loadError} <Button size="sm" variant="link" disabled={busy} onClick={load}>重试读取目录</Button></Alert>}
@@ -118,7 +118,7 @@ export default function PodcastAdmin() {
               }}>{selected.status === 'approved' ? '确认撤回' : '确认发布'}</Button>
               <Button size="sm" variant="link" disabled={busy} onClick={() => setConfirmReview(false)}>取消</Button>
             </div>}
-          </> : <p className="text-muted">选择一条单集，核对证据和发布条件。</p>}
+          </> : <p className="text-muted">← 选择待审核单集</p>}
         </div>
       </div>
     </section>

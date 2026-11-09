@@ -453,7 +453,7 @@ const Assessment = () => {
                 </EnhancedBadge>
                 <h1 className="display-5 fw-bold mb-3">心智评估中心</h1>
                 <p className="lead text-muted">
-                  通过八个生活问题认识自己的习惯，找到一个愿意尝试的练习。自我探索不用于专业诊断。
+                  8个生活问题 · 自我探索，非专业诊断
                 </p>
               </div>
 
@@ -487,7 +487,7 @@ const Assessment = () => {
                         <FaHistory size={32} color="white" />
                       </div>
                       <h4 className="fw-bold mb-2">历史记录</h4>
-                      <p className="text-muted mb-4">查看过往所有评估记录，通过折线图回看自己的回答如何变化（自评变化不等于能力提升）。</p>
+                      <p className="text-muted mb-4">回看回答变化，非能力评分。</p>
                       <Button variant="success" className="rounded-pill px-4 mt-auto btn-glow-green">
                         查看历史 <FaChartLine className="ms-2" />
                       </Button>

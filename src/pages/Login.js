@@ -65,13 +65,13 @@ const Login = ({ adminMode = false, schoolMode = false }) => {
         {schoolMode ? <header className="school-access-heading">
           <p>教师与研究人员</p>
           <h1>{resetMode ? '重置学校端密码' : '登录学校端'}</h1>
-          <p>{resetMode ? '请输入注册青盈时使用的邮箱。' : '使用研究项目负责人授权的邮箱和你的青盈密码。登录后可查看获授权项目的月报。'}</p>
+          <p>{resetMode ? '请输入注册青盈时使用的邮箱。' : '使用获项目授权的邮箱登录。'}</p>
         </header> : <>
           <h1 className="text-2xl font-bold mb-3 text-center">{resetMode ? '重置青盈密码' : adminMode ? '管理员登录' : '欢迎回到青盈'}</h1>
-          <p className="text-center text-muted mb-4">{resetMode ? '请输入注册青盈时使用的邮箱。' : adminMode ? '管理用户、查看平台数据与维护知识库' : '登录后查看今日收支，或继续刚才的操作。'}</p>
+          <p className="text-center text-muted mb-4">{resetMode ? '请输入注册青盈时使用的邮箱。' : adminMode ? '用户、内容与系统管理' : '继续上次的记录'}</p>
         </>}
         {schoolMode && workspace === 'school' && currentUser?.email && <p className="school-access-current">当前账号：<strong>{currentUser.email}</strong> · <Link to="/research">用此账号进入</Link></p>}
-        {adminMode && <p className="alert alert-light border">仅限已授权的管理员账号。账号权限由系统核验，选择此入口不会授予管理权限。</p>}
+        {adminMode && <p className="alert alert-light border">仅限已授权管理员。</p>}
         {!app && <p role="status" className={schoolMode ? 'school-access-local' : 'alert alert-warning'}>当前为本地开发模拟登录，密码不会被验证。{adminMode ? '请使用后台已配置的管理员邮箱；本项目本地示例为 admin@youthgain.com。' : schoolMode ? '请使用本地研究项目已授权的邮箱和任意非空测试密码。' : '请输入邮箱和任意非空密码。'}</p>}
 
         {error && (

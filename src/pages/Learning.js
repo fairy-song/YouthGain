@@ -122,7 +122,6 @@ function LearningContent() {
     <div className="mb-4">
       {tab !== 'practice' && <Badge bg="success" className="mb-3">看清影响 · 自主选择 · 回看消费</Badge>}
       <h1 className="fw-bold">{tab === 'practice' ? '今天想一想' : '消费决策与复盘'}</h1>
-      {tab !== 'practice' && <p className="text-muted">买之前比较影响，买之后回看体验。</p>}
     </div>
     {error && <Alert variant="warning" role="alert">{error} <Button variant="link" disabled={busy} onClick={() => setRetry(v => v + 1)}>刷新重试</Button></Alert>}
     {hasTrialAmount && <p className="small text-muted">已带入刚才试算的消费金额。你可以核对或修改，再决定是否保存。</p>}
@@ -160,7 +159,7 @@ function LearningContent() {
 
     {['decision', 'review'].includes(tab) && <div className="mb-3"><CoachHelp prompt={tab === 'decision' ? '我正在比较一笔消费，请先问我一个问题，帮助我考虑需要和取舍。' : '我正在做每周复盘，请帮助我回看一次选择，并确定下周的小行动。'} /></div>}
     {tab === 'decision' && <>
-      <Card className="border-0 shadow-sm mb-4"><Card.Body className="p-4"><h2 className="h4">看看这笔消费对本月安排的影响</h2><p className="text-muted">填写金额和类别即可比较。保存选择只记录计划，不会扣款或自动记账；实际购买后再去账本记一笔。</p>
+      <Card className="border-0 shadow-sm mb-4"><Card.Body className="p-4"><h2 className="h4">看看这笔消费对本月安排的影响</h2><p className="text-muted">保存计划不会扣款或记账。</p>
         {data.profile.personal_rule && <Alert variant="info">你给自己的提醒：{data.profile.personal_rule}</Alert>}
         <Form onSubmit={e => { e.preventDefault(); run(async () => { await saveLearningEntry('decision', { ...decision, alternative_amount: decision.alternative_amount || 0 }); setDecision(blankDecision); setComparison(null); }, '选择和理由已保存。实际购买后可到记账页记录支出，再回来回访。'); }}>
           <Row><Col md={6}><Form.Group controlId="choice-amount" className="mb-3"><Form.Label>计划金额（元）</Form.Label><Form.Control required type="number" min="0.01" max="100000000" step="0.01" value={decision.amount} onChange={e => setDecisionField('amount', e.target.value)} /></Form.Group></Col><Col md={6}><Form.Group controlId="choice-category" className="mb-3"><Form.Label>商品或消费类别</Form.Label><Form.Control required maxLength={80} value={decision.category} onChange={e => setDecisionField('category', e.target.value)} /></Form.Group></Col></Row>
@@ -185,7 +184,7 @@ function LearningContent() {
           <Button type="submit" disabled={busy}>保存我的选择</Button> <Button as={Link} to="/dashboard" variant="outline-secondary">已购买，去记账</Button>
         </Form>
       </Card.Body></Card>
-      <h2 className="h4">回看我的选择</h2><p className="text-muted">过几天再看看是否符合预期，也可以更新自己的想法。</p>
+      <h2 className="h4">回看我的选择</h2>
       {!entries.some(e => e.kind === 'decision') && <p>还没有选择记录，从一个真实的问题开始。</p>}
       {entries.filter(e => e.kind === 'decision').map(e => <Card key={e.id} className="mb-3"><Card.Body><h3 className="h6">{e.category} · ¥{e.amount} · {choiceLabels[e.choice]}</h3><p>当时的需要：{e.need}</p><p>我的理由：{e.reason}</p>{e.outcome && <p>上次回访：{outcomeLabels[e.outcome]} {e.reflection}</p>}
         <Form onSubmit={event => { event.preventDefault(); run(() => saveDecisionOutcome(e.id, { outcome: outcomeDrafts[e.id]?.outcome || e.outcome || 'mixed', reflection: outcomeDrafts[e.id]?.reflection ?? e.reflection ?? '' }), '回访已保存。'); }}>
@@ -196,14 +195,14 @@ function LearningContent() {
     </>}
 
     {tab === 'review' && <Card className="border-0 shadow-sm"><Card.Body className="p-4"><h2 className="h4">简短回看这一周</h2>
-      <p className="text-muted">不必每天记录。可以回顾更早的消费，文字里注明时间即可；这次复盘会保存在本周。</p>
-      {incomingObservation && !observationUsed && <Alert variant="light"><strong>刚才的消费观察</strong><p>{incomingObservation}</p><p className="small">核对后可带入下方；已有文字会保留，仍需点击保存才会写入账户。</p><Button variant="outline-secondary" disabled={(review.observation ? review.observation.length + 1 : 0) + incomingObservation.length > 1000} onClick={() => {
+      <p className="text-muted">可回顾更早的消费，保存到本周。</p>
+      {incomingObservation && !observationUsed && <Alert variant="light"><strong>刚才的消费观察</strong><p>{incomingObservation}</p><p className="small">核对后带入，确认保存才写入账户。</p><Button variant="outline-secondary" disabled={(review.observation ? review.observation.length + 1 : 0) + incomingObservation.length > 1000} onClick={() => {
         setReview(value => ({ ...value, observation: [value.observation, incomingObservation].filter(Boolean).join('\n') }));
         setObservationUsed(true);
       }}>将观察带入复盘</Button><Button variant="link" onClick={() => setObservationUsed(true)}>这次不用</Button>{(review.observation ? review.observation.length + 1 : 0) + incomingObservation.length > 1000 && <p className="small">已有文字较长，请先整理下方观察，再带入。</p>}</Alert>}
       {!facts && !factsError && <p role="status" className="text-muted">正在汇总本周账目，可以先填写下方的复盘。</p>}
       {factsError && <Alert variant="warning">{factsError}<Button variant="link" onClick={() => setFactsRetry(v => v + 1)}>重试账目</Button></Alert>}
-      {facts && <Alert variant="light">{facts.start} 至 {facts.end}：已记录 {facts.count} 笔，共 ¥{facts.total.toFixed(2)}。<div className="small">{facts.message}{facts.limited && ' 当前只读取最近 2000 笔，汇总可能不完整。'}</div></Alert>}
+      {facts && <section aria-label="本周记录汇总"><small>{facts.start} — {facts.end}</small><dl className="clarity-inline"><div><dt>已记录</dt><dd>{facts.count} 笔</dd></div><div><dt>合计</dt><dd>¥{facts.total.toFixed(2)}</dd></div></dl><small>{facts.message}{facts.limited && ' 仅最近2000笔，可能不完整。'}</small></section>}
       {previousReview && <Alert variant="info">上次想尝试：{previousReview.next_action}</Alert>}
       {currentReview && <p className="text-success">本周已复盘，重新保存会更新本周记录。<Button variant="link" onClick={() => setReview(currentReview)}>继续编辑</Button></p>}
       <Form onSubmit={e => { e.preventDefault(); if (!reviewInitialized || (currentReview && !confirmReviewUpdate)) return; run(async () => { await saveLearningEntry('review', { ...review, expected_week: reviewWeek }); setConfirmReviewUpdate(false); }, '本周复盘已保存，下周可以回看这次行动。'); }}>
@@ -219,7 +218,7 @@ function LearningContent() {
     </Card.Body></Card>}
 
     {tab === 'growth' && <>
-      <h2 className="h4">历史记录</h2><p className="text-muted">回看曾经的决定与下一步行动。</p>
+      <h2 className="h4">历史记录</h2>
       {!entries.some(e => ['decision', 'review'].includes(e.kind)) && <p>暂时没有记录，比较消费或完成复盘后可选择保存。</p>}
       {entries.filter(e => ['decision', 'review'].includes(e.kind)).sort((a, b) => String(b.updated_at || b.created_at || b.week || '').localeCompare(String(a.updated_at || a.created_at || a.week || ''))).map(e => <Card key={e.id} className="mb-3"><Card.Body>{e.kind === 'decision' ? <><h3 className="h6">{e.category} · ¥{e.amount} · {choiceLabels[e.choice]}</h3>{e.reason && <p>{e.reason}</p>}{e.outcome && <p>回访：{outcomeLabels[e.outcome]} {e.reflection}</p>}</> : <><h3 className="h6">{e.week} · 每周复盘</h3><p>{e.observation}</p><strong>下一步：{e.next_action}</strong></>}</Card.Body></Card>)}
       <h2 className="h4 mt-4">我逐渐形成的原则</h2>{!reviews.length && <p>完成第一次每周复盘后，你的原则会出现在这里。</p>}
