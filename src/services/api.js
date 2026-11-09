@@ -132,7 +132,7 @@ export const fetchAssessmentResults = async (userId) => {
 export const sendMessageToCoach = async (data) => {
   const response = await api.post('/coach/chat', data, { timeout: 90000 });
   if (response.data.status !== 'success') throw new Error(response.data.message || '教练暂时无法回复');
-  return { reply: response.data.reply, evidence: response.data.evidence, validation: response.data.validation };
+  return { reply: response.data.reply, evidence: response.data.evidence, validation: response.data.validation, runtime: response.data.runtime };
 };
 
 // 系统健康检查

@@ -69,6 +69,7 @@ const CoachChat = () => {
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const requestVersion = useRef(0);
+  const composing = useRef(false);
   
   useEffect(() => {
     requestVersion.current += 1;
@@ -100,7 +101,7 @@ const CoachChat = () => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || loading) return;
+    if (composing.current || !input.trim() || loading) return;
     const version = ++requestVersion.current;
     
     const userMessage = { id: Date.now(), sender: 'user', text: input };
@@ -256,6 +257,12 @@ const CoachChat = () => {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onCompositionStart={() => { composing.current = true; }}
+              onCompositionEnd={() => { composing.current = false; }}
+              onKeyDown={e => {
+                // Enter confirms an IME candidate; keyCode 229 covers legacy WebKit events.
+                if (e.key === 'Enter' && (composing.current || e.nativeEvent.isComposing || e.keyCode === 229)) e.preventDefault();
+              }}
                       placeholder="输入您的问题或描述您的财务状况..."
                       className="rounded-pill me-2 border-0 shadow-sm py-2 px-3"
               disabled={loading}

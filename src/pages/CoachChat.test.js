@@ -79,3 +79,22 @@ test('revoking consent invalidates pending response and clears prior personal hi
   expect(payload.use_learning_context).toBe(false);
   expect(JSON.stringify(payload.chat_history)).not.toContain('我的个人预算');
 });
+
+
+test('IME composition cannot submit a draft and ordinary sending resumes after commit', async () => {
+  sendMessageToCoach.mockResolvedValue({ reply: 'confirmed' });
+  render(<App />);
+  const input = screen.getByRole('textbox');
+  fireEvent.change(input, { target: { value: '预算安排' } });
+  fireEvent.compositionStart(input);
+  expect(fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', isComposing: true })).toBe(false);
+  fireEvent.submit(input.closest('form'));
+  expect(sendMessageToCoach).not.toHaveBeenCalled();
+  expect(input).toHaveValue('预算安排');
+  fireEvent.compositionEnd(input);
+  expect(fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 })).toBe(false);
+  expect(fireEvent.keyDown(input, { key: 'Enter', keyCode: 13 })).toBe(true);
+  fireEvent.submit(input.closest('form'));
+  await screen.findByText('confirmed');
+  expect(sendMessageToCoach).toHaveBeenCalledTimes(1);
+});
