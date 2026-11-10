@@ -51,6 +51,8 @@ def database():
           version_id TEXT, actor TEXT NOT NULL, created_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS ku_screenings(id INTEGER PRIMARY KEY AUTOINCREMENT,
           version_id TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL);
+        CREATE INDEX IF NOT EXISTS ku_screenings_version ON ku_screenings(version_id,id);
+        CREATE INDEX IF NOT EXISTS ku_versions_status ON ku_versions(status);
         CREATE TRIGGER IF NOT EXISTS ku_version_content_immutable BEFORE UPDATE OF payload,fingerprint,document_id,base_id ON ku_versions
           BEGIN SELECT RAISE(ABORT,'knowledge version content is immutable'); END;
         CREATE TRIGGER IF NOT EXISTS ku_versions_no_delete BEFORE DELETE ON ku_versions
@@ -449,20 +451,45 @@ def published():
         return result
 
 
-def overview():
+def overview(status='all', page=1, page_size=300):
+    if status not in ('all', 'pending', 'approved', 'rejected', 'excluded'):
+        raise ValueError('未知的版本状态')
+    try:
+        page, page_size = int(page), int(page_size)
+    except (ValueError, TypeError):
+        raise ValueError('分页参数须为整数') from None
+    if page < 1 or not 1 <= page_size <= 300:
+        raise ValueError('页码须大于0，每页数量须在1至300之间')
     seed()
     with database() as conn:
         sources = [json.loads(row[0]) for row in conn.execute('SELECT payload FROM ku_sources')]
+        # Filter the complete ledger before limiting payloads; latest screening wins.
+        query = """FROM ku_versions v JOIN ku_documents d ON v.document_id=d.id
+          LEFT JOIN ku_screenings s ON s.id=(SELECT MAX(id) FROM ku_screenings WHERE version_id=v.id)
+          LEFT JOIN ku_versions old ON old.id=d.current_id"""
+        params = []
+        if status == 'excluded':
+            query += " WHERE json_extract(s.payload,'$.decision')=?"
+            params.append('exclude')
+        elif status != 'all':
+            query += ' WHERE v.status=?'
+            params.append(status)
+        total = conn.execute('SELECT COUNT(*) '+query, params).fetchone()[0]
+        pages = max(1, (total + page_size - 1) // page_size)
+        page = min(page, pages)
+        rows = conn.execute("""SELECT v.*,d.url,d.current_id,d.withdrawn,
+          old.payload AS previous_payload,s.payload AS screening_payload,s.created_at AS screened_at """
+          + query + ' ORDER BY v.rowid DESC LIMIT ? OFFSET ?', [*params, page_size, (page-1)*page_size])
         versions = []
-        for row in conn.execute('SELECT v.*,d.url,d.current_id,d.withdrawn FROM ku_versions v JOIN ku_documents d ON v.document_id=d.id ORDER BY v.rowid DESC LIMIT 300'):
+        for row in rows:
             value = {**dict(row), **json.loads(row['payload'])}
-            value.pop('payload', None)
-            old = conn.execute('SELECT payload FROM ku_versions WHERE id=?', (row['current_id'],)).fetchone()
-            value['previous_content'] = json.loads(old[0])['content'] if old else ''
-            screened = conn.execute('SELECT payload,created_at FROM ku_screenings WHERE version_id=? ORDER BY id DESC LIMIT 1', (row['id'],)).fetchone()
-            value['screening'] = dict(json.loads(screened[0]), checked_at=screened[1]) if screened else None
+            for key in ('payload', 'previous_payload', 'screening_payload', 'screened_at'):
+                value.pop(key, None)
+            value['previous_content'] = json.loads(row['previous_payload'])['content'] if row['previous_payload'] else ''
+            value['screening'] = dict(json.loads(row['screening_payload']), checked_at=row['screened_at']) if row['screening_payload'] else None
             versions.append(value)
         counts = dict(conn.execute('SELECT status,COUNT(*) FROM ku_versions GROUP BY status').fetchall())
         from .knowledge_capacity import current_articles, report
         articles = current_articles(conn)
-    return dict(sources=sources, versions=versions, version_counts=counts, capacity=report(articles))
+    return dict(sources=sources, versions=versions, version_counts=counts, capacity=report(articles),
+                pagination=dict(page=page, page_size=page_size, total=total, pages=pages))

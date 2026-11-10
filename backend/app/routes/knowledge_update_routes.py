@@ -20,7 +20,9 @@ def payload():
 @knowledge_updates_bp.get('')
 @require_admin
 def overview(user_info):
-    return jsonify(service.overview())
+    return jsonify(service.overview(status=request.args.get('status', 'all'),
+                                    page=request.args.get('page', '1'),
+                                    page_size=request.args.get('page_size', '300')))
 
 
 @knowledge_updates_bp.post('/sources')

@@ -185,3 +185,43 @@ def test_concurrent_checks_create_one_version(client, monkeypatch):
     with ThreadPoolExecutor(max_workers=3) as pool:
         list(pool.map(run, range(3)))
     assert len(versions(client)) == 1
+
+
+def test_overview_filters_before_pagination_and_reaches_old_pending(client):
+    with client.application.app_context(), ku.database() as conn:
+        conn.execute("INSERT INTO ku_documents(id,url,source_id) VALUES('history','https://www.investor.org.cn/history','fixture')")
+        for index in range(305):
+            body = ku.dump(dict(id=f'h{index}', title=f'预算方法{index}', content='预算安排', region='CN'))
+            conn.execute('INSERT INTO ku_versions(id,document_id,fingerprint,payload,status) VALUES(?,?,?,?,?)',
+                         (f'h{index}', 'history', str(index), body, 'pending' if index < 3 else 'approved'))
+        # Only the latest screening should decide which queue includes a version.
+        for decision in ('exclude', 'review'):
+            conn.execute('INSERT INTO ku_screenings(version_id,payload,created_at) VALUES(?,?,?)',
+                         ('h1', ku.dump(dict(decision=decision)), ku.stamp()))
+        conn.execute('INSERT INTO ku_screenings(version_id,payload,created_at) VALUES(?,?,?)',
+                     ('h2', ku.dump(dict(decision='exclude')), ku.stamp()))
+    root = '/api/admin/knowledge-updates'
+    response = call(client, 'get', root+'?status=pending&page_size=2', user='admin')
+    assert response.status_code == 200
+    assert [v['id'] for v in response.json['versions']] == ['h2', 'h1']
+    assert response.json['pagination'] == dict(page=1, page_size=2, total=3, pages=2)
+    second = call(client, 'get', root+'?status=pending&page_size=2&page=2', user='admin').json
+    assert [v['id'] for v in second['versions']] == ['h0']
+    assert second['version_counts'] == dict(pending=3, approved=302)
+    excluded = call(client, 'get', root+'?status=excluded', user='admin').json
+    assert [v['id'] for v in excluded['versions']] == ['h2']
+    approved = call(client, 'get', root+'?status=approved&page_size=100&page=999', user='admin').json
+    assert approved['pagination'] == dict(page=4, page_size=100, total=302, pages=4)
+    assert [v['id'] for v in approved['versions']] == ['h4','h3']
+    assert call(client, 'get', root+'?status=pending').status_code == 403
+
+
+@pytest.mark.parametrize('query', ['status=unknown', 'page=0', 'page=-1', 'page=abc', 'page_size=0', 'page_size=301', 'page_size=1.5'])
+def test_overview_rejects_invalid_pagination(client, query):
+    assert call(client, 'get', '/api/admin/knowledge-updates?'+query, user='admin').status_code == 400
+
+
+def test_overview_empty_queue_has_explicit_pagination(client):
+    result = call(client, 'get', '/api/admin/knowledge-updates?status=rejected&page=2', user='admin').json
+    assert result['versions'] == []
+    assert result['pagination'] == dict(page=1, page_size=300, total=0, pages=1)

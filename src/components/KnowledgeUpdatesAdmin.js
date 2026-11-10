@@ -9,7 +9,13 @@ export default function KnowledgeUpdatesAdmin() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [acting, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const requestId = useRef(0);
+  const queueNavigation = useRef(null);
+  const focusQueue = useRef(false);
+  const busy = acting || loading;
   const [filter, setFilter] = useState('pending');
   const [selectedId, setSelectedId] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -20,20 +26,45 @@ export default function KnowledgeUpdatesAdmin() {
   const heading = useRef(null);
   const selectedButton = useRef(null);
 
-  const load = useCallback(async () => { setData(await knowledgeUpdatesApi('GET')); }, []);
-  useEffect(() => { load().catch(() => setError('动态知识更新台账暂无法读取，请重试。')); }, [load]);
+  const load = useCallback(async () => {
+    const id = ++requestId.current;
+    setLoading(true); setError('');
+    try {
+      const result = await knowledgeUpdatesApi('GET', `?status=${filter}&page=${page}&page_size=25`);
+      if (id === requestId.current) setData(result);
+    } catch (e) {
+      if (id === requestId.current) {
+        setData(null); setError('审核队列暂时无法读取，请重试。');
+      }
+      throw e;
+    } finally {
+      if (id === requestId.current) setLoading(false);
+    }
+  }, [filter, page]);
+  useEffect(() => {
+    load().catch(() => {});
+    return () => { requestId.current += 1; };
+  }, [load]);
   const versions = data?.versions || [];
   const pending = data?.version_counts?.pending ?? versions.filter(version => version.status === 'pending').length;
-  const visible = versions.filter(version => filter === 'all' || (filter === 'excluded' ? version.screening?.decision === 'exclude' : version.status === filter && (filter !== 'pending' || version.screening?.decision !== 'exclude')));
+  const visible = data?.pagination ? versions : versions.filter(version => filter === 'all' || (filter === 'excluded' ? version.screening?.decision === 'exclude' : version.status === filter));
+  const pagination = data?.pagination || { page: 1, pages: 1, total: visible.length, page_size: 25 };
+  const changePage = nextPage => { focusQueue.current = true; resetSelection(); setPage(nextPage); };
+  useEffect(() => {
+    if (!loading && data && focusQueue.current) {
+      queueNavigation.current?.focus(); focusQueue.current = false;
+    }
+  }, [loading, data]);
   const selected = visible.find(version => version.id === selectedId);
   const published = selected && selected.current_id === selected.id && !selected.withdrawn;
   useEffect(() => { if (selectedId) heading.current?.focus(); }, [selectedId]);
 
   const resetSelection = () => { setSelectedId(null); setConfirmed(false); setReleaseChange(false); };
   const refresh = async () => {
+    focusQueue.current = true;
     setBusy(true); setError(''); setNotice('');
     try { await load(); resetSelection(); }
-    catch { setError('动态知识更新台账暂无法读取，请重试。'); }
+    catch { /* load exposes a retryable error without claiming the queue is empty. */ }
     finally { setBusy(false); }
   };
   const act = async (method, path, body, message) => {
@@ -52,9 +83,9 @@ export default function KnowledgeUpdatesAdmin() {
   return <section className="admin-editorial-section" aria-label="知识来源与更新审核">
     <div className="review-section-head"><div><h2>知识更新审核</h2></div>
       <button type="button" className="btn btn-sm btn-outline-secondary" disabled={busy} onClick={refresh}>刷新更新台账</button></div>
-    {error && <p role="alert" className="text-danger">{error}</p>}
+    {error && <div role="alert" className="text-danger"><p>{error}</p><button type="button" className="btn btn-outline-secondary btn-sm" disabled={busy} onClick={refresh}>重试读取</button></div>}
     {notice && <p role="status" className="text-success">{notice}</p>}
-    {!data && !error && <p role="status">正在读取审核队列…</p>}
+    {loading && <p role="status">正在读取审核队列…</p>}
     {data?.capacity && <section className="border-top border-bottom py-3 mb-3" aria-label="知识库实际容量">
       <h3 className="h5">知识库实际容量</h3>
       <dl className="clarity-capacity">
@@ -65,12 +96,16 @@ export default function KnowledgeUpdatesAdmin() {
       <details><summary>统计详情</summary><p className="small">正文 {data.capacity.body_characters.toLocaleString()} 字符 · 索引 {data.capacity.index?.passages ?? 0} 片段 · 向量缓存 {data.capacity.index?.cached_vectors ?? 0} 条。配额不是已收录量或性能承诺；教练按适用地区检索。</p></details>
       {data.capacity.over_capacity && <p role="alert" className="text-danger">现有内容已超过配置额度，请先处理容量再发布新内容。</p>}
     </section>}
-    {data && <div className="review-workbench">
+    {data && !loading && <div className="review-workbench">
       <div className="review-queue">
-        <p className="small text-muted">最近300个版本 · 待审核数为完整台账统计</p>
-        <label className="review-filter">版本状态<select className="form-select" value={filter} onChange={e => { setFilter(e.target.value); resetSelection(); }}>
-          <option value="pending">待审核（{pending}，含待复核与排除建议）</option><option value="excluded">自动筛选建议排除</option><option value="approved">已审核</option><option value="rejected">已拒绝</option><option value="all">全部版本</option>
+        <label className="review-filter">版本状态<select className="form-select" disabled={busy} value={filter} onChange={e => { focusQueue.current = true; setFilter(e.target.value); setPage(1); resetSelection(); }}>
+          <option value="pending">待审核（{pending}）</option><option value="excluded">自动筛选建议排除</option><option value="approved">已审核</option><option value="rejected">已拒绝</option><option value="all">全部版本</option>
         </select></label>
+        <nav ref={queueNavigation} tabIndex={-1} className="review-actions my-3" aria-label="审核队列分页">
+          <button type="button" className="btn btn-sm btn-outline-secondary" disabled={busy || pagination.page <= 1} onClick={() => changePage(pagination.page - 1)}>上一页</button>
+          <span role="status" aria-live="polite">{pagination.total ? `${(pagination.page - 1) * pagination.page_size + 1}–${Math.min(pagination.page * pagination.page_size, pagination.total)} / ${pagination.total}` : '0 条'} · 第 {pagination.page} / {pagination.pages} 页</span>
+          <button type="button" className="btn btn-sm btn-outline-secondary" disabled={busy || pagination.page >= pagination.pages} onClick={() => changePage(pagination.page + 1)}>下一页</button>
+        </nav>
         {!visible.length && <p className="text-muted mt-3">{filter === 'pending' ? '目前没有待审核版本。' : '此状态暂无版本。'}</p>}
         <ul className="review-queue-list">{visible.map(version => <li key={version.id}>
           <button type="button" disabled={busy} aria-pressed={selectedId === version.id} onClick={event => {
