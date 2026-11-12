@@ -360,13 +360,16 @@ def check_source(source_id):
     finally:
         with database() as conn:
             latest = json.loads(conn.execute('SELECT payload FROM ku_sources WHERE id=?', (source_id,)).fetchone()[0])
-            if latest['url'] != source['url']:
-                source = latest  # Old request validators must never be attached to a new URL.
-            for key in ('enabled', 'name', 'url', 'kind', 'region'):
-                source[key] = latest[key]
-            source['lease_until'] = ''
-            conn.execute('UPDATE ku_sources SET payload=? WHERE id=?', (dump(source), source_id))
-    return source
+            if latest.get('lease_until') == source['lease_until']:
+                # Merge only check results. Source settings can change during the request.
+                if (latest['url'], latest['kind']) == (source['url'], source['kind']):
+                    for key in ('cursor', 'etag', 'last_modified', 'last_result', 'last_error',
+                                'failures', 'last_checked', 'next_check'):
+                        if key in source:
+                            latest[key] = source[key]
+                latest['lease_until'] = ''
+                conn.execute('UPDATE ku_sources SET payload=? WHERE id=?', (dump(latest), source_id))
+    return latest
 
 
 def run_due(limit=2):

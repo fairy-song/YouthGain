@@ -225,3 +225,42 @@ def test_overview_empty_queue_has_explicit_pagination(client):
     result = call(client, 'get', '/api/admin/knowledge-updates?status=rejected&page=2', user='admin').json
     assert result['versions'] == []
     assert result['pagination'] == dict(page=1, page_size=300, total=0, pages=1)
+
+
+def test_check_source_preserves_settings_changed_during_request(client, monkeypatch):
+    item = source(client, publish_policy='basic_auto', usage_confirmed=True)
+
+    def fetch(*args, **kwargs):
+        ku.save_source(dict(publish_policy='manual', usage_confirmed=False, enabled=False),
+                       item['id'])
+        return 304, {}, b''
+
+    monkeypatch.setattr(ku, 'fetch_page', fetch)
+    result = scan(client, item['id'])
+    assert result['last_result'] == 'unchanged'
+    assert result['publish_policy'] == 'manual'
+    assert result['usage_confirmed'] is False
+    assert result['enabled'] is False
+    with client.application.app_context():
+        saved = next(s for s in ku.overview()['sources'] if s['id'] == item['id'])
+        assert saved == result
+
+
+def test_expired_source_check_does_not_overwrite_new_check(client, monkeypatch):
+    from datetime import timedelta
+
+    item = source(client)
+    start = ku.now()
+    monkeypatch.setattr(ku, 'now', lambda: start)
+
+    def slow_fetch(*args, **kwargs):
+        monkeypatch.setattr(ku, 'now', lambda: start + timedelta(minutes=6))
+        monkeypatch.setattr(ku, 'fetch_page', lambda *args: (304, {}, b''))
+        newer = ku.check_source(item['id'])
+        assert newer['last_result'] == 'unchanged'
+        return 503, {}, b''
+
+    monkeypatch.setattr(ku, 'fetch_page', slow_fetch)
+    result = scan(client, item['id'])
+    assert result['last_result'] == 'unchanged'
+    assert not result['last_error']

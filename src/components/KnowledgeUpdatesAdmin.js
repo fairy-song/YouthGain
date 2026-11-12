@@ -5,10 +5,20 @@ const statusLabels = { pending: '待审核', approved: '已审核', rejected: '�
 const blankSource = { name: '', url: '', kind: 'page', region: 'CN', enabled: false };
 const screeningLabels = { eligible: '筛选通过', review: '需要复核', exclude: '建议排除', capacity_wait: '等待容量', published: '已自动发布', running: '正在筛选' };
 
+function checkFeedback({ source } = {}) {
+  switch (source?.last_result) {
+    case 'updated': return { text: '检查完成，发现新版本。' };
+    case 'unchanged': return { text: '检查完成，没有发现新版本。' };
+    case 'failed': return { text: source.last_error ? `检查失败：${source.last_error}` : '检查失败，请重试。', failed: true };
+    default: return { text: '暂未取得检查结果，请刷新确认。' };
+  }
+}
+
 export default function KnowledgeUpdatesAdmin() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [sourceCheck, setSourceCheck] = useState(null);
   const [acting, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -62,28 +72,33 @@ export default function KnowledgeUpdatesAdmin() {
   const resetSelection = () => { setSelectedId(null); setConfirmed(false); setReleaseChange(false); };
   const refresh = async () => {
     focusQueue.current = true;
-    setBusy(true); setError(''); setNotice('');
+    setBusy(true); setError(''); setNotice(''); setSourceCheck(null);
     try { await load(); resetSelection(); }
     catch { /* load exposes a retryable error without claiming the queue is empty. */ }
     finally { setBusy(false); }
   };
   const act = async (method, path, body, message) => {
-    setBusy(true); setError(''); setNotice('');
+    setBusy(true); setError(''); setNotice(''); setSourceCheck(null);
     try {
-      await knowledgeUpdatesApi(method, path, body);
+      const result = await knowledgeUpdatesApi(method, path, body);
       resetSelection();
       if (path === '/sources' && method === 'POST') setForm(blankSource);
-      setNotice(message);
+      if (typeof message === 'function') message(result);
+      else setNotice(message);
       try { await load(); }
-      catch { setData(null); setError('操作已完成，最新台账暂未读到，请刷新确认。'); }
+      catch { setData(null); setError('最新台账暂未读到，请刷新确认。'); }
     } catch (e) { setError(e.response?.data?.message || '操作失败，请稍后重试。'); }
     finally { setBusy(false); }
   };
+
+  const sourceCheckNotice = sourceCheck && <p role={sourceCheck.failed ? 'alert' : 'status'}
+    className={sourceCheck.failed ? 'small text-danger' : 'small'}>{sourceCheck.text}</p>;
 
   return <section className="admin-editorial-section" aria-label="知识来源与更新审核">
     <div className="review-section-head"><div><h2>知识更新审核</h2></div>
       <button type="button" className="btn btn-sm btn-outline-secondary" disabled={busy} onClick={refresh}>刷新更新台账</button></div>
     {error && <div role="alert" className="text-danger"><p>{error}</p><button type="button" className="btn btn-outline-secondary btn-sm" disabled={busy} onClick={refresh}>重试读取</button></div>}
+    {!data && sourceCheckNotice}
     {notice && <p role="status" className="text-success">{notice}</p>}
     {loading && <p role="status">正在读取审核队列…</p>}
     {data?.capacity && <section className="border-top border-bottom py-3 mb-3" aria-label="知识库实际容量">
@@ -154,10 +169,10 @@ export default function KnowledgeUpdatesAdmin() {
         <strong>{source.name}</strong> · {source.region} · {source.enabled ? '已启用' : '已停用'}
         <span className="small"> · {source.publish_policy === 'basic_auto' ? '合格基础内容自动发布' : '自动筛选后人工发布'}</span>
         <div className="small"><a href={source.url} target="_blank" rel="noreferrer">查看来源</a> · 最近检查 {source.last_checked || '尚未检查'} · 下次 {source.next_check || '启用后检查'}</div>
-        {source.last_error && <p className="small text-danger">{source.last_error}</p>}
+        {sourceCheck?.id === source.id ? sourceCheckNotice : source.last_error && <p className="small text-danger">{source.last_error}</p>}
         <div className="review-actions">
           <button type="button" className="btn btn-sm btn-outline-secondary" disabled={busy} onClick={() => act('PUT', `/sources/${source.id}`, { enabled: !source.enabled }, '已更新来源状态。')}>{source.enabled ? '停用' : '启用'}</button>
-          <button type="button" className="btn btn-sm btn-outline-success" disabled={busy || !source.enabled} onClick={() => act('POST', `/sources/${source.id}/check`, undefined, '已提交来源检查。')}>立即检查</button>
+          <button type="button" className="btn btn-sm btn-outline-success" disabled={busy || !source.enabled} onClick={() => act('POST', `/sources/${source.id}/check`, undefined, result => setSourceCheck({ id: source.id, ...checkFeedback(result) }))}>立即检查</button>
           <button type="button" className="btn btn-sm btn-outline-secondary" disabled={busy} onClick={() => { setPolicySource(source.id); setUsageConfirmed(false); }}>设置发布策略</button>
         </div>
         {policySource === source.id && <div className="py-2">

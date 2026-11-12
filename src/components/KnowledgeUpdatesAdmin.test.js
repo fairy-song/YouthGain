@@ -145,3 +145,20 @@ test('hides old rows while loading and uses the clamped page after the last item
   expect(screen.getByRole('button', { name: '下一页' })).toBeDisabled();
   expect(screen.getByRole('button', { name: '上一页' })).toBeDisabled();
 });
+
+test.each([
+  ['updated', '检查完成，发现新版本。', 'status'],
+  ['unchanged', '检查完成，没有发现新版本。', 'status'],
+  ['failed', '检查失败：来源暂不可用', 'alert'],
+])('shows the returned source check outcome: %s', async (outcome, message, role) => {
+  const source = { ...value.sources[0], enabled: true };
+  knowledgeUpdatesApi.mockImplementation(async (method) => method === 'POST'
+    ? { source: { ...source, last_result: outcome, last_error: '来源暂不可用' } }
+    : { ...value, sources: [source] });
+  render(<KnowledgeUpdatesAdmin />);
+  const details = (await screen.findByText('管理采集来源')).closest('details');
+  details.open = true;
+  fireEvent.click(screen.getByRole('button', { name: '立即检查' }));
+  expect(await screen.findByText(message)).toHaveAttribute('role', role);
+  await waitFor(() => expect(screen.getByRole('button', { name: '立即检查' })).toBeEnabled());
+});

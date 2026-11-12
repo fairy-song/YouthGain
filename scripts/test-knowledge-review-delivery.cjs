@@ -23,6 +23,8 @@ const manifest = { mode: 'isolated mock APIs; not a live publication or user stu
     for (const width of [390, 1280]) {
       let fail = false, delay = false, reviewed = false;
       const errors = [], reads = [], writes = [];
+      const checkOutcomes = ['failed', 'unchanged', 'updated'];
+      let source = { id: 'demo-source', name: '演示来源', url: 'https://example.org', region: 'CN', enabled: true };
       const records = Array.from({ length: 26 }, (_, i) => ({
         id: 'demo-' + i, document_id: 'd-' + i, title: i === 25 ? '演示：较早的待审核内容' : '演示：预算资料 ' + (i + 1),
         status: 'pending', current_id: null, region: 'CN', date: '2026-11-01', checked_at: '2026-11-10',
@@ -48,9 +50,13 @@ const manifest = { mode: 'isolated mock APIs; not a live publication or user stu
           const values = status === 'approved' || status === 'rejected' ? [] : records.slice(0, reviewed ? 25 : 26);
           const pages = Math.max(1, Math.ceil(values.length / 25));
           const current = Math.min(Number(url.searchParams.get('page') || 1), pages);
-          data = { sources: [], versions: values.slice((current - 1) * 25, current * 25), version_counts: { pending: values.length },
+          data = { sources: [source], versions: values.slice((current - 1) * 25, current * 25), version_counts: { pending: values.length },
             pagination: { page: current, page_size: 25, total: values.length, pages },
             capacity: { published_articles: 27, passages: 30, body_characters: 14657, limits: { articles: 1000, passages: 20000 }, index_current: true } };
+        } else if (url.pathname === '/api/admin/knowledge-updates/sources/demo-source/check') {
+          const outcome = checkOutcomes.shift();
+          source = { ...source, last_result: outcome, last_error: outcome === 'failed' ? '模拟来源暂不可用' : null };
+          data = { source };
         } else if (req.method() === 'POST') {
           writes.push({ path: url.pathname, body: req.postDataJSON() });
           reviewed = true;
@@ -100,11 +106,24 @@ const manifest = { mode: 'isolated mock APIs; not a live publication or user stu
       await region.getByText('此状态暂无版本。').waitFor();
       assert.equal(reads.at(-1), '?status=approved&page=1&page_size=25');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      await region.getByText('管理采集来源', { exact: true }).click();
+      const check = region.getByRole('button', { name: '立即检查', exact: true });
+      await check.click();
+      await region.getByRole('alert').filter({ hasText: '检查失败：模拟来源暂不可用' }).waitFor();
+      await region.locator('.review-source').screenshot({ path: path.join(out, `source-failed-${width}.png`), animations: 'disabled' });
+      await check.click();
+      await region.getByText('检查完成，没有发现新版本。', { exact: true }).waitFor();
+      assert.equal(await region.getByRole('alert').count(), 0);
+      await check.click();
+      await region.getByText('检查完成，发现新版本。', { exact: true }).waitFor();
+      await region.locator('.review-source').screenshot({ path: path.join(out, `source-updated-${width}.png`), animations: 'disabled' });
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      assert.deepEqual(checkOutcomes, []);
       assert.deepEqual(errors, []);
       manifest.cases.push({ width, passed: true, reads, writes, errors });
       await context.close();
     }
-    console.log('PASS: mobile + desktop pagination, loading, retry, confirmation, page shrink, filter reset and overflow');
+    console.log('PASS: mobile + desktop pagination, loading, retry, confirmation, page shrink, filter reset, source check outcomes and overflow');
   } finally {
     fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify(manifest, null, 2));
     await browser?.close();
