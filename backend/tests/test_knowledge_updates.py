@@ -264,3 +264,24 @@ def test_expired_source_check_does_not_overwrite_new_check(client, monkeypatch):
     result = scan(client, item['id'])
     assert result['last_result'] == 'unchanged'
     assert not result['last_error']
+
+
+@pytest.mark.parametrize('change', [
+    {'kind': 'index'},
+    {'url': 'https://www.investor.org.cn/new-lesson.html'},
+])
+def test_source_endpoint_change_resets_old_check_metadata(client, monkeypatch, change):
+    item = source(client, publish_policy='basic_auto', usage_confirmed=True)
+    monkeypatch.setattr(ku, 'fetch_page', lambda *args: (200, {'etag': 'old'}, page()))
+    first = scan(client, item['id'])
+    assert first['etag'] == 'old' and first['last_result'] == 'updated'
+    path = f"/api/admin/knowledge-updates/sources/{item['id']}"
+    renamed = call(client, 'put', path, {'name': '新名称'}, user='admin').json['source']
+    assert renamed['etag'] == 'old' and renamed['last_checked'] == first['last_checked']
+    changed = call(client, 'put', path, change, user='admin').json['source']
+    assert all(key not in changed for key in (
+        'etag', 'last_modified', 'next_check', 'cursor', 'last_result',
+        'last_error', 'last_checked', 'failures',
+    ))
+    assert changed['publish_policy'] == ('manual' if 'url' in change else 'basic_auto')
+    assert changed['usage_confirmed'] is ('url' not in change)

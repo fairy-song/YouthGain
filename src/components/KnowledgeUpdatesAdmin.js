@@ -169,7 +169,9 @@ export default function KnowledgeUpdatesAdmin() {
         <strong>{source.name}</strong> · {source.region} · {source.enabled ? '已启用' : '已停用'}
         <span className="small"> · {source.publish_policy === 'basic_auto' ? '合格基础内容自动发布' : '自动筛选后人工发布'}</span>
         <div className="small"><a href={source.url} target="_blank" rel="noreferrer">查看来源</a> · 最近检查 {source.last_checked || '尚未检查'} · 下次 {source.next_check || '启用后检查'}</div>
-        {sourceCheck?.id === source.id ? sourceCheckNotice : source.last_error && <p className="small text-danger">{source.last_error}</p>}
+        {sourceCheck?.id === source.id ? sourceCheckNotice : source.last_result
+          ? <p className={source.last_result === 'failed' ? 'small text-danger' : 'small'}>{checkFeedback({ source }).text}</p>
+          : source.last_error && <p className="small text-danger">{source.last_error}</p>}
         <div className="review-actions">
           <button type="button" className="btn btn-sm btn-outline-secondary" disabled={busy} onClick={() => act('PUT', `/sources/${source.id}`, { enabled: !source.enabled }, '已更新来源状态。')}>{source.enabled ? '停用' : '启用'}</button>
           <button type="button" className="btn btn-sm btn-outline-success" disabled={busy || !source.enabled} onClick={() => act('POST', `/sources/${source.id}/check`, undefined, result => setSourceCheck({ id: source.id, ...checkFeedback(result) }))}>立即检查</button>

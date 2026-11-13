@@ -215,8 +215,12 @@ def save_source(data, source_id=None):
         if value.get('publish_policy') == 'basic_auto' and not value.get('usage_confirmed'):
             raise ValueError('启用基础内容自动发布前，须确认来源的站内使用范围')
         value.update(id=source_id or str(uuid4()), kind=value.get('kind', 'page'), region=value.get('region', 'CN'), enabled=value.get('enabled', False))
+        if row and (value['url'], value['kind']) != (old['url'], old.get('kind', 'page')):
+            # Runtime state belongs to the previous endpoint and parsing mode.
+            for key in ('etag', 'last_modified', 'next_check', 'cursor', 'last_result',
+                        'last_error', 'last_checked', 'failures'):
+                value.pop(key, None)
         if row and value['url'] != old['url']:
-            value.update(etag=None, last_modified=None, next_check=None)
             value.update(publish_policy='manual', usage_confirmed=False)
         conn.execute('INSERT OR REPLACE INTO ku_sources VALUES(?,?)', (value['id'], dump(value)))
         return value

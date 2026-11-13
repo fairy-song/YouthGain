@@ -118,6 +118,11 @@ const manifest = { mode: 'isolated mock APIs; not a live publication or user stu
       await region.getByText('检查完成，发现新版本。', { exact: true }).waitFor();
       await region.locator('.review-source').screenshot({ path: path.join(out, `source-updated-${width}.png`), animations: 'disabled' });
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      await region.getByRole('button', { name: '刷新更新台账', exact: true }).click();
+      await region.getByText('检查完成，发现新版本。', { exact: true }).waitFor();
+      await page.reload();
+      await region.getByText('管理采集来源', { exact: true }).click();
+      await region.getByText('检查完成，发现新版本。', { exact: true }).waitFor();
       assert.deepEqual(checkOutcomes, []);
       assert.deepEqual(errors, []);
       manifest.cases.push({ width, passed: true, reads, writes, errors });
