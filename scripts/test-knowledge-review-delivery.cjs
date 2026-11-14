@@ -55,6 +55,7 @@ const manifest = { mode: 'isolated mock APIs; not a live publication or user stu
             capacity: { published_articles: 27, passages: 30, body_characters: 14657, limits: { articles: 1000, passages: 20000 }, index_current: true } };
         } else if (url.pathname === '/api/admin/knowledge-updates/sources/demo-source/check') {
           const outcome = checkOutcomes.shift();
+          if (outcome === 'failed') await new Promise(resolve => setTimeout(resolve, 750));
           source = { ...source, last_result: outcome, last_error: outcome === 'failed' ? '模拟来源暂不可用' : null };
           data = { source };
         } else if (req.method() === 'POST') {
@@ -109,6 +110,8 @@ const manifest = { mode: 'isolated mock APIs; not a live publication or user stu
       await region.getByText('管理采集来源', { exact: true }).click();
       const check = region.getByRole('button', { name: '立即检查', exact: true });
       await check.click();
+      await region.getByRole('status').filter({ hasText: '正在检查此来源…' }).waitFor();
+      assert.equal(await check.isDisabled(), true);
       await region.getByRole('alert').filter({ hasText: '检查失败：模拟来源暂不可用' }).waitFor();
       await region.locator('.review-source').screenshot({ path: path.join(out, `source-failed-${width}.png`), animations: 'disabled' });
       await check.click();

@@ -19,6 +19,7 @@ export default function KnowledgeUpdatesAdmin() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [sourceCheck, setSourceCheck] = useState(null);
+  const [checkingSource, setCheckingSource] = useState(null);
   const [acting, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -89,6 +90,16 @@ export default function KnowledgeUpdatesAdmin() {
       catch { setData(null); setError('最新台账暂未读到，请刷新确认。'); }
     } catch (e) { setError(e.response?.data?.message || '操作失败，请稍后重试。'); }
     finally { setBusy(false); }
+  };
+
+  const checkNow = async source => {
+    setCheckingSource(source.id);
+    try {
+      await act('POST', `/sources/${source.id}/check`, undefined,
+        result => setSourceCheck({ id: source.id, ...checkFeedback(result) }));
+    } finally {
+      setCheckingSource(null);
+    }
   };
 
   const sourceCheckNotice = sourceCheck && <p role={sourceCheck.failed ? 'alert' : 'status'}
@@ -169,12 +180,14 @@ export default function KnowledgeUpdatesAdmin() {
         <strong>{source.name}</strong> · {source.region} · {source.enabled ? '已启用' : '已停用'}
         <span className="small"> · {source.publish_policy === 'basic_auto' ? '合格基础内容自动发布' : '自动筛选后人工发布'}</span>
         <div className="small"><a href={source.url} target="_blank" rel="noreferrer">查看来源</a> · 最近检查 {source.last_checked || '尚未检查'} · 下次 {source.next_check || '启用后检查'}</div>
-        {sourceCheck?.id === source.id ? sourceCheckNotice : source.last_result
+        {sourceCheck?.id === source.id ? sourceCheckNotice : checkingSource === source.id
+          ? <p role="status" className="small">正在检查此来源…</p>
+          : source.last_result
           ? <p className={source.last_result === 'failed' ? 'small text-danger' : 'small'}>{checkFeedback({ source }).text}</p>
           : source.last_error && <p className="small text-danger">{source.last_error}</p>}
         <div className="review-actions">
           <button type="button" className="btn btn-sm btn-outline-secondary" disabled={busy} onClick={() => act('PUT', `/sources/${source.id}`, { enabled: !source.enabled }, '已更新来源状态。')}>{source.enabled ? '停用' : '启用'}</button>
-          <button type="button" className="btn btn-sm btn-outline-success" disabled={busy || !source.enabled} onClick={() => act('POST', `/sources/${source.id}/check`, undefined, result => setSourceCheck({ id: source.id, ...checkFeedback(result) }))}>立即检查</button>
+          <button type="button" className="btn btn-sm btn-outline-success" disabled={busy || !source.enabled} onClick={() => checkNow(source)}>立即检查</button>
           <button type="button" className="btn btn-sm btn-outline-secondary" disabled={busy} onClick={() => { setPolicySource(source.id); setUsageConfirmed(false); }}>设置发布策略</button>
         </div>
         {policySource === source.id && <div className="py-2">

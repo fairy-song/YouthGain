@@ -297,17 +297,20 @@ def screen_version(version_id):
     return result
 
 
+class SourceCheckUnavailable(ValueError):
+    """A source cannot start a check in its current state."""
+
 def check_source(source_id):
     from .podcast_ingestion import public_request
     with database() as conn:
         row = conn.execute('SELECT payload FROM ku_sources WHERE id=?', (source_id,)).fetchone()
         if not row:
-            raise ValueError('来源不存在')
+            raise SourceCheckUnavailable('来源不存在')
         source = json.loads(row['payload'])
         if not source['enabled']:
-            raise ValueError('请先启用来源')
+            raise SourceCheckUnavailable('请先启用来源')
         if source.get('lease_until', '') > stamp():
-            raise ValueError('来源正在检查，请稍后重试')
+            raise SourceCheckUnavailable('来源正在检查，请稍后重试')
         source['lease_until'] = (now() + timedelta(minutes=5)).isoformat()
         conn.execute('UPDATE ku_sources SET payload=? WHERE id=?', (dump(source), source_id))
     try:
@@ -386,7 +389,10 @@ def run_due(limit=2):
         if limit <= 0:
             break
         if source['enabled'] and (source.get('next_check') or '') <= stamp() and (source.get('lease_until') or '') <= stamp():
-            check_source(source['id'])
+            try:
+                check_source(source['id'])
+            except SourceCheckUnavailable:
+                continue
             limit -= 1
     if current_app.config.get('KNOWLEDGE_SCREENING_ENABLED', True):
         with database() as conn:

@@ -285,3 +285,34 @@ def test_source_endpoint_change_resets_old_check_metadata(client, monkeypatch, c
     ))
     assert changed['publish_policy'] == ('manual' if 'url' in change else 'basic_auto')
     assert changed['usage_confirmed'] is ('url' not in change)
+
+
+@pytest.mark.parametrize('occupied', [False, True])
+def test_due_polling_continues_when_source_changes_after_snapshot(client, monkeypatch, occupied):
+    first = source(client)
+    second_response = call(client, 'post', '/api/admin/knowledge-updates/sources',
+                           dict(name='后续来源', url='https://www.investor.org.cn/second.html',
+                                enabled=True, kind='page', region='CN'), user='admin')
+    assert second_response.status_code == 201
+    second = second_response.json['source']
+    original = ku.check_source
+    fetches = []
+    monkeypatch.setattr(ku, 'fetch_page', lambda url, *_: (fetches.append(url) or 304, {}, b''))
+
+    def check(sid):
+        if sid == first['id']:
+            if occupied:
+                with ku.database() as conn:
+                    row = conn.execute('SELECT payload FROM ku_sources WHERE id=?', (sid,)).fetchone()
+                    import json
+                    value = json.loads(row[0])
+                    value['lease_until'] = '9999-01-01T00:00:00+00:00'
+                    conn.execute('UPDATE ku_sources SET payload=? WHERE id=?', (ku.dump(value), sid))
+            else:
+                ku.save_source({'enabled': False}, sid)
+        return original(sid)
+
+    monkeypatch.setattr(ku, 'check_source', check)
+    with client.application.app_context():
+        ku.run_due(limit=1)
+    assert fetches == [second['url']]
