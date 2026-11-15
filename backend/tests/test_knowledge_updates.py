@@ -287,8 +287,8 @@ def test_source_endpoint_change_resets_old_check_metadata(client, monkeypatch, c
     assert changed['usage_confirmed'] is ('url' not in change)
 
 
-@pytest.mark.parametrize('occupied', [False, True])
-def test_due_polling_continues_when_source_changes_after_snapshot(client, monkeypatch, occupied):
+@pytest.mark.parametrize('change', ['disabled', 'occupied', 'already_checked'])
+def test_due_polling_continues_when_source_changes_after_snapshot(client, monkeypatch, change):
     first = source(client)
     second_response = call(client, 'post', '/api/admin/knowledge-updates/sources',
                            dict(name='后续来源', url='https://www.investor.org.cn/second.html',
@@ -299,20 +299,27 @@ def test_due_polling_continues_when_source_changes_after_snapshot(client, monkey
     fetches = []
     monkeypatch.setattr(ku, 'fetch_page', lambda url, *_: (fetches.append(url) or 304, {}, b''))
 
-    def check(sid):
+    def check(sid, **kwargs):
         if sid == first['id']:
-            if occupied:
+            if change == 'occupied':
                 with ku.database() as conn:
                     row = conn.execute('SELECT payload FROM ku_sources WHERE id=?', (sid,)).fetchone()
                     import json
                     value = json.loads(row[0])
                     value['lease_until'] = '9999-01-01T00:00:00+00:00'
                     conn.execute('UPDATE ku_sources SET payload=? WHERE id=?', (ku.dump(value), sid))
-            else:
+            elif change == 'disabled':
                 ku.save_source({'enabled': False}, sid)
-        return original(sid)
+            else:
+                original(sid)
+        return original(sid, **kwargs)
 
     monkeypatch.setattr(ku, 'check_source', check)
     with client.application.app_context():
         ku.run_due(limit=1)
-    assert fetches == [second['url']]
+    expected = [first['url'], second['url']] if change == 'already_checked' else [second['url']]
+    assert fetches == expected
+    if change == 'already_checked':
+        with client.application.app_context():
+            original(first['id'])
+        assert fetches == [*expected, first['url']]
