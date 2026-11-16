@@ -323,3 +323,34 @@ def test_due_polling_continues_when_source_changes_after_snapshot(client, monkey
         with client.application.app_context():
             original(first['id'])
         assert fetches == [*expected, first['url']]
+
+
+@pytest.mark.parametrize('second_status', [200, 503])
+def test_directory_continues_after_article_request_failure(client, monkeypatch, second_status):
+    directory = 'https://www.investor.org.cn/lessons/'
+    created = call(client, 'post', '/api/admin/knowledge-updates/sources',
+                   dict(name='投教目录', url=directory, enabled=True, kind='index', region='CN'),
+                   user='admin')
+    assert created.status_code == 201
+    urls = []
+
+    def fetch(url, *_):
+        urls.append(url)
+        if url == directory:
+            html = '<a href="first.html">第一篇预算文章</a><a href="second.html">第二篇预算文章</a>'
+            return 200, {}, html.encode()
+        if url.endswith('/first.html'):
+            raise podcast_ingestion.PodcastError('来源网络或 TLS 连接失败', 502)
+        return second_status, {}, page()
+
+    monkeypatch.setattr(ku, 'fetch_page', fetch)
+    result = scan(client, created.json['source']['id'])
+    assert urls == [directory, directory + 'first.html', directory + 'second.html']
+    if second_status == 200:
+        assert result['last_result'] == 'updated'
+        assert any(row['title'] == '预算安排方法' and row['status'] == 'pending'
+                   for row in versions(client))
+    else:
+        assert result['last_result'] == 'failed'
+        assert result['failures'] == 1 and result['next_check'] > result['last_checked']
+        assert not versions(client)

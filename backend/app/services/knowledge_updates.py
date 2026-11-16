@@ -301,7 +301,7 @@ class SourceCheckUnavailable(ValueError):
     """A source cannot start a check in its current state."""
 
 def check_source(source_id, *, only_due=False):
-    from .podcast_ingestion import public_request
+    from .podcast_service import PodcastError
     with database() as conn:
         row = conn.execute('SELECT payload FROM ku_sources WHERE id=?', (source_id,)).fetchone()
         if not row:
@@ -347,7 +347,10 @@ def check_source(source_id, *, only_due=False):
                 source['cursor'] = (cursor + len(batch)) % len(links)
                 valid_pages = 0
                 for url in batch:
-                    code, item_headers, item_body = fetch_page(url, {}, allowed)
+                    try:
+                        code, item_headers, item_body = fetch_page(url, {}, allowed)
+                    except (PodcastError, ValueError):
+                        continue  # An unavailable article should not stop other links.
                     if code != 200:
                         continue
                     try:
