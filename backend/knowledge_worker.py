@@ -24,6 +24,8 @@ if __name__ == '__main__':
                 run_due()
             except Exception:
                 app.logger.exception('Knowledge update cycle failed')
+                if args.once:
+                    raise SystemExit(1)
         if args.once:
             break
         stopped.wait(60)

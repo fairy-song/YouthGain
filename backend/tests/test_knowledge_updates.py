@@ -354,3 +354,49 @@ def test_directory_continues_after_article_request_failure(client, monkeypatch, 
         assert result['last_result'] == 'failed'
         assert result['failures'] == 1 and result['next_check'] > result['last_checked']
         assert not versions(client)
+
+
+@pytest.mark.parametrize('mode', ['once_ok', 'once_error', 'continuous_error'])
+def test_knowledge_worker_exit_status(client, monkeypatch, mode):
+    import runpy
+    import sys
+    import threading
+    from pathlib import Path
+    from unittest.mock import Mock
+
+    import app
+    import dotenv
+
+    class StopAfterTwoCycles:
+        waits = 0
+
+        def is_set(self):
+            return self.waits == 2
+
+        def set(self):
+            self.waits = 2
+
+        def wait(self, seconds):
+            assert seconds == 60
+            self.waits += 1
+
+    script = Path(__file__).resolve().parents[1] / 'knowledge_worker.py'
+    args = [] if mode == 'continuous_error' else ['--once']
+    monkeypatch.setattr(sys, 'argv', [str(script), *args])
+    monkeypatch.setattr(dotenv, 'load_dotenv', lambda *a, **k: None)
+    monkeypatch.setattr(app, 'create_app', lambda: client.application)
+    monkeypatch.setattr('signal.signal', lambda *a: None)
+    monkeypatch.setattr(threading, 'Event', StopAfterTwoCycles)
+    outcomes = {'once_ok': [None], 'once_error': [RuntimeError('cycle failed')],
+                'continuous_error': [RuntimeError('cycle failed'), None]}
+    run_due = Mock(side_effect=outcomes[mode])
+    monkeypatch.setattr(ku, 'run_due', run_due)
+
+    if mode == 'once_error':
+        with pytest.raises(SystemExit) as result:
+            runpy.run_path(str(script), run_name='__main__')
+        assert result.value.code == 1
+    else:
+        runpy.run_path(str(script), run_name='__main__')
+
+    assert run_due.call_count == len(outcomes[mode])
