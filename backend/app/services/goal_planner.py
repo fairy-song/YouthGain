@@ -1,13 +1,15 @@
 """Dated cash-flow envelopes. All allocations use integer cents, never AI."""
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
 import calendar
 from datetime import timedelta
-from .learning_service import number
+from .finance_funds_service import cents as amount_in_cents
 
 
 def cents(value, label):
-    return int((Decimal(str(number(value, label))) * 100).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+    try:
+        return amount_in_cents(value)
+    except ValueError as error:
+        raise ValueError(f'{label}：{error}') from error
 
 
 def recorded_spending(rows, today):

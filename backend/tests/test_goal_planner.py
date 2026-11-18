@@ -123,3 +123,21 @@ def test_goal_changes_require_balance_reconfirmation(client, monkeypatch):
     assert response['result'] is None
     rows[0]['current_amount'] = 0  # Explicitly release the envelope after actual payment.
     assert call(client, 'put', '/api/decision/goal-plan', {**payload, 'balance': 420}).json['result']['free_now'] == 420
+
+
+@pytest.mark.parametrize('amount,expected', [
+    ('1.004999999999999999', 1.00),
+    ('0.014999999999999999', 0.01),
+    ('1.005', 1.01),
+])
+def test_plan_preserves_decimal_rounding_before_allocating(amount, expected):
+    result = build_plan(plan(amount), [])
+    assert result['free_now'] == expected
+    spending = plan(2, [event('2026-10-01', amount, 'expense')])
+    result = build_plan(spending, [])
+    assert result['free_now'] == round(2 - expected, 2)
+
+
+def test_plan_rejects_amount_just_above_limit_without_float_truncation():
+    with pytest.raises(ValueError):
+        plan('100000000.000000001')
