@@ -135,6 +135,20 @@ def _load_engine_inputs(user_id):
         logger.warning("读取目标失败，报告将不含目标分析: %s", goal_error)
         raise RuntimeError('目标暂时读取失败，请重试')
 
+    # Filter dates before linking refunds: a future refund must not reduce an
+    # already observed purchase, including when these inputs feed the coach.
+    today = datetime.now(BEIJING).date()
+    occurred, skipped = [], 0
+    for row in raw_txns:
+        if row.get('transaction_type', 'expense') not in ('expense', 'refund'):
+            continue
+        spent = _parse_date(row.get('date') or row.get('spent_at'))
+        if spent is None:
+            skipped += 1
+        elif spent <= today:
+            occurred.append(row)
+    raw_txns = occurred
+
     # The decision engine accepts positive expenses. Apply verified refunds to
     # their original purchase before passing data to analytics/recommendations.
     from decimal import Decimal
@@ -155,7 +169,7 @@ def _load_engine_inputs(user_id):
             expense_rows.append({**row, 'amount': str(amount)})
     transactions = [t for t in (_to_engine_transaction(r) for r in expense_rows) if t is not None]
     goals = [g for g in (_to_engine_goal(r) for r in raw_goals if r.get('status', 'active') == 'active') if g is not None]
-    skipped = len(expense_rows) - len(transactions)
+    skipped += len(expense_rows) - len(transactions)
 
     return transactions, goals, skipped
 
