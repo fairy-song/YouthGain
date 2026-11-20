@@ -163,3 +163,33 @@ def test_mysql_column_migration_is_idempotent_and_preserves_legacy_expenses(monk
     alters = [sql for sql in updates if sql.startswith('ALTER')]
     assert len(alters) == 2
     assert any("transaction_type VARCHAR(20) NOT NULL DEFAULT 'expense'" in sql for sql in alters)
+
+
+@pytest.mark.parametrize('kind', ['expense', 'income'])
+@pytest.mark.parametrize('amount,expected', [
+    ('1.005', 1.01), ('1.004999999999999999', 1.00), ('12.34', 12.34),
+])
+def test_manual_money_is_identical_in_record_summary_funds_and_snapshot(client, kind, amount, expected):
+    from app.services import finance_context_service as finance
+    month = datetime.now(BEIJING).date().isoformat()[:7]
+    assert call(client, 'post', '/api/decision/funds/carryover', {
+        'month': month, 'amount': 1000, 'event_id': 'precision-opening'}).status_code == 200
+    saved = record(client, amount, kind=kind)
+    assert saved.status_code == 201, saved.json
+    assert saved.json['data']['amount'] == expected
+    data = call(client, 'get', '/api/decision/transactions').json['data']
+    assert data['transactions'][0]['amount'] == expected
+    key = 'income' if kind == 'income' else 'spent'
+    assert data['monthly_cashflow'][key] == expected
+    assert data['funds']['available_remaining_month'] == (1000 + expected if kind == 'income' else 1000 - expected)
+    with client.application.app_context():
+        features = finance.build_snapshot('alice')['features']
+    assert features['actual_income_month' if kind == 'income' else 'net_expense_month'] == expected
+
+
+@pytest.mark.parametrize('kind', ['expense', 'income'])
+@pytest.mark.parametrize('amount', ['0.004', '100000000.000000001'])
+def test_invalid_manual_precision_does_not_write(client, kind, amount):
+    response = record(client, amount, kind=kind)
+    assert response.status_code == 400
+    assert call(client, 'get', '/api/decision/transactions').json['data']['transactions'] == []

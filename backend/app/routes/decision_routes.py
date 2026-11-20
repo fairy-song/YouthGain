@@ -660,14 +660,12 @@ def create_transaction(user_info):
         return jsonify(message='收入来源无效；本人转账不属于收入'), 400
 
     try:
-        if isinstance(payload.get('amount'), bool):
-            raise ValueError
-        amount = float(payload.get('amount', 0))
-    except (TypeError, ValueError):
-        return jsonify({'status': 'error', 'message': 'amount 必须是数字'}), 400
-
-    if not isfinite(amount) or not 0 < amount <= 100000000:
-        return jsonify({'status': 'error', 'message': '金额必须大于 0 且不超过 100000000'}), 400
+        amount_cents = finance_funds_service.cents(payload.get('amount'))
+    except (TypeError, ValueError) as error:
+        return jsonify(status='error', message=str(error)), 400
+    if amount_cents <= 0:
+        return jsonify(status='error', message='金额按分四舍五入后须至少为 0.01 元'), 400
+    amount = amount_cents / 100
 
     try:
         # Older clients send null for optional text fields.
