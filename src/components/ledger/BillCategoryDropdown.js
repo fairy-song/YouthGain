@@ -63,7 +63,9 @@ export default function BillCategoryDropdown({ label, value, systemOptions, cust
       onKeyDown={event => { if (['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); setOpen(true); } }}>
       <span>{selected?.label || '选择分类'}</span>
     </button>
-    <Overlay show={open} target={trigger.current} placement="bottom-start" flip transition={false} rootClose={!pending} onHide={() => { if (!pending) setOpen(false); }}>
+    {/* Keep the portal inside the owning dialog so its focus trap accepts menu options.
+        The dialog is outside the scrolling table, so the menu is still not clipped. */}
+    <Overlay container={() => trigger.current?.closest('[role="dialog"]') || document.body} show={open} target={trigger.current} placement="bottom-start" flip transition={false} rootClose={!pending} onHide={() => { if (!pending) setOpen(false); }}>
       {({ ref, placement, arrowProps, show, popper, hasDoneInitialMeasure, ...props }) => <div {...props} ref={node => { menu.current = node; if (typeof ref === 'function') ref(node); else if (ref) ref.current = node; }}
         id={menuId} role="listbox" aria-label={`${label}选项`} className="bill-category-menu" onKeyDown={navigate}
         onBlur={event => { if (!pending && event.relatedTarget && !event.currentTarget.contains(event.relatedTarget) && event.relatedTarget !== trigger.current) setOpen(false); }}

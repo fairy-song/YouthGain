@@ -475,3 +475,21 @@ test('deleting a refund label used on an incoming row requires reconfirming its 
   expect(screen.getByRole('combobox', { name: '第 2 行分类' })).toHaveValue('receipt:other_income');
   expect(screen.queryByRole('button', { name: '第 2 行关联原支出' })).not.toBeInTheDocument();
 });
+
+
+test('category option portal stays inside the import dialog focus boundary', async () => {
+  listBillImports.mockResolvedValue([]);
+  previewBillImport.mockResolvedValue({ source: 'standard', sha256: 'focus', counts: { import: 1, duplicate: 0, review: 0 },
+    rows: [{ row_id: 2, date: dateKey(), transaction_type: 'expense', amount: '18.50', category: '未分类', decision: 'import' }] });
+  render(<CsvImportModal onClose={() => {}} onSaved={() => {}} />);
+  fireEvent.change(screen.getByLabelText(/文件（CSV \/ XLSX/), { target: { files: [new File(['synthetic'], 'test.csv', { type: 'text/csv' })] } });
+  fireEvent.click(screen.getByRole('button', { name: '预览账单' }));
+  const menu = await openCategory('第 2 行分类');
+  const dialog = screen.getByRole('dialog', { name: '导入支出账单' });
+  expect(dialog).toContainElement(menu);
+  const option = within(menu).getByRole('option', { name: '餐饮', exact: true });
+  option.focus();
+  await waitFor(() => expect(option).toHaveFocus());
+  expect(menu).toBeVisible();
+  expect(confirmBillImport).not.toHaveBeenCalled();
+});
