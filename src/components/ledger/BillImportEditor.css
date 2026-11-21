@@ -1,0 +1,62 @@
+.bill-import-confirm-backdrop {
+  z-index: 1065;
+}
+
+.bill-import-confirm-modal {
+  z-index: 1070;
+}
+
+.bill-import-editor-scroll {
+  max-height: 45vh;
+}
+
+@media (max-width: 575.98px) {
+  .bill-import-editor-table,
+  .bill-import-editor-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .bill-import-editor-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .bill-import-editor-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .4rem .75rem;
+    padding: .8rem 0;
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+
+  .bill-import-editor-table tbody td {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .bill-import-editor-table .import-edit-type,
+  .bill-import-editor-table .import-edit-category {
+    text-align: right;
+  }
+
+  .bill-import-editor-table .import-edit-amount {
+    font-weight: 700;
+  }
+
+  .bill-import-editor-table .import-edit-category::before {
+    content: '当前分类：';
+    font-size: .8em;
+    color: var(--bs-secondary-color);
+  }
+
+  .bill-import-editor-table .import-edit-controls {
+    grid-column: 1 / -1;
+  }
+}

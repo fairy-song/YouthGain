@@ -195,7 +195,14 @@ const Dashboard = () => {
       if (failures.length) setError(`${failures.join('、')}刷新失败，请重试。已保存的账目无需重复记账。`);
       setLoading(false);
     });
+    return results.every(result => result.status === 'fulfilled');
   }, []);
+
+  const refreshSavedLedger = async () => {
+    const complete = await refreshLedger();
+    setCategoryFilter('');
+    if (!complete) throw new Error('部分账本信息刷新失败');
+  };
 
   useEffect(() => {
     refreshLedger();
@@ -741,11 +748,8 @@ const Dashboard = () => {
       </Modal>
       
       {/* 语音记账 + AI 消费评估弹窗 */}
-      {showBackfillModal && <BackfillBillModal onClose={() => setShowBackfillModal(false)} onSaved={async () => {
-        await refreshLedger();
-        setCategoryFilter('');
-      }} />}
-      {importMode && <CsvImportModal entryMode={importMode} onClose={() => setImportMode(null)} onSaved={async () => { await refreshLedger(); setCategoryFilter(''); }} />}
+      {showBackfillModal && <BackfillBillModal onClose={() => setShowBackfillModal(false)} onSaved={refreshSavedLedger} />}
+      {importMode && <CsvImportModal entryMode={importMode} onClose={() => setImportMode(null)} onSaved={refreshSavedLedger} />}
       <VoiceBillModal
         key={currentUser?.uid}
         show={showVoiceModal}

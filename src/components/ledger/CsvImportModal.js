@@ -4,6 +4,7 @@ import { confirmBillImport, deleteBillCategory, editBillImportRow, getBillImport
 import { dateKey } from '../FinanceVisuals';
 import ImportPurchaseEditor, { purchaseValue } from './ImportPurchaseEditor';
 import BillImportPreviewTable from './BillImportPreviewTable';
+import './BillImportEditor.css';
 import CustomBillCategorySelect, { BillCategoryCreateModal, BillCategoryManager, accountingLabels, allowedAccountingTypes } from './CustomBillCategories';
 
 const typeLabel = { expense: '支出', refund: '退款', income: '收入', transfer: '转账', review: '待核对' };
@@ -33,6 +34,16 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
   const [message, setMessage] = useState('');
   const [batchError, setBatchError] = useState(false);
   const [ledgerError, setLedgerError] = useState(false);
+  const [confirmation, setConfirmation] = useState(null);
+  const draftCount = Object.keys(rowDrafts).length;
+  const askDiscard = (action, includePreview = false) => {
+    const previewChanged = includePreview && (Object.keys(edits).length || Object.keys(overrides).length);
+    if (draftCount || previewChanged) setConfirmation({ kind: 'discard', action });
+    else action();
+  };
+  const requestClose = () => {
+    if (!busy && !showCategoryCreate && !showBulkApply && !confirmation) askDiscard(onClose, true);
+  };
   const batchRequest = useRef(0);
   const refreshBatches = useCallback(async () => {
     const id = ++batchRequest.current;
@@ -131,9 +142,10 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
     try {
       await undoBillImport(digest);
       setMessage('已撤销这批账单。');
-      setActiveBatch(null);
+      if (activeBatch?.sha256 === digest) { setActiveBatch(null); setRowDrafts({}); }
+      setConfirmation(null);
       await Promise.all([refreshBatches(), refreshLedger()]);
-    } catch (e) { setError(errorText(e)); }
+    } catch (e) { setConfirmation(current => ({ ...current, error: errorText(e) })); }
     finally { setBusy(false); }
   };
   const openBatch = async digest => {
@@ -148,7 +160,12 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
     setBusy(true); setError('');
     try {
       setActiveBatch(await editBillImportRow(activeBatch.sha256, row.row_id, change));
-      setRowDrafts({}); setMessage('已保存这笔修改。');
+      setRowDrafts(current => {
+        const remaining = { ...current };
+        delete remaining[row.row_id];
+        return remaining;
+      });
+      setMessage('已保存这笔修改。');
       await refreshLedger();
     } catch (e) { setError(errorText(e)); }
     finally { setBusy(false); }
@@ -235,7 +252,7 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
     setShowBulkApply(false);
     setMessage(`已将“${option.name}”应用到 ${bulkRows.length} 行，确认导入后入账。`);
   };
-  return <><Modal show size="xl" centered onHide={() => { if (!busy && !showCategoryCreate && !showBulkApply) onClose(); }} backdrop={busy ? 'static' : true} aria-labelledby="csv-import-title">
+  return <><Modal show size="xl" centered onHide={requestClose} backdrop={busy ? 'static' : true} aria-labelledby="csv-import-title">
     <Modal.Header closeButton={!busy}><Modal.Title id="csv-import-title">{entryMode === 'receipt' ? '导入收款账单' : '导入支出账单'}</Modal.Title></Modal.Header>
     <Modal.Body>
       <p className="text-muted small">先预览，再确认入账。含收支两方向的完整流水只需上传一次，系统会逐行分类；退款抵减原支出，不计为收入。未关联退款可在预览中选择原支出。原始文件不会保存在青盈。</p>
@@ -261,18 +278,18 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
         <Button variant="success" disabled={busy || selected.length === 0} onClick={commit}>确认导入 {selected.length} 行</Button>
       </>}
       {batchError ? <Alert variant="warning" role="status" className="mt-4">暂时无法读取导入历史。 <Button variant="link" disabled={busy} onClick={async () => { setBusy(true); await refreshBatches(); setBusy(false); }}>只刷新导入历史</Button></Alert>
-        : batches.some(batch => batch.status === 'committed') && <div className="mt-4"><h6>已导入批次</h6>{batches.filter(batch => batch.status === 'committed').map(batch => <div className="d-flex gap-2 align-items-center mb-2" key={batch.sha256}><span className="small">{batch.created_at?.slice(0, 16)} · {batch.source === 'wechat' ? '微信支付' : '青盈标准账单'} · {batch.count} 行</span><Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => openBatch(batch.sha256)}>查看并修改</Button><Button size="sm" variant="outline-danger" disabled={busy} onClick={() => undo(batch.sha256)}>撤销整批</Button></div>)}</div>}
+        : batches.some(batch => batch.status === 'committed') && <div className="mt-4"><h6>已导入批次</h6>{batches.filter(batch => batch.status === 'committed').map(batch => <div className="d-flex gap-2 align-items-center mb-2" key={batch.sha256}><span className="small">{batch.created_at?.slice(0, 16)} · {batch.source === 'wechat' ? '微信支付' : '青盈标准账单'} · {batch.count} 行</span><Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => askDiscard(() => openBatch(batch.sha256))}>查看并修改</Button><Button size="sm" variant="outline-danger" disabled={busy} onClick={() => setConfirmation({ kind: 'undo', digest: batch.sha256, count: batch.count })}>撤销整批</Button></div>)}</div>}
       {activeBatch?.status === 'committed' && <div className="mt-3 border rounded p-3">
-        <div className="d-flex flex-wrap gap-2 align-items-center mb-2"><h6 className="mb-0">逐笔修改</h6><Button size="sm" variant="outline-secondary" disabled={busy || !activeBatch.can_revert_edit} onClick={revertEdit}>撤销上次修改</Button>{!preview && <Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => setShowCategoryCreate(true)}>自定义分类</Button>}</div>
-        <p className="small text-muted">可改分类、收款类型和退款关联；待核对记录确认类型并补齐关联后才计入统计。可在最近账单删除单笔记录，通过“撤销上次修改”恢复。金额或日期有误时，也可撤销整批后重新导入。</p>
-        <div className="table-responsive" style={{ maxHeight: '30vh' }}><Table size="sm"><thead><tr><th>日期</th><th>类型</th><th>金额</th><th>当前分类</th><th>修改</th></tr></thead><tbody>{activeBatch.rows.map(row => {
+        <div className="d-flex flex-wrap gap-2 align-items-center mb-2"><h6 className="mb-0">逐笔修改</h6>{draftCount > 0 && <small role="status">{draftCount} 笔未保存</small>}<Button size="sm" variant="outline-secondary" disabled={busy || !activeBatch.can_revert_edit} onClick={() => askDiscard(revertEdit)}>撤销上次修改</Button>{!preview && <Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => setShowCategoryCreate(true)}>自定义分类</Button>}</div>
+        <details className="small text-muted my-2"><summary>修改范围与恢复方式</summary><p className="mt-2">可改分类、收款类型和退款关联；待核对记录确认类型并补齐关联后才计入统计。可在最近账单删除单笔记录，通过“撤销上次修改”恢复。金额或日期有误时，也可撤销整批后重新导入。</p></details>
+        <div className="table-responsive bill-import-editor-scroll"><Table size="sm" className="bill-import-editor-table" aria-label="已导入账单逐笔修改"><thead><tr><th>日期</th><th>类型</th><th>金额</th><th>当前分类</th><th>修改</th></tr></thead><tbody>{activeBatch.rows.map(row => {
           const change = rowDrafts[row.row_id] || {};
           const kind = effectiveKind(row, change);
           const link = change.related_source_id ?? row.related_source_id ?? '';
           return <tr key={row.row_id}>
-            <td>{row.date}</td><td>{typeLabel[kind]}{row.decision === 'review' && <small className="d-block">尚未计入统计</small>}{row.decision === 'deleted' && <small className="d-block text-muted">已删除，不参与统计</small>}</td><td>¥{row.amount}</td>
-            <td>{row.custom_category_name || (row.transaction_type === 'refund' ? `关联 ${row.related_source_id || '尚未选择'}` : receiptLabel[row.receipt_kind] || row.category)}</td>
-            <td>{row.decision === 'deleted' ? <span className="small text-muted">删除记录保留在导入历史中</span> : <>{kind === 'expense' ? <Form.Select size="sm" aria-label={`修改第 ${row.row_id} 行类别`} value={change.category || row.category} disabled={busy} onChange={e => setRowDraft(row.row_id, 'category', e.target.value)}>{[...new Set([row.category, ...categories])].filter(Boolean).map(value => <option key={value}>{value}</option>)}</Form.Select>
+            <td className="import-edit-date">{row.date}</td><td className="import-edit-type">{typeLabel[kind]}{row.decision === 'review' && <small className="d-block">尚未计入统计</small>}{row.decision === 'deleted' && <small className="d-block text-muted">已删除，不参与统计</small>}</td><td className="import-edit-amount">¥{row.amount}</td>
+            <td className="import-edit-category">{row.custom_category_name || (row.transaction_type === 'refund' ? `关联 ${row.related_source_id || '尚未选择'}` : receiptLabel[row.receipt_kind] || row.category)}</td>
+            <td className="import-edit-controls">{row.decision === 'deleted' ? <span className="small text-muted">删除记录保留在导入历史中</span> : <>{kind === 'expense' ? <Form.Select size="sm" aria-label={`修改第 ${row.row_id} 行类别`} value={change.category || row.category} disabled={busy} onChange={e => setRowDraft(row.row_id, 'category', e.target.value)}>{[...new Set([row.category, ...categories])].filter(Boolean).map(value => <option key={value}>{value}</option>)}</Form.Select>
               : kind === 'refund' ? <ImportPurchaseEditor label={`修改第 ${row.row_id} 行退款关联`} source={activeBatch.source} value={purchaseValue({ source_transaction_id: link, source: change.related_source || row.related_source || activeBatch.source }, activeBatch.source)} purchases={importedPurchases} disabled={busy} onChange={(id, from) => choosePurchase(row, id, from, true)} onAdded={purchase => addedPurchase(purchase, true)} onError={setError} onBusyChange={setChildBusy} />
                 : ['income', 'transfer'].includes(kind) && (kind === 'income' || ['income', '收入', 'neutral'].includes(row.direction)) ? <Form.Select size="sm" aria-label={`修改第 ${row.row_id} 行收款类型`} value={change.receipt_kind || row.receipt_kind || 'internal_transfer'} disabled={busy} onChange={e => setRowDraft(row.row_id, 'receipt_kind', e.target.value)}>{Object.entries(receiptLabel).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Form.Select> : null}
               <CustomBillCategorySelect label={`修改第 ${row.row_id} 行自定义分类`} row={row} change={change} options={customOptions} disabled={busy} onChange={id => chooseCustom(row.row_id, id, true)} />
@@ -283,8 +300,26 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
       </div>}
       <BillCategoryManager options={customOptions} disabled={busy} onUpdated={upsertOption} onError={setError} onBusyChange={setChildBusy} />
     </Modal.Body>
-    <Modal.Footer><Button variant="outline-secondary" disabled={busy} onClick={onClose}>完成</Button></Modal.Footer>
+    <Modal.Footer><Button variant="outline-secondary" disabled={busy} onClick={requestClose}>完成</Button></Modal.Footer>
   </Modal>
+    <Modal show={!!confirmation} centered className="bill-import-confirm-modal" backdropClassName="bill-import-confirm-backdrop" onHide={() => { if (!busy) setConfirmation(null); }} backdrop={busy ? 'static' : true} keyboard={!busy} aria-labelledby="bill-import-confirm-title">
+      <Modal.Header closeButton={!busy}><Modal.Title id="bill-import-confirm-title">{confirmation?.kind === 'undo' ? '撤销整批账单' : '尚有未保存修改'}</Modal.Title></Modal.Header>
+      <Modal.Body>
+        {confirmation?.error && <Alert variant="danger" role="alert">{confirmation.error}</Alert>}
+        {confirmation?.kind === 'undo' ? <>
+          <p>将撤销这批账单（{confirmation.count} 行），已入账的收支会从统计中移除。</p>
+          {confirmation.digest === activeBatch?.sha256 && draftCount > 0 && <p>这批尚未保存的修改也会被放弃。</p>}
+        </> : <p>继续将放弃未保存的分类或关联修改，已入账记录不受影响。</p>}
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="outline-secondary" disabled={busy} onClick={() => setConfirmation(null)}>{confirmation?.kind === 'undo' ? '取消' : '继续编辑'}</Button>
+        <Button variant="danger" disabled={busy} onClick={() => {
+          if (!confirmation || busy) return;
+          if (confirmation.kind === 'undo') undo(confirmation.digest);
+          else { const action = confirmation.action; setConfirmation(null); action(); }
+        }}>{busy ? '处理中…' : confirmation?.kind === 'undo' ? '确认撤销整批' : '放弃修改并继续'}</Button>
+      </Modal.Footer>
+    </Modal>
     {showCategoryCreate && <BillCategoryCreateModal defaultType={entryMode === 'receipt' ? 'income' : 'expense'} onClose={() => setShowCategoryCreate(false)} onCreated={categoryCreated} onBusyChange={setChildBusy} />}
     <Modal show={showBulkApply} centered onHide={() => setShowBulkApply(false)} aria-labelledby="bill-category-bulk-title">
       <Modal.Header closeButton><Modal.Title id="bill-category-bulk-title">应用分类到已选记录</Modal.Title></Modal.Header>

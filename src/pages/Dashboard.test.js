@@ -457,3 +457,24 @@ test('opening an unpaid expense preserves an existing record draft until the use
   expect(createTransaction).not.toHaveBeenCalled();
   expect(updateUpcoming).not.toHaveBeenCalled();
 });
+
+
+test.each(['概览', '详细分析'])('backfill exposes %s refresh failures locally and retries reads without resaving', async failure => {
+  render(<MemoryRouter><Dashboard /></MemoryRouter>);
+  await screen.findByRole('heading', { name: '记一笔收支' });
+  fireEvent.click(screen.getByText('更多记账方式', { exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: '补记账单' }));
+  const dialog = await screen.findByRole('dialog', { name: '补记账单' });
+  fireEvent.change(within(dialog).getByLabelText('金额（元）'), { target: { value: '18.50' } });
+  if (failure === '概览') listTransactions.mockRejectedValue(new Error('概览加载失败'));
+  else getDecisionReport.mockRejectedValue(new Error('详细分析加载失败'));
+  fireEvent.click(within(dialog).getByRole('button', { name: '保存补记账单' }));
+  const refresh = await within(dialog).findByRole('button', { name: '只刷新账本' });
+  expect(createTransaction).toHaveBeenCalledTimes(1);
+  expect(within(dialog).getByLabelText('金额（元）')).toHaveValue(null);
+  listTransactions.mockResolvedValue({ transactions: [], monthly_cashflow: cashflow(18.5) });
+  getDecisionReport.mockResolvedValue({ has_data: false });
+  fireEvent.click(refresh);
+  await waitFor(() => expect(within(dialog).queryByRole('button', { name: '只刷新账本' })).not.toBeInTheDocument());
+  expect(createTransaction).toHaveBeenCalledTimes(1);
+});

@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import '@testing-library/jest-dom';
 import CsvImportModal from './CsvImportModal';
 import { dateKey } from '../FinanceVisuals';
-import { confirmBillImport, editBillImportRow, getBillImport, listBillImports, listBillCategories, createBillCategory, deleteBillCategory, supplementBillPurchase, previewBillImport, revertBillImportEdit } from '../../services/api';
+import { confirmBillImport, editBillImportRow, getBillImport, listBillImports, listBillCategories, createBillCategory, deleteBillCategory, supplementBillPurchase, previewBillImport, revertBillImportEdit, undoBillImport } from '../../services/api';
 
 jest.mock('../../services/api', () => ({
   confirmBillImport: jest.fn(), editBillImportRow: jest.fn(), getBillImport: jest.fn(),
@@ -492,4 +492,104 @@ test('category option portal stays inside the import dialog focus boundary', asy
   await waitFor(() => expect(option).toHaveFocus());
   expect(menu).toBeVisible();
   expect(confirmBillImport).not.toHaveBeenCalled();
+});
+
+
+const editFixture = {
+  sha256: 'draft-batch', status: 'committed', source: 'standard', count: 2, can_revert_edit: true,
+  rows: [2, 3].map(row_id => ({ row_id, date: '2026-11-21', transaction_type: 'expense', category: '餐饮', amount: '18.50', decision: 'import' })),
+};
+async function openTwoDrafts(props = {}) {
+  listBillImports.mockResolvedValue([{ ...editFixture }, { sha256: 'another-batch', status: 'committed', count: 1 }]);
+  getBillImport.mockResolvedValue(editFixture);
+  render(<CsvImportModal onClose={jest.fn()} onSaved={jest.fn()} {...props} />);
+  fireEvent.click((await screen.findAllByRole('button', { name: '查看并修改' }))[0]);
+  fireEvent.change(await screen.findByLabelText('修改第 2 行类别'), { target: { value: '学习' } });
+  fireEvent.change(screen.getByLabelText('修改第 3 行类别'), { target: { value: '交通' } });
+}
+function rowSave(id) {
+  return within(screen.getByLabelText(`修改第 ${id} 行类别`).closest('tr')).getByRole('button', { name: '保存', exact: true });
+}
+
+test('saving one imported row preserves other drafts through failure and successful refresh', async () => {
+  const onSaved = jest.fn().mockRejectedValue(new Error('列表刷新失败'));
+  editBillImportRow.mockRejectedValueOnce(new Error('本笔保存失败')).mockResolvedValue({ ...editFixture, rows: [{ ...editFixture.rows[0], category: '学习' }, editFixture.rows[1]] });
+  await openTwoDrafts({ onSaved });
+  fireEvent.click(rowSave(2));
+  expect(await screen.findByText('本笔保存失败')).toBeVisible();
+  expect(screen.getByLabelText('修改第 2 行类别')).toHaveValue('学习');
+  expect(screen.getByLabelText('修改第 3 行类别')).toHaveValue('交通');
+  fireEvent.click(rowSave(2));
+  expect(await screen.findByText(/账本暂未刷新/)).toBeVisible();
+  expect(screen.getByLabelText('修改第 2 行类别')).toHaveValue('学习');
+  expect(rowSave(2)).toBeDisabled();
+  expect(screen.getByLabelText('修改第 3 行类别')).toHaveValue('交通');
+  expect(rowSave(3)).toBeEnabled();
+  expect(screen.getByText('1 笔未保存')).toBeVisible();
+  expect(editBillImportRow.mock.calls).toEqual([['draft-batch', 2, { category: '学习' }], ['draft-batch', 2, { category: '学习' }]]);
+  fireEvent.click(screen.getByRole('button', { name: '只刷新账本' }));
+  await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(2));
+  expect(editBillImportRow).toHaveBeenCalledTimes(2);
+});
+
+test('closing or reopening a batch asks before dropping drafts and cancel keeps them', async () => {
+  const onClose = jest.fn();
+  await openTwoDrafts({ onClose });
+  fireEvent.click(screen.getAllByRole('button', { name: '查看并修改' })[0]);
+  let confirm = await screen.findByRole('dialog', { name: '尚有未保存修改' });
+  expect(getBillImport).toHaveBeenCalledTimes(1);
+  fireEvent.click(within(confirm).getByRole('button', { name: '继续编辑' }));
+  expect(screen.getByLabelText('修改第 3 行类别')).toHaveValue('交通');
+  fireEvent.click(screen.getByRole('button', { name: '完成', exact: true }));
+  confirm = await screen.findByRole('dialog', { name: '尚有未保存修改' });
+  expect(onClose).not.toHaveBeenCalled();
+  fireEvent.click(within(confirm).getByRole('button', { name: '放弃修改并继续' }));
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(editBillImportRow).not.toHaveBeenCalled();
+});
+
+test('failed batch navigation keeps the current batch and its drafts even after confirming', async () => {
+  await openTwoDrafts();
+  getBillImport.mockRejectedValueOnce(new Error('读取另一批失败'));
+  fireEvent.click(screen.getAllByRole('button', { name: '查看并修改' })[1]);
+  const confirm = await screen.findByRole('dialog', { name: '尚有未保存修改' });
+  fireEvent.click(within(confirm).getByRole('button', { name: '放弃修改并继续' }));
+  expect(await screen.findByText('读取另一批失败')).toBeVisible();
+  expect(screen.getByLabelText('修改第 2 行类别')).toHaveValue('学习');
+  expect(screen.getByLabelText('修改第 3 行类别')).toHaveValue('交通');
+});
+
+test('reverting a saved edit requires confirmation when another row has an unsaved draft', async () => {
+  await openTwoDrafts();
+  fireEvent.click(screen.getByRole('button', { name: '撤销上次修改' }));
+  const confirm = await screen.findByRole('dialog', { name: '尚有未保存修改' });
+  expect(revertBillImportEdit).not.toHaveBeenCalled();
+  fireEvent.click(within(confirm).getByRole('button', { name: '继续编辑' }));
+  expect(screen.getByLabelText('修改第 3 行类别')).toHaveValue('交通');
+});
+
+test('whole batch removal is explicit, retryable and preserves drafts after failure', async () => {
+  undoBillImport.mockRejectedValueOnce(new Error('撤销失败')).mockResolvedValue({});
+  await openTwoDrafts();
+  fireEvent.click(screen.getAllByRole('button', { name: '撤销整批', exact: true })[0]);
+  const confirm = await screen.findByRole('dialog', { name: '撤销整批账单' });
+  expect(undoBillImport).not.toHaveBeenCalled();
+  fireEvent.click(within(confirm).getByRole('button', { name: '确认撤销整批' }));
+  expect(await within(confirm).findByText('撤销失败')).toBeVisible();
+  expect(screen.getByLabelText('修改第 3 行类别')).toHaveValue('交通');
+  fireEvent.click(within(confirm).getByRole('button', { name: '确认撤销整批' }));
+  await waitFor(() => expect(screen.queryByLabelText('修改第 3 行类别')).not.toBeInTheDocument());
+  expect(undoBillImport.mock.calls).toEqual([['draft-batch'], ['draft-batch']]);
+});
+
+test('removing a different batch keeps the batch being edited and its unsaved drafts', async () => {
+  undoBillImport.mockResolvedValue({});
+  await openTwoDrafts();
+  fireEvent.click(screen.getAllByRole('button', { name: '撤销整批', exact: true })[1]);
+  const confirm = await screen.findByRole('dialog', { name: '撤销整批账单' });
+  fireEvent.click(within(confirm).getByRole('button', { name: '确认撤销整批' }));
+  await screen.findByText('已撤销这批账单。');
+  expect(screen.getByLabelText('修改第 2 行类别')).toHaveValue('学习');
+  expect(screen.getByLabelText('修改第 3 行类别')).toHaveValue('交通');
+  expect(undoBillImport).toHaveBeenCalledWith('another-batch');
 });
