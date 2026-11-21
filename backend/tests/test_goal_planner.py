@@ -141,3 +141,64 @@ def test_plan_preserves_decimal_rounding_before_allocating(amount, expected):
 def test_plan_rejects_amount_just_above_limit_without_float_truncation():
     with pytest.raises(ValueError):
         plan('100000000.000000001')
+
+
+
+def test_overdue_unhandled_expense_protects_cash_before_goal_allocation():
+    entry = dict(kind='upcoming', due_date='2026-09-01', amount=800, handled=False)
+    draft = draft_plan(TODAY, [goal()], {'current_balance': 1000}, [entry])
+    assert draft['events'] == [event(TODAY.isoformat(), 800, 'expense')]
+    result = build_plan(validate_plan(draft, TODAY), [goal()])
+    assert result['reserve_now'] == 200
+    assert result['goals'][0]['shortfall'] == 380
+    assert result['free_now'] == 0
+    assert entry['due_date'] == '2026-09-01'
+
+
+def test_handled_overdue_and_outside_horizon_items_are_not_reserved():
+    entries = [dict(kind='upcoming', due_date='2026-09-01', amount=800, handled=True),
+               dict(kind='upcoming', due_date='2027-01-01', amount=500, handled=False)]
+    draft = draft_plan(TODAY, [], {'current_balance': 1000}, entries)
+    assert draft['events'] == []
+    assert build_plan(validate_plan(draft, TODAY), [])['free_now'] == 1000
+
+
+def test_overdue_entry_http_remains_reserved_until_handled_without_changing_records(client):
+    from datetime import datetime, timedelta
+    from app.services.checkin_service import BEIJING
+    today = datetime.now(BEIJING).date()
+    overdue = (today - timedelta(days=7)).isoformat()
+    profile = dict(current_balance=1000, essential_monthly=0, emergency_buffer=0, monthly_income=0)
+    assert call(client, 'put', '/api/learning/profile', profile).status_code == 200
+    response = call(client, 'post', '/api/learning/entries/upcoming',
+                    dict(title='合成考试费', amount=800, due_date=overdue))
+    assert response.status_code == 201, response.json
+    eid = response.json['entry']['id']
+    result = call(client, 'get', '/api/decision/goal-plan').json
+    assert result['result']['free_now'] == 200
+    assert result['plan']['balance'] == 1000
+    assert call(client, 'put', f'/api/learning/upcoming/{eid}', dict(handled=True), user='bob').status_code == 404
+    entries = call(client, 'get', '/api/learning').json['entries']
+    assert next(e for e in entries if e['id'] == eid)['due_date'] == overdue
+    assert call(client, 'put', f'/api/learning/upcoming/{eid}', dict(handled=True)).status_code == 200
+    assert call(client, 'get', '/api/decision/goal-plan').json['result']['free_now'] == 1000
+    assert call(client, 'get', '/api/decision/transactions').json['data']['transactions'] == []
+
+
+
+def test_overdue_payment_recorded_then_handled_is_not_deducted_twice(client):
+    from datetime import datetime, timedelta
+    from app.services.checkin_service import BEIJING
+    today = datetime.now(BEIJING).date()
+    assert call(client, 'put', '/api/learning/profile', dict(
+        current_balance=1000, essential_monthly=0, emergency_buffer=0, monthly_income=0)).status_code == 200
+    saved = call(client, 'post', '/api/learning/entries/upcoming', dict(
+        title='合成已付款事项', amount=800, due_date=(today - timedelta(days=1)).isoformat()))
+    eid = saved.json['entry']['id']
+    assert call(client, 'post', '/api/decision/transactions', dict(
+        amount=800, category='学习', date=today.isoformat())).status_code == 201
+    assert call(client, 'put', f'/api/learning/upcoming/{eid}', dict(handled=True)).status_code == 200
+    result = call(client, 'get', '/api/decision/goal-plan').json
+    assert result['plan']['balance'] == 200
+    assert result['result']['free_now'] == 200
+    assert result['result']['basic_shortfall'] == 0

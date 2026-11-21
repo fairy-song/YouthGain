@@ -71,8 +71,13 @@ def draft_plan(today, goals, profile, entries):
                 events.append({'date': arrival.isoformat(), 'amount': income, 'kind': 'income'})
             cursor = (cursor.replace(day=28) + timedelta(days=4)).replace(day=1)
     for entry in entries:
-        if entry.get('kind') == 'upcoming' and not entry.get('handled') and today.isoformat() <= entry.get('due_date', '') <= end.isoformat():
-            events.append({'date': entry['due_date'], 'amount': entry['amount'], 'kind': 'expense'})
+        if entry.get('kind') != 'upcoming' or entry.get('handled'):
+            continue
+        due = date.fromisoformat(entry['due_date'])
+        if due <= end:
+            # Passing a due date does not settle the obligation. Reserve overdue
+            # items now, without rewriting their original dates or payment state.
+            events.append({'date': max(today, due).isoformat(), 'amount': entry['amount'], 'kind': 'expense'})
     # Monthly essentials are a budget, not a new transaction. Protect the remaining
     # calendar days proportionally; dated upcoming items are additional commitments.
     essential = profile.get('essential_monthly')
