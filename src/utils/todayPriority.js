@@ -7,17 +7,19 @@ export function pendingPayments(entries) {
     .slice().sort((a, b) => String(a.due_date || '').localeCompare(String(b.due_date || '')) || String(a.id).localeCompare(String(b.id)));
 }
 
+const paymentDestination = entry => '/dashboard?tab=upcoming' + (entry.id != null ? `&item=${encodeURIComponent(String(entry.id))}` : '');
+
 export function todayPriority({ entries, ledger, today, ledgerError, entriesError }) {
   if (entriesError) return { kind: 'retry-upcoming', title: '先核对待支付事项', text: '开支安排暂未读到，重试后再看下一步。', label: '重试开支' };
   if (!entries) return { kind: 'loading', title: '正在核对接下来的安排' };
   const payments = pendingPayments(entries);
   const overdue = payments.find(e => e.due_date && e.due_date < today);
   if (overdue) return { kind: 'overdue', title: '先核对一笔过期事项', text: overdue.title, date: overdue.due_date,
-    amount: overdue.amount, count: payments.filter(e => e.due_date < today).length, label: '核对待支付事项', to: '/dashboard?tab=upcoming' };
+    amount: overdue.amount, count: payments.filter(e => e.due_date < today).length, label: '核对待支付事项', to: paymentDestination(overdue) };
   const near = payments.find(e => e.due_date && e.due_date >= today &&
     (Date.parse(`${e.due_date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000 <= 7);
   if (near) return { kind: 'upcoming', title: near.due_date === today ? '今天有一笔钱要留' : '先留意最近一笔付款',
-    text: near.title, date: near.due_date, amount: near.amount, label: '查看付款安排', to: '/dashboard?tab=upcoming' };
+    text: near.title, date: near.due_date, amount: near.amount, label: '查看付款安排', to: paymentDestination(near) };
   if (ledgerError) return { kind: 'retry-ledger', title: '先读回你的账本', text: '暂时无法确认资金情况，重试不会改动记录。', label: '重试账本' };
   if (!ledger) return { kind: 'loading', title: '正在核对已记录的资金' };
   const flow = ledger.monthly_cashflow;

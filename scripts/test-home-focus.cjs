@@ -75,6 +75,7 @@ const server = http.createServer((req,res) => {
         if(mode === 'overdue') {
           await page.getByRole('link',{name:/核对待支付事项/}).click();
           await page.getByText('2020-01-01 · 合成考试费 · ¥800', {exact:false}).waitFor();
+          await page.getByText('已记账或无需支付？', {exact:true}).click();
           await page.getByRole('button',{name:'标记已处理',exact:true}).click();
           await page.getByRole('button',{name:'恢复提醒',exact:true}).waitFor();
           await page.goto(`${origin}/#/`);

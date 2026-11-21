@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Alert, Button, Card, Col, Form, Row, Spinner } from 'react-bootstrap';
 import { getLearning, saveLearningEntry, updateUpcoming, learningError } from '../services/learning';
 
-export default function UpcomingExpenses({ onRecordExpense }) {
+export default function UpcomingExpenses({ onRecordExpense, selectedEntryId }) {
+  const rowNodes = useRef(new Map());
+  const focused = useRef(null);
   const [entries, setEntries] = useState(null);
   const [upcoming, setUpcoming] = useState({ title: '', amount: '', due_date: '' });
   const [busy, setBusy] = useState(false);
@@ -15,6 +17,11 @@ export default function UpcomingExpenses({ onRecordExpense }) {
     getLearning().then(data => { if (active) setEntries(data.entries); }).catch(e => { if (active) setError(learningError(e)); });
     return () => { active = false; };
   }, [retry]);
+  useEffect(() => {
+    if (!selectedEntryId || focused.current === selectedEntryId) return;
+    const node = rowNodes.current.get(selectedEntryId);
+    if (node) { node.focus(); node.scrollIntoView?.({ block: 'center' }); focused.current = selectedEntryId; }
+  }, [entries, selectedEntryId]);
   const run = async (action, message) => {
     setBusy(true); setError(''); setNotice('');
     try {
@@ -37,13 +44,18 @@ export default function UpcomingExpenses({ onRecordExpense }) {
           <Col md={4}><Form.Control required aria-label="未来开支日期" type="date" value={upcoming.due_date} onChange={e => setUpcoming({ ...upcoming, due_date: e.target.value })} /></Col>
         </Row><Button type="submit" variant="outline-primary" disabled={busy}>保存开支安排</Button>
       </Form>
-      {upcomingEntries.map(e => <div key={e.id} className="d-flex flex-wrap align-items-center justify-content-between border-bottom py-2">
+      {entries && selectedEntryId && !upcomingEntries.some(e => String(e.id) === selectedEntryId) && <p role="status">未在当前账户找到这项安排，请核对下面的列表。</p>}
+      {upcomingEntries.map(e => <article key={e.id} tabIndex={-1} aria-label={e.title}
+        ref={node => { if (node) rowNodes.current.set(String(e.id), node); else rowNodes.current.delete(String(e.id)); }}
+        className={`d-flex flex-wrap align-items-center justify-content-between border-bottom py-2${String(e.id) === selectedEntryId ? ' border border-success rounded px-2' : ''}`}>
         <span>{e.due_date} · {e.title} · ¥{e.amount} {e.handled && '（已处理）'}</span>
         <div className="d-flex flex-wrap">
-          {e.handled && onRecordExpense && <Button variant="link" disabled={busy} onClick={() => onRecordExpense(e)}>去记这笔支出</Button>}
-          <Button variant="link" disabled={busy} onClick={() => run(() => updateUpcoming(e.id, !e.handled), e.handled ? '已恢复提醒。' : '已标记处理；如已付款且尚未记账，可去记这笔支出。')}>{e.handled ? '恢复提醒' : '标记已处理'}</Button>
+          {!e.handled && onRecordExpense && <Button variant="link" disabled={busy} onClick={() => onRecordExpense(e)}>去记这笔支出</Button>}
+          {!e.handled && <details><summary>已记账或无需支付？</summary><p className="small text-muted">确认这项安排已处理后结束预留，不会自动记账。</p><Button variant="link" disabled={busy} onClick={() => run(() => updateUpcoming(e.id, true), '已标记处理；如已付款且尚未记账，可去记这笔支出。')}>标记已处理</Button></details>}
+          {e.handled && onRecordExpense && <details><summary>已处理但还没记账？</summary><p className="small text-muted">先检查账本，避免重复记录。</p><Button variant="link" disabled={busy} onClick={() => onRecordExpense(e)}>去记这笔支出</Button></details>}
+          {e.handled && <Button variant="link" disabled={busy} onClick={() => run(() => updateUpcoming(e.id, false), '已恢复提醒。')}>恢复提醒</Button>}
         </div>
-      </div>)}
+      </article>)}
     {entries && !upcomingEntries.length && <p className="text-muted mt-3">暂无安排，可以先记下一笔考试费、房租或订阅续费。</p>}
     <p className="small text-muted mt-3">标记已处理不会自动记账，也不会自动扣除预算。</p>
   </Card.Body></Card>;

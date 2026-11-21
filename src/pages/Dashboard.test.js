@@ -4,7 +4,7 @@ import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import Dashboard from './Dashboard';
 import { getDecisionReport, listTransactions, getUserGoals, createTransaction, getOpportunityCost, deleteTransaction, deleteBillImportRow } from '../services/api';
-import { getLearning, getLearningProfile } from '../services/learning';
+import { getLearning, getLearningProfile, updateUpcoming } from '../services/learning';
 import { dateKey } from '../components/FinanceVisuals';
 jest.mock('../config/features', () => ({ SPENDING_MONEY_VISUAL_ENABLED: true }));
 const funds = available => ({ month: dateKey().slice(0, 7), complete: true, available_complete: true, available_remaining_month: available,
@@ -18,7 +18,7 @@ const cashflow = (spent, category = '餐饮') => ({
 });
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'u1' } }) }));
 jest.mock('../services/api', () => ({ getDecisionReport: jest.fn(), listTransactions: jest.fn(), getUserGoals: jest.fn(), createTransaction: jest.fn(), getOpportunityCost: jest.fn(), deleteTransaction: jest.fn(), deleteBillImportRow: jest.fn() }));
-jest.mock('../services/learning', () => ({ getLearning: jest.fn(), getLearningProfile: jest.fn() }));
+jest.mock('../services/learning', () => ({ getLearning: jest.fn(), getLearningProfile: jest.fn(), updateUpcoming: jest.fn() }));
 jest.mock('../components/VoiceBillModal', () => () => null);
 jest.mock('../components/GoalCashflow', () => ({ __esModule: true, default: () => null, GoalReserveHint: () => null }));
 beforeEach(() => {
@@ -398,4 +398,62 @@ test('an imported bill deletes only its batch row instead of the manual transact
   await waitFor(() => expect(deleteBillImportRow).toHaveBeenCalledWith(digest, 7));
   expect(deleteTransaction).not.toHaveBeenCalled();
   expect(await screen.findByText('还没有收支记录')).toBeInTheDocument();
+});
+
+
+async function startUnpaidRecord() {
+  getLearning.mockResolvedValue({ entries: [{ id: 'u1', kind: 'upcoming', title: '考试费', amount: 200, due_date: '2020-01-01', handled: false }] });
+  render(<MemoryRouter initialEntries={['/dashboard?tab=upcoming&item=u1']}><Dashboard /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: '去记这笔支出' }));
+  await screen.findByRole('heading', { name: '记一笔收支' });
+  expect(screen.getByLabelText('支出金额（元）')).toHaveValue(200);
+}
+
+test('payment follow-through retries only item state after the transaction has saved', async () => {
+  updateUpcoming.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({});
+  await startUnpaidRecord();
+  fireEvent.click(screen.getByRole('button', { name: '记一笔' }));
+  const done = await screen.findByRole('button', { name: '确认已全部支付' });
+  expect(createTransaction).toHaveBeenCalledTimes(1);
+  expect(updateUpcoming).not.toHaveBeenCalled();
+  fireEvent.click(done);
+  expect(await screen.findByRole('alert')).toHaveTextContent('不会再次记账');
+  fireEvent.click(screen.getByRole('button', { name: '确认已全部支付' }));
+  await waitFor(() => expect(screen.queryByRole('button', { name: '确认已全部支付' })).not.toBeInTheDocument());
+  expect(await screen.findByText('已结束「考试费」的预留。')).toBeInTheDocument();
+  expect(updateUpcoming.mock.calls).toEqual([['u1', true], ['u1', true]]);
+  expect(createTransaction).toHaveBeenCalledTimes(1);
+});
+
+test('failed transaction never finishes a pending payment', async () => {
+  createTransaction.mockRejectedValueOnce(new Error('save failed'));
+  await startUnpaidRecord();
+  fireEvent.click(screen.getByRole('button', { name: '记一笔' }));
+  expect(await screen.findByText('save failed')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '确认已全部支付' })).not.toBeInTheDocument();
+  expect(updateUpcoming).not.toHaveBeenCalled();
+});
+
+test('partial payment can stay pending after recording', async () => {
+  await startUnpaidRecord();
+  fireEvent.change(screen.getByLabelText('支出金额（元）'), { target: { value: '50' } });
+  fireEvent.click(screen.getByRole('button', { name: '记一笔' }));
+  fireEvent.click(await screen.findByRole('button', { name: '保留待支付' }));
+  expect(updateUpcoming).not.toHaveBeenCalled();
+  expect(createTransaction).toHaveBeenCalledTimes(1);
+});
+
+
+test('opening an unpaid expense preserves an existing record draft until the user chooses', async () => {
+  getLearning.mockResolvedValue({ entries: [{ id: 'u1', kind: 'upcoming', title: '考试费', amount: 200, due_date: '2020-01-01' }] });
+  render(<MemoryRouter><Dashboard /></MemoryRouter>);
+  fireEvent.change(await screen.findByLabelText('支出金额（元）'), { target: { value: '38' } });
+  fireEvent.click(screen.getByRole('link', { name: '未来开支' }));
+  fireEvent.click(await screen.findByRole('button', { name: '去记这笔支出' }));
+  expect(await screen.findByText(/表单里已有未保存的账单/)).toBeInTheDocument();
+  expect(screen.getByLabelText('支出金额（元）')).toHaveValue(38);
+  fireEvent.click(screen.getByRole('button', { name: '保留当前草稿' }));
+  expect(screen.getByLabelText('支出金额（元）')).toHaveValue(38);
+  expect(createTransaction).not.toHaveBeenCalled();
+  expect(updateUpcoming).not.toHaveBeenCalled();
 });

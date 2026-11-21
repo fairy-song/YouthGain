@@ -179,7 +179,7 @@ test('focused home keeps overdue items visible, leads with one action, and colla
   ] });
   const { container } = render(<MemoryRouter><TodayHome /></MemoryRouter>);
   expect(await screen.findByRole('heading', { name: '先核对一笔过期事项' })).toBeVisible();
-  expect(screen.getByRole('link', { name: /核对待支付事项/ })).toHaveAttribute('href', '/dashboard?tab=upcoming');
+  expect(screen.getByRole('link', { name: /核对待支付事项/ })).toHaveAttribute('href', '/dashboard?tab=upcoming&item=old');
   expect(screen.getByRole('heading', { name: '待支付事项' })).toBeVisible();
   expect(screen.queryByText('已处理车费')).not.toBeInTheDocument();
   expect(screen.queryByText(/还没有待处理的开支安排/)).not.toBeInTheDocument();

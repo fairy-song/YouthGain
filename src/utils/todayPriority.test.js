@@ -7,7 +7,7 @@ test('unhandled overdue survives sorting and does not mutate source rows', () =>
   const entries = [due('later', '2026-11-25'), due('old', '2026-10-01'), due('paid', '2026-09-01', true)];
   expect(pendingPayments(entries).map(e => e.id)).toEqual(['old', 'later']);
   expect(entries[0].id).toBe('later');
-  expect(todayPriority({ ...base, entries })).toMatchObject({ kind: 'overdue', text: 'old', date: '2026-10-01', to: '/dashboard?tab=upcoming' });
+  expect(todayPriority({ ...base, entries })).toMatchObject({ kind: 'overdue', text: 'old', date: '2026-10-01', to: '/dashboard?tab=upcoming&item=old' });
 });
 test('requires source reads and never substitutes a task for a failed or pending read', () => {
   expect(todayPriority({ ...base, entries: undefined }).kind).toBe('loading');
@@ -27,4 +27,10 @@ test('zero is confirmed, negative funds get a check, and missing funds never loo
 test('new records and saved action lead to the matching existing route', () => {
   expect(todayPriority({ ...base, ledger: { monthly_cashflow: { complete: true, has_expense_records: false, has_income_records: false } } })).toMatchObject({ kind: 'first', to: '/dashboard' });
   expect(todayPriority({ ...base, entries: [{ kind: 'review', next_action: '周日核对车费' }] })).toMatchObject({ kind: 'continue', text: '周日核对车费', to: '/learning?tab=review' });
+});
+
+
+test('item destinations encode an id rather than allowing it to change the route', () => {
+  const action = todayPriority({ ...base, entries: [due('item?&=#', '2026-11-20')] });
+  expect(action.to).toBe('/dashboard?tab=upcoming&item=item%3F%26%3D%23');
 });

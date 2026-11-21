@@ -19,7 +19,7 @@ import TransactionIntent from '../components/TransactionIntent';
 import ExpenseMoney from '../components/ExpenseMoney';
 import { expenseMoney } from '../utils/expenseMoney';
 import { SPENDING_MONEY_VISUAL_ENABLED } from '../config/features';
-import { getLearningProfile, getLearning } from '../services/learning';
+import { getLearningProfile, getLearning, updateUpcoming } from '../services/learning';
 import './DashboardUI.css';
 
 const Dashboard = () => {
@@ -100,6 +100,11 @@ const Dashboard = () => {
   });
   const [recordResult, setRecordResult] = useState(null); // 记账成功后的机会成本即时反馈
   const [upcomingDraft, setUpcomingDraft] = useState(false);
+  const [sourceUpcoming, setSourceUpcoming] = useState(null);
+  const [savedUpcoming, setSavedUpcoming] = useState(null);
+  const [finishingUpcoming, setFinishingUpcoming] = useState(false);
+  const [upcomingError, setUpcomingError] = useState('');
+  const [upcomingNotice, setUpcomingNotice] = useState('');
   const [pendingUpcoming, setPendingUpcoming] = useState(null);
   const [savedExpense, setSavedExpense] = useState(null);
   const [expandedExpense, setExpandedExpense] = useState(null);
@@ -118,6 +123,8 @@ const Dashboard = () => {
     setRecordResult(null);
     setSavedExpense(null);
     setUpcomingDraft(true);
+    setSourceUpcoming(entry.handled ? null : { id: entry.id, title: entry.title });
+    setSavedUpcoming(null); setUpcomingError(''); setUpcomingNotice('');
     setPendingUpcoming(null);
   };
 
@@ -130,6 +137,7 @@ const Dashboard = () => {
     else prefillUpcomingExpense(entry);
     const nextParams = new URLSearchParams(params);
     nextParams.delete('tab');
+    nextParams.delete('item');
     setParams(nextParams);
   };
   const isIncome = recordForm.transaction_type === 'income';
@@ -139,6 +147,7 @@ const Dashboard = () => {
     setRecordResult(null);
     setSavedExpense(null);
     setRecordError('');
+    setUpcomingDraft(false); setSourceUpcoming(null);
     setRecordForm(f => ({ ...f, transaction_type,
       category: transaction_type === 'income' ? '生活费' : '餐饮', planned: '', purpose: '' }));
   };
@@ -277,6 +286,8 @@ const Dashboard = () => {
       saved = true;
       if (feedback !== feedbackVersion.current) return;
       setUpcomingDraft(false);
+      setSavedUpcoming(!isIncome ? sourceUpcoming : null);
+      setUpcomingError(''); setUpcomingNotice(''); setSourceUpcoming(null);
       if (!isIncome && SPENDING_MONEY_VISUAL_ENABLED) setSavedExpense({ amount: savedRecord?.amount ?? amount, key: feedback });
       setRecordForm((f) => ({ ...f, amount: '', merchant: '', items: '', note: '', hour: '', planned: '', purpose: '' }));
       // Refresh immediately after saving; optional feedback runs independently.
@@ -304,6 +315,20 @@ const Dashboard = () => {
     } finally {
       setSavingRecord(false);
     }
+  };
+
+  const finishUpcoming = async () => {
+    if (!savedUpcoming || finishingUpcoming || savingRecord) return;
+    setFinishingUpcoming(true); setUpcomingError('');
+    try {
+      await updateUpcoming(savedUpcoming.id, true);
+      setUpcomingNotice(`已结束「${savedUpcoming.title}」的预留。`);
+      setSavedUpcoming(current => current?.id === savedUpcoming.id ? null : current);
+      refreshLedger();
+      window.dispatchEvent(new Event('learning-saved'));
+    } catch (error) {
+      setUpcomingError('账目已保存，事项状态更新失败。重试只更新状态，不会再次记账。');
+    } finally { setFinishingUpcoming(false); }
   };
 
   // 创建储蓄目标（后端要求 title / target_amount / deadline 必填）
@@ -443,7 +468,7 @@ const Dashboard = () => {
           {report?.basis && <p className="small mt-2">分析范围：{report.basis.start} 至 {report.basis.end}，{report.basis.record_count} 笔。{report.basis.message}</p>}
           {report?.warnings?.map((warning, index) => <p key={index} className="small mb-0">{warning}</p>)}
         </Alert><LedgerAnalysis {...{ surplus, income, avgSpending, spending, discretionary, goal, patterns, pca }} /></>}
-        {tab === 'upcoming' && <UpcomingExpenses key={currentUser?.uid} onRecordExpense={openUpcomingExpense} />}
+        {tab === 'upcoming' && <UpcomingExpenses key={currentUser?.uid} onRecordExpense={openUpcomingExpense} selectedEntryId={params.get('item')} />}
         {tab === 'overview' && <>
         {/* 保留旧锚点，兼容已有的记账链接。 */}
         <Row className="mb-5" id="record-expense">
@@ -475,7 +500,7 @@ const Dashboard = () => {
                   <div><Button type="button" variant="link" disabled={savingRecord} onClick={() => prefillUpcomingExpense(pendingUpcoming)}>替换草稿</Button>
                     <Button type="button" variant="link" onClick={() => setPendingUpcoming(null)}>保留当前草稿</Button></div>
                 </Alert>}
-                <Form onSubmit={handleRecordTransaction}><fieldset disabled={savingRecord}>
+                <Form onSubmit={handleRecordTransaction}><fieldset disabled={savingRecord || finishingUpcoming}>
                   <Form.Group controlId="record-type" className="mb-3">
                     <Form.Label>收支类型</Form.Label>
                     <Form.Select value={recordForm.transaction_type} onChange={handleRecordType} disabled={savingRecord} style={{ maxWidth: 180 }}>
@@ -576,6 +601,14 @@ const Dashboard = () => {
                     </div>
                 </fieldset></Form>
 
+                {upcomingNotice && <p className="text-success mt-3" role="status">{upcomingNotice}</p>}
+                {savedUpcoming && <Alert variant="info" className="mt-3" role="status">
+                  <strong>账目已保存 · {savedUpcoming.title}</strong>
+                  <p className="mb-1">若已全部支付，可结束预留；未付清则保留，计划金额不会自动减少。</p>
+                  {upcomingError && <p role="alert">{upcomingError}</p>}
+                  <Button type="button" disabled={finishingUpcoming || savingRecord} onClick={finishUpcoming}>{finishingUpcoming ? '正在更新状态…' : '确认已全部支付'}</Button>
+                  <Button type="button" variant="link" disabled={finishingUpcoming || savingRecord} onClick={() => { setSavedUpcoming(null); setUpcomingError(''); }}>保留待支付</Button>
+                </Alert>}
                 {recordError && <Alert variant="danger" className="mt-3 mb-0 small">{recordError}</Alert>}
                 {recordResult && recordResult.unavailable && (
                   <div className="mt-3"><p role="status" className="text-success mb-1">{recordResult.profile_required ? '支出已保存，可以继续记下一笔。' : recordResult.message}</p>
