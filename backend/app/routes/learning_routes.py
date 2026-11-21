@@ -215,3 +215,23 @@ def weekly_facts(user_info):
                                    for r in selected), 2),
                    limited=len(rows) >= 2000,
                    message='仅汇总已记录消费，不代表全部支出；没有消费也可以完成复盘。')
+
+
+@learning_bp.route('/upcoming/<entry_id>/details', methods=['PUT'])
+@require_auth
+def upcoming_details(user_info, entry_id):
+    from app.services.finance_funds_service import cents
+    record = store.read_entry(user_info['uid'], entry_id)
+    if not record or record.get('kind') != 'upcoming':
+        return jsonify(message='找不到这项开支安排'), 404
+    data = payload()
+    if set(data) != {'title', 'amount', 'due_date', 'expected_updated_at'}:
+        raise ValueError('请提交事项、待支付金额、日期与读取版本')
+    if record.get('handled') or data['expected_updated_at'] != record.get('updated_at'):
+        return jsonify(message='这项安排已更新或处理，请重新读取并核对后再保存'), 409
+    amount = cents(data['amount'])
+    if amount <= 0:
+        raise ValueError('待支付金额按分四舍五入后须至少为 0.01 元')
+    _, details = validate_entry('upcoming', {**data, 'amount': amount / 100})
+    record.update({k: details[k] for k in ('title', 'amount', 'due_date')})
+    return jsonify(entry=store.write_entry(user_info['uid'], entry_id, record))

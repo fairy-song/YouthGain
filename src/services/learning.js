@@ -12,5 +12,6 @@ export const saveLearningEntry = async (kind, data) => (await api.post(`/learnin
 export const saveDecisionOutcome = async (id, data) => (await api.put(`/learning/decisions/${encodeURIComponent(id)}/outcome`, data)).data.entry;
 export const saveTransactionReflection = async (id, data) => (await api.put(`/learning/transactions/${encodeURIComponent(id)}/reflection`, data)).data.entry;
 export const getWeeklyFacts = async () => (await api.get('/learning/weekly-facts')).data;
+export const editUpcoming = async (id, details) => (await api.put(`/learning/upcoming/${encodeURIComponent(id)}/details`, details)).data.entry;
 export const updateUpcoming = async (id, handled) => (await api.put(`/learning/upcoming/${encodeURIComponent(id)}`, { handled })).data.entry;
 export const learningError = error => error?.response?.data?.message || error?.message || '暂时无法保存，请重试。';

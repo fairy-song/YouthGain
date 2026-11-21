@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Alert, Button, Card, Col, Form, Row, Spinner } from 'react-bootstrap';
-import { getLearning, saveLearningEntry, updateUpcoming, learningError } from '../services/learning';
+import UpcomingEditor from './UpcomingEditor';
+import { getLearning, saveLearningEntry, updateUpcoming, editUpcoming, learningError } from '../services/learning';
 
 export default function UpcomingExpenses({ onRecordExpense, selectedEntryId }) {
   const rowNodes = useRef(new Map());
   const focused = useRef(null);
+  const [editing, setEditing] = useState(null);
   const [entries, setEntries] = useState(null);
   const [upcoming, setUpcoming] = useState({ title: '', amount: '', due_date: '' });
   const [busy, setBusy] = useState(false);
@@ -33,7 +35,7 @@ export default function UpcomingExpenses({ onRecordExpense, selectedEntryId }) {
   };
   const upcomingEntries = (entries || []).filter(e => e.kind === 'upcoming').sort((a,b) => Number(a.handled) - Number(b.handled) || a.due_date.localeCompare(b.due_date));
   return <Card className="border-0 shadow-sm"><Card.Body className="p-4">
-    {error && <Alert variant="warning">{error}<Button variant="link" disabled={busy} onClick={() => setRetry(v => v + 1)}>重新加载</Button></Alert>}
+    {error && <Alert variant="warning">{error}<Button variant="link" disabled={busy || !!editing} onClick={() => setRetry(v => v + 1)}>重新加载</Button></Alert>}
     {notice && <Alert variant="success" role="status">{notice}</Alert>}
     {!entries && !error && <Spinner role="status" />}
       <h3 className="h5">未来开支</h3><p className="text-muted small">在消费选择和复盘时提醒自己。不发送站外通知。</p>
@@ -42,7 +44,7 @@ export default function UpcomingExpenses({ onRecordExpense, selectedEntryId }) {
           <Col md={5}><Form.Control required aria-label="未来开支事项" placeholder="例如：考试费" maxLength={100} value={upcoming.title} onChange={e => setUpcoming({ ...upcoming, title: e.target.value })} /></Col>
           <Col md={3}><Form.Control required aria-label="未来开支金额" placeholder="预计金额（元）" type="number" min="0.01" max="100000000" step="0.01" value={upcoming.amount} onChange={e => setUpcoming({ ...upcoming, amount: e.target.value })} /></Col>
           <Col md={4}><Form.Control required aria-label="未来开支日期" type="date" value={upcoming.due_date} onChange={e => setUpcoming({ ...upcoming, due_date: e.target.value })} /></Col>
-        </Row><Button type="submit" variant="outline-primary" disabled={busy}>保存开支安排</Button>
+        </Row><Button type="submit" variant="outline-primary" disabled={busy || !!editing}>保存开支安排</Button>
       </Form>
       {entries && selectedEntryId && !upcomingEntries.some(e => String(e.id) === selectedEntryId) && <p role="status">未在当前账户找到这项安排，请核对下面的列表。</p>}
       {upcomingEntries.map(e => <article key={e.id} tabIndex={-1} aria-label={e.title}
@@ -50,11 +52,24 @@ export default function UpcomingExpenses({ onRecordExpense, selectedEntryId }) {
         className={`d-flex flex-wrap align-items-center justify-content-between border-bottom py-2${String(e.id) === selectedEntryId ? ' border border-success rounded px-2' : ''}`}>
         <span>{e.due_date} · {e.title} · ¥{e.amount} {e.handled && '（已处理）'}</span>
         <div className="d-flex flex-wrap">
-          {!e.handled && onRecordExpense && <Button variant="link" disabled={busy} onClick={() => onRecordExpense(e)}>去记这笔支出</Button>}
-          {!e.handled && <details><summary>已记账或无需支付？</summary><p className="small text-muted">确认这项安排已处理后结束预留，不会自动记账。</p><Button variant="link" disabled={busy} onClick={() => run(() => updateUpcoming(e.id, true), '已标记处理；如已付款且尚未记账，可去记这笔支出。')}>标记已处理</Button></details>}
-          {e.handled && onRecordExpense && <details><summary>已处理但还没记账？</summary><p className="small text-muted">先检查账本，避免重复记录。</p><Button variant="link" disabled={busy} onClick={() => onRecordExpense(e)}>去记这笔支出</Button></details>}
-          {e.handled && <Button variant="link" disabled={busy} onClick={() => run(() => updateUpcoming(e.id, false), '已恢复提醒。')}>恢复提醒</Button>}
+          {!e.handled && <Button variant="link" disabled={busy || !!editing} onClick={() => { setError(''); setEditing(e); }}>调整安排</Button>}
+          {!e.handled && onRecordExpense && <Button variant="link" disabled={busy || !!editing} onClick={() => onRecordExpense(e)}>去记这笔支出</Button>}
+          {!e.handled && <details><summary>已记账或无需支付？</summary><p className="small text-muted">确认这项安排已处理后结束预留，不会自动记账。</p><Button variant="link" disabled={busy || !!editing} onClick={() => run(() => updateUpcoming(e.id, true), '已标记处理；如已付款且尚未记账，可去记这笔支出。')}>标记已处理</Button></details>}
+          {e.handled && onRecordExpense && <details><summary>已处理但还没记账？</summary><p className="small text-muted">先检查账本，避免重复记录。</p><Button variant="link" disabled={busy || !!editing} onClick={() => onRecordExpense(e)}>去记这笔支出</Button></details>}
+          {e.handled && <Button variant="link" disabled={busy || !!editing} onClick={() => run(() => updateUpcoming(e.id, false), '已恢复提醒。')}>恢复提醒</Button>}
         </div>
+        {String(editing?.id) === String(e.id) && <UpcomingEditor key={`${e.id}:${editing.updated_at}`} entry={editing} busy={busy} error={error}
+          onReload={() => run(async () => {
+            const data = await getLearning();
+            const latest = data.entries.find(row => String(row.id) === String(e.id) && row.kind === 'upcoming');
+            if (!latest || latest.handled) throw new Error('事项已处理或已不存在，请取消调整后核对列表。');
+            setEntries(data.entries); setEditing(latest);
+          }, '已读取最新安排，请重新核对后保存。')}
+          onCancel={() => { setEditing(null); setError(''); }} onSave={details => run(async () => {
+            const updated = await editUpcoming(e.id, details);
+            setEntries(rows => rows.map(row => String(row.id) === String(updated.id) ? updated : row));
+            setEditing(null);
+          }, '安排已调整，资金规划将使用新的待支付金额和日期。')} />}
       </article>)}
     {entries && !upcomingEntries.length && <p className="text-muted mt-3">暂无安排，可以先记下一笔考试费、房租或订阅续费。</p>}
     <p className="small text-muted mt-3">标记已处理不会自动记账，也不会自动扣除预算。</p>
