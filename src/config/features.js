@@ -7,3 +7,6 @@ export const SPENDING_JOURNEY_ENABLED = process.env.REACT_APP_SPENDING_JOURNEY !
 const stressTestSetting = process.env.REACT_APP_LIVING_FUNDS_STRESS_TEST;
 export const LIVING_FUNDS_STRESS_TEST_ENABLED = stressTestSetting === 'true' ||
   (process.env.NODE_ENV === 'development' && stressTestSetting !== 'false');
+
+// Restore the previous home hierarchy without changing saved data.
+export const HOME_FOCUS_ENABLED = process.env.REACT_APP_HOME_FOCUS !== 'false';

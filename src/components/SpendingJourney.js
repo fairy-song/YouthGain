@@ -48,6 +48,6 @@ function SpendingObservation({ snapshot, refreshing }) {
         <Link to="/dashboard?tab=upcoming">先看看接下来要留的钱 →</Link></div>
       <p className="journey-note">核对并发送后才交给 AI；复盘需确认保存。</p>
     </div>}
-    <a className="journey-recommendation" href="#today-podcast" onClick={event => { event.preventDefault(); document.getElementById('today-podcast')?.focus(); document.getElementById('today-podcast')?.scrollIntoView({ block: 'start' }); }}>想先了解一点知识？看看本次推荐 ↓</a>
+    <a className="journey-recommendation" href="#today-podcast" onClick={event => { event.preventDefault(); const target = document.getElementById('today-podcast'); if (target?.closest('details')) target.closest('details').open = true; target?.focus(); target?.scrollIntoView?.({ block: 'start' }); }}>想先了解一点知识？看看本次推荐 ↓</a>
   </div>;
 }

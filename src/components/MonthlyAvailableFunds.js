@@ -7,7 +7,7 @@ import DailyFundsBreakdown from './DailyFundsBreakdown';
 export const AVAILABLE_NOTE = '上月结转结余 + 本月实际收入 − 本月净支出 − 本月净储蓄划拨；为日常可支配资金，不包含已锁定的储蓄资金。';
 const money = value => value == null ? '尚未确认' : `¥${Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function MonthlyAvailableFunds({ funds, editable = false, onSaved, enableDailyBreakdown = false, refreshing = false, onRefresh, initiallyOpen = false }) {
+export default function MonthlyAvailableFunds({ funds, editable = false, onSaved, enableDailyBreakdown = false, refreshing = false, onRefresh, initiallyOpen = false, compact = false }) {
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -32,10 +32,11 @@ export default function MonthlyAvailableFunds({ funds, editable = false, onSaved
   return <div className={`ledger-metric${enableDailyBreakdown ? ' funds-breakdown-enabled' : ''}`}>
     <span className="ledger-summary-label">本月可用剩余</span>
     <strong className="ledger-summary-amount">{ready ? money(funds.available_remaining_month) : '资金资料待核对'}</strong>
-    <small>{ready ? AVAILABLE_NOTE : '已记录的收支照常保留；资料不完整，暂不展示可用金额。'}</small>
+    <small>{ready ? (compact ? '不含锁定储蓄，尚未扣除待支付事项。' : AVAILABLE_NOTE) : '已记录的收支照常保留；资料不完整，暂不展示可用金额。'}</small>
     {!ready && !editable && <Link to="/dashboard?funds=confirm" className="d-inline-block py-2">核对资金 →</Link>}
     {enableDailyBreakdown && ready && <DailyFundsBreakdown funds={funds} refreshing={refreshing} onRefresh={onRefresh} />}
     <details open={initiallyOpen || undefined}><summary>{!ready && editable ? '核对期初资金' : '查看资金口径'}</summary>
+      {compact && <p>{AVAILABLE_NOTE}</p>}
       <p>上月结转：{money(funds?.carryover_month)} · 本月净储蓄划拨：{money(funds?.savings_net_transfer_month)}</p>
       <p>储蓄锁定总资金：{money(funds?.savings_locked_total)}。已从可用剩余中扣除。</p>
       {!ready && <p>请确认本月期初的日常资金；如记录读取失败，先重试。确认后的金额仍按已记录数据计算，不代表实时账户余额。</p>}

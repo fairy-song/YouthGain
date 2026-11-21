@@ -16,6 +16,7 @@ jest.mock('../services/learning', () => ({ getAdaptiveLearning: jest.fn(), getLe
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.requireMock('../config/features').HOME_FOCUS_ENABLED = false;
   jest.requireMock('../config/features').DAILY_FUNDS_BREAKDOWN_ENABLED = true;
   jest.requireMock('../config/features').LIVING_FUNDS_STRESS_TEST_ENABLED = false;
   jest.requireMock('../config/features').SPENDING_JOURNEY_ENABLED = false;
@@ -167,4 +168,51 @@ test('only projects explicitly selected unpaid expenses and only offers a same-d
   fireEvent.click(screen.getByRole('button', { name: '查看试算结果' }));
   expect(screen.getByText('预计还剩 ¥180.00')).toBeVisible();
   expect(screen.getByText(/未填每日开销/)).toBeVisible();
+});
+
+
+test('focused home keeps overdue items visible, leads with one action, and collapses optional study', async () => {
+  jest.requireMock('../config/features').HOME_FOCUS_ENABLED = true;
+  getLearning.mockResolvedValue({ entries: [
+    { id: 'old', kind: 'upcoming', title: '旧考试费', due_date: '2020-01-01', amount: 800 },
+    { id: 'paid', kind: 'upcoming', title: '已处理车费', due_date: '2020-01-01', amount: 100, handled: true },
+  ] });
+  const { container } = render(<MemoryRouter><TodayHome /></MemoryRouter>);
+  expect(await screen.findByRole('heading', { name: '先核对一笔过期事项' })).toBeVisible();
+  expect(screen.getByRole('link', { name: /核对待支付事项/ })).toHaveAttribute('href', '/dashboard?tab=upcoming');
+  expect(screen.getByRole('heading', { name: '待支付事项' })).toBeVisible();
+  expect(screen.queryByText('已处理车费')).not.toBeInTheDocument();
+  expect(screen.queryByText(/还没有待处理的开支安排/)).not.toBeInTheDocument();
+  expect(container.querySelector('.today-optional')).not.toHaveAttribute('open');
+  expect(container.querySelectorAll('.today-priority')).toHaveLength(1);
+});
+
+test('money action expands spending and recommendation jump opens optional content', async () => {
+  jest.requireMock('../config/features').HOME_FOCUS_ENABLED = true;
+  jest.requireMock('../config/features').SPENDING_JOURNEY_ENABLED = true;
+  listTransactions.mockResolvedValue({ monthly_budget: { spent: 20, complete: true },
+    monthly_cashflow: { complete: true, month: '2026-11', spent: 20, category_breakdown: [
+      { category: '餐饮', gross_expense: 20, refunds: 0, net: 20 }] },
+    funds: { complete: true, available_complete: true, available_remaining_month: 1000 } });
+  const { container } = render(<MemoryRouter><TodayHome /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: /看见花费/ }));
+  expect(container.querySelector('.today-disclosure')).toHaveAttribute('open');
+  expect(screen.getByText('看见花费 · 展开钱币与消费观察')).toHaveFocus();
+  fireEvent.click(screen.getByRole('link', { name: /看看本次推荐/ }));
+  expect(container.querySelector('.today-optional')).toHaveAttribute('open');
+});
+
+
+test('focused home does not request a practice until the student opens optional study', async () => {
+  jest.requireMock('../config/features').HOME_FOCUS_ENABLED = true;
+  const { container } = render(<MemoryRouter><TodayHome /></MemoryRouter>);
+  await screen.findByRole('heading', { name: '先核对手里的钱' });
+  expect(getAdaptiveLearning).not.toHaveBeenCalled();
+  const panel = container.querySelector('.today-optional');
+  panel.open = true;
+  fireEvent(panel, new Event('toggle'));
+  await waitFor(() => expect(getAdaptiveLearning).toHaveBeenCalledTimes(1));
+  panel.open = false; fireEvent(panel, new Event('toggle'));
+  panel.open = true; fireEvent(panel, new Event('toggle'));
+  expect(getAdaptiveLearning).toHaveBeenCalledTimes(1);
 });

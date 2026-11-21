@@ -45,3 +45,10 @@ test('failed ledger completeness cannot be presented as confirmed funds', () => 
   expect(screen.queryByText('¥200.00')).not.toBeInTheDocument();
   expect(screen.getByText('资金资料待核对')).toBeInTheDocument();
 });
+
+
+test('compact home distinguishes the displayed balance from future payment commitments', () => {
+  render(<MonthlyAvailableFunds compact funds={{ available_complete: true, complete: true, available_remaining_month: 1000 }} />);
+  expect(screen.getByText('不含锁定储蓄，尚未扣除待支付事项。')).toBeVisible();
+  expect(screen.getByText('¥1,000.00')).toBeVisible();
+});
