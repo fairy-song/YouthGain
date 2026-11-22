@@ -3,7 +3,7 @@ import { Alert, Button, Form, Modal, Table } from 'react-bootstrap';
 import { confirmBillImport, deleteBillCategory, editBillImportRow, getBillImport, listBillImports, listBillCategories, previewBillImport, revertBillImportEdit, undoBillImport } from '../../services/api';
 import { dateKey } from '../FinanceVisuals';
 import ImportPurchaseEditor, { purchaseValue } from './ImportPurchaseEditor';
-import BillImportPreviewTable from './BillImportPreviewTable';
+import BillImportPreviewTable, { canSelectImportRow } from './BillImportPreviewTable';
 import './BillImportEditor.css';
 import CustomBillCategorySelect, { BillCategoryCreateModal, BillCategoryManager, accountingLabels, allowedAccountingTypes } from './CustomBillCategories';
 
@@ -14,6 +14,7 @@ const errorText = error => error?.response?.data?.message || error?.message || '
 
 export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense' }) {
   const [file, setFile] = useState(null);
+  const acceptedFiles = useRef(null);
   const [source, setSource] = useState('wechat');
   const [preview, setPreview] = useState(null);
   const [selected, setSelected] = useState([]);
@@ -36,10 +37,28 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
   const [ledgerError, setLedgerError] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
   const draftCount = Object.keys(rowDrafts).length;
+  const initialSelection = preview?.rows.filter(row => row.decision === 'import').map(row => row.row_id) || [];
+  const previewChanged = !!preview && (Object.keys(edits).length > 0 || Object.keys(overrides).length > 0
+    || selected.length !== initialSelection.length || initialSelection.some(id => !selected.includes(id)));
   const askDiscard = (action, includePreview = false) => {
-    const previewChanged = includePreview && (Object.keys(edits).length || Object.keys(overrides).length);
-    if (draftCount || previewChanged) setConfirmation({ kind: 'discard', action });
+    if (draftCount || (includePreview && previewChanged)) setConfirmation({ kind: 'discard', action });
     else action();
+  };
+  const replacePreview = action => {
+    if (previewChanged) setConfirmation({ kind: 'discard', action });
+    else action();
+  };
+  const chooseFile = event => {
+    const input = event.currentTarget;
+    const nextFiles = input.files;
+    const nextFile = nextFiles?.[0] || null;
+    if (previewChanged) input.files = acceptedFiles.current;
+    replacePreview(() => {
+      input.files = nextFiles;
+      acceptedFiles.current = nextFiles;
+      setFile(nextFile);
+      clearPreview();
+    });
   };
   const requestClose = () => {
     if (!busy && !showCategoryCreate && !showBulkApply && !confirmation) askDiscard(onClose, true);
@@ -260,16 +279,19 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
       {message && <Alert variant="success" role="status">{message}</Alert>}
       {ledgerError && <Alert variant="warning" role="status">账本暂未刷新，已完成的操作无需再次提交。 <Button variant="link" disabled={busy} onClick={async () => { setBusy(true); await refreshLedger(); setBusy(false); }}>只刷新账本</Button></Alert>}
       <div className="d-flex flex-wrap gap-2 align-items-end mb-3">
-        <Form.Group controlId="csv-source"><Form.Label>账单来源</Form.Label><Form.Select value={source} disabled={busy} onChange={e => { setSource(e.target.value); clearPreview(); }}><option value="wechat">微信支付</option><option value="standard">青盈标准 CSV</option><option value="auto">自动识别</option></Form.Select></Form.Group>
-        <Form.Group controlId="csv-file"><Form.Label>文件（CSV / XLSX，最多 2 MB、1500 行）</Form.Label><Form.Control type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={busy} onChange={e => { setFile(e.target.files?.[0] || null); clearPreview(); }} /></Form.Group>
-        <Button variant="outline-success" disabled={busy || !file} onClick={runPreview}>{busy ? '处理中…' : '预览账单'}</Button>
+        <Form.Group controlId="csv-source"><Form.Label>账单来源</Form.Label><Form.Select value={source} disabled={busy} onChange={e => { const next = e.target.value; replacePreview(() => { setSource(next); clearPreview(); }); }}><option value="wechat">微信支付</option><option value="standard">青盈标准 CSV</option><option value="auto">自动识别</option></Form.Select></Form.Group>
+        <Form.Group controlId="csv-file"><Form.Label>文件（CSV / XLSX，最多 2 MB、1500 行）</Form.Label><Form.Control type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={busy} onChange={chooseFile} /></Form.Group>
+        <Button variant="outline-success" disabled={busy || !file} onClick={() => replacePreview(runPreview)}>{busy ? '处理中…' : '预览账单'}</Button>
         <a href="/templates/qingying-bill-template.csv" download className="small mb-2">下载标准模板</a>
       </div>
       {source === 'standard' && <p className="small text-muted">标准 CSV 每行填写 date、type、amount、transaction_id；退款填写 related_transaction_id。收款可加 receipt_kind（red_packet / external_transfer / other_income / internal_transfer）。status 填 completed。</p>}
       {preview && <>
         <p className="small">可导入 {preview.counts.import} 行（支出 {preview.by_type?.expense || 0}、退款 {preview.by_type?.refund || 0}、收入 {preview.by_type?.income || 0}、转账 {preview.by_type?.transfer || 0}） · 重复 {preview.counts.duplicate} 行 · 需核对 {preview.counts.review} 行。已完成且可确认的行默认选中。</p>
         <p className="small fw-semibold">已选 {selected.length} 行 · 预计本月支出变化 ¥{(selectedTotals.spent / 100).toFixed(2)} · 收入变化 ¥{(selectedTotals.income / 100).toFixed(2)} · 剩余变化 ¥{((selectedTotals.income - selectedTotals.spent) / 100).toFixed(2)}</p>
-        {/* 顶部只保留两个操作按钮，逐行的分类选择框继续保留。 */}
+        <div className="d-flex flex-wrap gap-2 mb-2" role="group" aria-label="预览勾选操作">
+          <Button size="sm" variant="outline-secondary" disabled={busy || !preview.rows.some(row => canSelectImportRow(row, edits[row.row_id]) && !selected.includes(row.row_id))} onClick={() => setSelected(preview.rows.filter(row => canSelectImportRow(row, edits[row.row_id])).map(row => row.row_id))}>全选可导入</Button>
+          <Button size="sm" variant="outline-secondary" disabled={busy || !selected.length} onClick={() => setSelected([])}>清空选择</Button>
+        </div>
         <div className="d-flex flex-wrap gap-2 mb-2"><Button size="sm" variant="outline-secondary" disabled={busy || !selected.length} onClick={openBulkApply}>应用到已选记录</Button><Button size="sm" variant="outline-secondary" disabled={busy} onClick={() => setShowCategoryCreate(true)}>自定义分类</Button></div>
         {preview.already_imported && <Alert variant="info">这份文件已有部分记录入账；已入账行会跳过，仍可核对并追加其他行。</Alert>}
         <BillImportPreviewTable preview={preview} selected={selected} edits={edits} overrides={overrides} customOptions={customOptions}
@@ -309,7 +331,7 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
         {confirmation?.kind === 'undo' ? <>
           <p>将撤销这批账单（{confirmation.count} 行），已入账的收支会从统计中移除。</p>
           {confirmation.digest === activeBatch?.sha256 && draftCount > 0 && <p>这批尚未保存的修改也会被放弃。</p>}
-        </> : <p>继续将放弃未保存的分类或关联修改，已入账记录不受影响。</p>}
+        </> : <p>继续将放弃尚未保存的账单核对与修改，已入账记录不受影响。</p>}
       </Modal.Body>
       <Modal.Footer>
         <Button variant="outline-secondary" disabled={busy} onClick={() => setConfirmation(null)}>{confirmation?.kind === 'undo' ? '取消' : '继续编辑'}</Button>

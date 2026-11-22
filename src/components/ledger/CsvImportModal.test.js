@@ -593,3 +593,72 @@ test('removing a different batch keeps the batch being edited and its unsaved dr
   expect(screen.getByLabelText('修改第 3 行类别')).toHaveValue('交通');
   expect(undoBillImport).toHaveBeenCalledWith('another-batch');
 });
+
+
+async function previewForGuard() {
+  listBillImports.mockResolvedValue([]);
+  previewBillImport.mockResolvedValue({ source: 'wechat', sha256: 'guard', counts: { import: 1, review: 1, duplicate: 1 }, rows: [
+    { row_id: 2, transaction_type: 'expense', category: '餐饮', decision: 'import', amount: '18.50' },
+    { row_id: 3, transaction_type: 'refund', decision: 'review', reason: '找不到可关联的原支出', amount: '2' },
+    { row_id: 4, transaction_type: 'expense', decision: 'duplicate', amount: '9' },
+  ] });
+  const onClose = jest.fn();
+  render(<CsvImportModal onClose={onClose} onSaved={jest.fn()} />);
+  const file = new File(['old'], 'old.csv', { type: 'text/csv' });
+  fireEvent.change(screen.getByLabelText(/文件（CSV/), { target: { files: [file] } });
+  fireEvent.click(screen.getByRole('button', { name: '预览账单', exact: true }));
+  await screen.findByLabelText('选择第 2 行');
+  return { onClose, file };
+}
+
+test('re-preview asks before replacing edits and failed re-preview preserves them', async () => {
+  await previewForGuard();
+  await chooseCategory('第 2 行分类', 'expense:学习');
+  fireEvent.click(screen.getByRole('button', { name: '预览账单', exact: true }));
+  let confirm = await screen.findByRole('dialog', { name: '尚有未保存修改' });
+  expect(previewBillImport).toHaveBeenCalledTimes(1);
+  fireEvent.click(within(confirm).getByRole('button', { name: '继续编辑' }));
+  expect(screen.getByRole('combobox', { name: '第 2 行分类' })).toHaveAttribute('value', 'expense:学习');
+  previewBillImport.mockRejectedValueOnce(new Error('重新读取失败'));
+  fireEvent.click(screen.getByRole('button', { name: '预览账单', exact: true }));
+  confirm = await screen.findByRole('dialog', { name: '尚有未保存修改' });
+  fireEvent.click(within(confirm).getByRole('button', { name: '放弃修改并继续' }));
+  expect(await screen.findByText('重新读取失败')).toBeVisible();
+  expect(screen.getByRole('combobox', { name: '第 2 行分类' })).toHaveAttribute('value', 'expense:学习');
+});
+
+test('source and file cancellation keep the accepted upload consistent with its preview', async () => {
+  const { file } = await previewForGuard();
+  fireEvent.click(screen.getByLabelText('选择第 2 行'));
+  fireEvent.change(screen.getByLabelText('账单来源'), { target: { value: 'standard' } });
+  let confirm = await screen.findByRole('dialog', { name: '尚有未保存修改' });
+  fireEvent.click(within(confirm).getByRole('button', { name: '继续编辑' }));
+  expect(screen.getByLabelText('账单来源')).toHaveValue('wechat');
+  const replacement = new File(['new'], 'new.csv', { type: 'text/csv' });
+  fireEvent.change(screen.getByLabelText(/文件（CSV/), { target: { files: [replacement] } });
+  confirm = await screen.findByRole('dialog', { name: '尚有未保存修改' });
+  fireEvent.click(within(confirm).getByRole('button', { name: '继续编辑' }));
+  expect(screen.getByLabelText(/文件（CSV/).files[0]).toBe(file);
+  expect(screen.getByLabelText('选择第 2 行')).not.toBeChecked();
+});
+
+test('only changing checkboxes is protected when closing', async () => {
+  const { onClose } = await previewForGuard();
+  fireEvent.click(screen.getByLabelText('选择第 2 行'));
+  fireEvent.click(screen.getByRole('button', { name: '完成', exact: true }));
+  const confirm = await screen.findByRole('dialog', { name: '尚有未保存修改' });
+  expect(onClose).not.toHaveBeenCalled();
+  fireEvent.click(within(confirm).getByRole('button', { name: '继续编辑' }));
+  expect(screen.getByLabelText('选择第 2 行')).not.toBeChecked();
+});
+
+test('bulk selection excludes duplicates and incomplete refunds, and never imports automatically', async () => {
+  await previewForGuard();
+  fireEvent.click(screen.getByRole('button', { name: '清空选择' }));
+  expect(screen.getByLabelText('选择第 2 行')).not.toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: '全选可导入' }));
+  expect(screen.getByLabelText('选择第 2 行')).toBeChecked();
+  expect(screen.getByLabelText('选择第 3 行')).not.toBeChecked();
+  expect(screen.getByLabelText('选择第 4 行')).not.toBeChecked();
+  expect(confirmBillImport).not.toHaveBeenCalled();
+});

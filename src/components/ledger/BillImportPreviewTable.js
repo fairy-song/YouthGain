@@ -14,6 +14,11 @@ const linkReasons = ['未找到唯一的原交易，请手动关联', '找不到
 export const canClassifyReceipt = row => row.transaction_type === 'income' && row.decision === 'review' && row.reason === '收款用途不明，请核对后入账';
 export const canLinkRefund = row => row.transaction_type === 'refund' && row.decision === 'review' && linkReasons.includes(row.reason);
 
+export const canSelectImportRow = (row, change = {}) => {
+  const eligible = row.decision === 'import' || canLinkRefund(row) || canClassifyReceipt(row);
+  return eligible && (row.decision === 'import' || !!(change.related_source_id ?? row.related_source_id) || !!(change.receipt_kind || row.receipt_kind) || !!change.category_id);
+};
+
 function CategorySelect({ row, change, expenseCategory, customOptions, disabled, onChange, onDelete }) {
   const original = row.original_transaction_type || row.transaction_type;
   const customId = change.category_id ?? ((change.receipt_kind || expenseCategory !== undefined) ? '' : row.category_id || '');
@@ -61,7 +66,7 @@ function PreviewRow({ row, selected, disabled, change, expenseCategory, customOp
     : (canLinkRefund(row) && link) || (canClassifyReceipt(row) && (receiptKind || change.category_id)) ? '已选择分类，确认时复核'
       : `${decisionLabels[row.decision]}${row.reason ? `：${row.reason}` : ''}`;
   return <tr className={isRefund && expanded ? 'bill-preview-row-expanded' : ''}>
-    <td><Form.Check aria-label={`选择第 ${row.row_id} 行`} checked={selected} disabled={disabled || !eligible || (row.decision !== 'import' && !link && !receiptKind && !change.category_id)} onChange={onToggle} /></td>
+    <td><Form.Check aria-label={`选择第 ${row.row_id} 行`} checked={selected} disabled={disabled || !canSelectImportRow(row, change)} onChange={onToggle} /></td>
     <td title={row.date}>{row.date || '—'}</td><td>{typeLabels[kind] || '待核对'}</td><td title={row.amount ? `¥${row.amount}` : undefined}>{row.amount ? `¥${row.amount}` : '—'}</td><td title={row.merchant}>{row.merchant || '—'}</td>
     <td className="bill-preview-category-cell">
       <CategorySelect row={row} change={change} expenseCategory={expenseCategory} customOptions={customOptions} disabled={disabled || !eligible} onChange={onCategory} onDelete={onDeleteCategory} />
