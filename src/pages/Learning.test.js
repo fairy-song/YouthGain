@@ -122,3 +122,16 @@ test('comparison subtracts the purchase once and never presents pre-purchase bal
   expect(await screen.findByText('现在购买：按已记录数据，购买后本月余量 ¥800.00。')).toBeInTheDocument();
   await waitFor(() => expect(screen.getByRole('button', { name: '比较对预算的影响' })).toBeEnabled());
 });
+
+
+test('weekly cashflow distinguishes spending, refunds and negative net with excluded-record disclosure', async () => {
+  getWeeklyFacts.mockResolvedValue({ start: '2026-09-21', end: '2026-09-27', count: 2, gross_expense: 20, refunds: 30, total: -10, skipped: 1, limited: true, message: '仅汇总记录' });
+  renderPage('review');
+  const facts = await screen.findByRole('region', { name: '本周记录汇总' });
+  expect(facts).toHaveTextContent('支出¥20.00');
+  expect(facts).toHaveTextContent('退款¥30.00');
+  expect(facts).toHaveTextContent('净支出¥-10.00');
+  expect(facts).toHaveTextContent('有 1 条记录格式异常');
+  expect(facts).toHaveTextContent('仅最近2000笔');
+  expect(saveLearningEntry).not.toHaveBeenCalled();
+});

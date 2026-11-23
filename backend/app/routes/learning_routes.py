@@ -205,16 +205,8 @@ def weekly_facts(user_info):
     rows, error = user_data_service.get_user_data(user_info['uid'], 'transactions', limit=2000)
     if error:
         raise RuntimeError(error)
-    today = datetime.now(BEIJING).date()
-    start = today - timedelta(days=today.weekday())
-    end = start + timedelta(days=6)
-    selected = [r for r in rows if r.get('transaction_type', 'expense') in ('expense', 'refund')
-                and start.isoformat() <= str(r.get('date', ''))[:10] <= today.isoformat()]
-    return jsonify(start=start.isoformat(), end=end.isoformat(), count=len(selected),
-                   total=round(sum(float(r['amount']) * (-1 if r.get('transaction_type') == 'refund' else 1)
-                                   for r in selected), 2),
-                   limited=len(rows) >= 2000,
-                   message='仅汇总已记录消费，不代表全部支出；没有消费也可以完成复盘。')
+    from app.services.weekly_facts import summarize_week
+    return jsonify(summarize_week(rows, datetime.now(BEIJING).date(), limited=len(rows) >= 2000))
 
 
 @learning_bp.route('/upcoming/<entry_id>/details', methods=['PUT'])
