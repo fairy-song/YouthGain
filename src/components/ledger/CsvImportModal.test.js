@@ -662,3 +662,26 @@ test('bulk selection excludes duplicates and incomplete refunds, and never impor
   expect(screen.getByLabelText('选择第 4 行')).not.toBeChecked();
   expect(confirmBillImport).not.toHaveBeenCalled();
 });
+
+
+test.each([['empty.csv', 0], ['wrong.txt', 10], ['large.csv', 2 * 1024 * 1024 + 1]])('rejects invalid upload %s without replacing an existing preview', async (name, size) => {
+  const { file } = await previewForGuard();
+  fireEvent.click(screen.getByLabelText('选择第 2 行'));
+  const invalid = new File([new Uint8Array(size)], name);
+  fireEvent.change(screen.getByLabelText(/文件（CSV/), { target: { files: [invalid] } });
+  expect(screen.getByRole('alert')).toHaveTextContent(/文件/);
+  expect(screen.getByLabelText(/文件（CSV/).files[0]).toBe(file);
+  expect(screen.getByLabelText('选择第 2 行')).not.toBeChecked();
+  expect(previewBillImport).toHaveBeenCalledTimes(1);
+});
+
+test('category retry preserves preview and checkbox choices without retransmitting file', async () => {
+  listBillCategories.mockRejectedValueOnce(new Error('分类网络失败')).mockResolvedValue([]);
+  await previewForGuard();
+  fireEvent.click(screen.getByLabelText('选择第 2 行'));
+  fireEvent.click(await screen.findByRole('button', { name: '重试分类列表' }));
+  await waitFor(() => expect(listBillCategories).toHaveBeenCalledTimes(2));
+  expect(screen.getByLabelText('选择第 2 行')).not.toBeChecked();
+  expect(previewBillImport).toHaveBeenCalledTimes(1);
+  expect(confirmBillImport).not.toHaveBeenCalled();
+});

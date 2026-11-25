@@ -14,6 +14,12 @@ export default function BackfillBillModal({ onClose, onSaved }) {
   const [success, setSuccess] = useState('');
   const [refreshFailed, setRefreshFailed] = useState(false);
   const saving = useRef(false);
+  const [showDiscard, setShowDiscard] = useState(false);
+  const requestClose = () => {
+    if (busy || saving.current) return;
+    if (draft.amount || [draft.merchant, draft.items, draft.note].some(value => value.trim())) setShowDiscard(true);
+    else onClose();
+  };
   const yesterday = pastDate();
   const change = (key, value) => { setDraft(previous => ({ ...previous, [key]: value })); setError(''); };
   const refresh = async () => {
@@ -30,7 +36,7 @@ export default function BackfillBillModal({ onClose, onSaved }) {
     }
     const amount = Number(draft.amount);
     if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000) { setError('请输入大于 0 且不超过一亿元的金额。'); return; }
-    saving.current = true; setBusy(true);
+    saving.current = true; setBusy(true); setShowDiscard(false);
     try {
       await createTransaction({ ...draft, amount, merchant: draft.merchant.trim(), items: draft.items.trim(), note: draft.note.trim() });
       setSuccess(`已补记 ${draft.date} 的${draft.category}支出 ¥${amount.toFixed(2)}。`);
@@ -39,7 +45,7 @@ export default function BackfillBillModal({ onClose, onSaved }) {
     } catch (e) { setError(e?.response?.data?.message || e?.message || '补记失败，请重试。'); }
     finally { saving.current = false; setBusy(false); }
   };
-  return <Modal show onHide={() => { if (!busy) onClose(); }} backdrop={busy ? 'static' : true} keyboard={!busy} centered aria-labelledby="backfill-title">
+  return <Modal show onHide={requestClose} backdrop={busy ? 'static' : true} keyboard={!busy} centered aria-labelledby="backfill-title">
     <Modal.Header closeButton={!busy}><Modal.Title id="backfill-title">补记账单</Modal.Title></Modal.Header>
     <Form onSubmit={submit}>
       <Modal.Body>
@@ -47,6 +53,9 @@ export default function BackfillBillModal({ onClose, onSaved }) {
         {success && <Alert variant="success" role="status">{success} 可以继续补记，或完成返回账本。</Alert>}
         {error && <Alert variant="danger">{error}</Alert>}
         {refreshFailed && <Alert variant="warning">账单已保存，但账本刷新失败，请勿重复提交。<Button type="button" variant="link" disabled={busy} onClick={async () => { setBusy(true); await refresh(); setBusy(false); }}>只刷新账本</Button></Alert>}
+        {showDiscard && <Alert variant="warning" role="alert">这笔补记尚未保存。
+          <div className="d-flex flex-wrap gap-2 mt-2"><Button type="button" variant="outline-secondary" disabled={busy} onClick={() => setShowDiscard(false)}>继续填写</Button><Button type="button" variant="danger" disabled={busy} onClick={() => { if (!saving.current) onClose(); }}>放弃并关闭</Button></div>
+        </Alert>}
         <fieldset disabled={busy}>
           <Form.Group controlId="backfill-date" className="mb-3"><Form.Label>实际消费日期</Form.Label>
             <div className="d-flex gap-2 mb-2">{[[1, '昨天'], [2, '前天'], [7, '一周前']].map(([days, label]) => <Button type="button" key={days} size="sm" variant={draft.date === pastDate(days) ? 'success' : 'outline-secondary'} aria-pressed={draft.date === pastDate(days)} onClick={() => change('date', pastDate(days))}>{label}</Button>)}</div>
@@ -54,13 +63,15 @@ export default function BackfillBillModal({ onClose, onSaved }) {
           </Form.Group>
           <Row><Col xs={6}><Form.Group controlId="backfill-amount" className="mb-3"><Form.Label>金额（元）</Form.Label><Form.Control type="number" required min="0.01" max="100000000" step="0.01" value={draft.amount} onChange={e => change('amount', e.target.value)} /></Form.Group></Col>
             <Col xs={6}><Form.Group controlId="backfill-category" className="mb-3"><Form.Label>消费类别</Form.Label><Form.Select value={draft.category} onChange={e => change('category', e.target.value)}>{['餐饮', '交通', '购物', '娱乐', '学习', '房租', '话费', '医疗', '其他'].map(category => <option key={category}>{category}</option>)}</Form.Select></Form.Group></Col></Row>
+          <details><summary>补充详情（可选）</summary><div className="mt-3">
           <Form.Group controlId="backfill-merchant" className="mb-3"><Form.Label>商户（可选）</Form.Label><Form.Control maxLength={100} value={draft.merchant} onChange={e => change('merchant', e.target.value)} placeholder="例如：学校食堂" /></Form.Group>
-          <Form.Group controlId="backfill-items" className="mb-3"><Form.Label>消费内容（可选）</Form.Label><Form.Control value={draft.items} onChange={e => change('items', e.target.value)} placeholder="例如：午餐、奶茶、教材" /></Form.Group>
+          <Form.Group controlId="backfill-items" className="mb-3"><Form.Label>消费内容（可选）</Form.Label><Form.Control maxLength={1000} value={draft.items} onChange={e => change('items', e.target.value)} placeholder="例如：午餐、奶茶、教材" /></Form.Group>
           <Form.Group controlId="backfill-note"><Form.Label>备注（可选）</Form.Label><Form.Control maxLength={500} as="textarea" rows={2} value={draft.note} onChange={e => change('note', e.target.value)} /></Form.Group>
+          </div></details>
         </fieldset>
         <p className="small text-muted mt-3 mb-0">较早的账单可能不在最近 50 笔列表或近七天图表中。</p>
       </Modal.Body>
-      <Modal.Footer><Button type="button" variant="outline-secondary" disabled={busy} onClick={onClose}>{success ? '完成' : '取消'}</Button><Button type="submit" variant="success" disabled={busy}>{busy ? '保存中…' : '保存补记账单'}</Button></Modal.Footer>
+      <Modal.Footer><Button type="button" variant="outline-secondary" disabled={busy} onClick={requestClose}>{success ? '完成' : '取消'}</Button><Button type="submit" variant="success" disabled={busy}>{busy ? '保存中…' : '保存补记账单'}</Button></Modal.Footer>
     </Form>
   </Modal>;
 }

@@ -61,3 +61,27 @@ test('refresh failure offers a refresh-only retry without creating another bill'
   expect(createTransaction).toHaveBeenCalledTimes(1);
   await waitFor(() => expect(screen.queryByRole('button', { name: '只刷新账本' })).not.toBeInTheDocument());
 });
+
+
+test('closing a backfill draft requires explicit discard and cancel preserves writing', async () => {
+  const close = jest.fn();
+  render(<BackfillBillModal onClose={close} onSaved={jest.fn()} />);
+  fireEvent.change(screen.getByLabelText('金额（元）'), { target: { value: '18.50' } });
+  fireEvent.change(screen.getByLabelText('备注（可选）'), { target: { value: '保留草稿' } });
+  fireEvent.click(screen.getByRole('button', { name: '取消', exact: true }));
+  expect(close).not.toHaveBeenCalled();
+  fireEvent.click(await screen.findByRole('button', { name: '继续填写', exact: true }));
+  expect(screen.getByLabelText('金额（元）')).toHaveValue(18.5);
+  expect(screen.getByLabelText('备注（可选）')).toHaveValue('保留草稿');
+  fireEvent.click(screen.getByRole('button', { name: '取消', exact: true }));
+  fireEvent.click(await screen.findByRole('button', { name: '放弃并关闭', exact: true }));
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(createTransaction).not.toHaveBeenCalled();
+});
+
+test('backfill optional details start collapsed and text length matches API', () => {
+  render(<BackfillBillModal onClose={jest.fn()} onSaved={jest.fn()} />);
+  const field = screen.getByLabelText('消费内容（可选）');
+  expect(field.closest('details')).not.toHaveAttribute('open');
+  expect(field).toHaveAttribute('maxlength', '1000');
+});

@@ -52,6 +52,15 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
     const input = event.currentTarget;
     const nextFiles = input.files;
     const nextFile = nextFiles?.[0] || null;
+    const fileError = nextFile && (!/\.(csv|xlsx)$/i.test(nextFile.name) ? '请选择 CSV 或 XLSX 文件。'
+      : nextFile.size === 0 ? '文件为空，请重新导出账单。'
+        : nextFile.size > 2 * 1024 * 1024 ? '文件超过 2 MB，请按日期拆分后导入。' : '');
+    if (fileError) {
+      if (acceptedFiles.current) input.files = acceptedFiles.current;
+      else input.value = '';
+      setError(fileError);
+      return;
+    }
     if (previewChanged) input.files = acceptedFiles.current;
     replacePreview(() => {
       input.files = nextFiles;
@@ -78,7 +87,19 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
     catch { setLedgerError(true); }
   };
   useEffect(() => { refreshBatches(); return () => { batchRequest.current += 1; }; }, [refreshBatches]);
-  useEffect(() => { let active = true; listBillCategories().then(rows => { if (active) setCustomOptions(rows); }).catch(e => { if (active) setError(errorText(e)); }); return () => { active = false; }; }, []);
+  const [categoryError, setCategoryError] = useState('');
+  const [categoryLoading, setCategoryLoading] = useState(false);
+  const categoryRequest = useRef(0);
+  const refreshCategories = useCallback(async () => {
+    const id = ++categoryRequest.current;
+    setCategoryLoading(true);
+    try {
+      const rows = await listBillCategories();
+      if (id === categoryRequest.current) { setCustomOptions(rows); setCategoryError(''); }
+    } catch (e) { if (id === categoryRequest.current) setCategoryError(errorText(e)); }
+    finally { if (id === categoryRequest.current) setCategoryLoading(false); }
+  }, []);
+  useEffect(() => { refreshCategories(); return () => { categoryRequest.current += 1; }; }, [refreshCategories]);
   const upsertOption = option => setCustomOptions(current => [option, ...current.filter(row => row.id !== option.id)]);
   const categoryCreated = async option => {
     // 所有下拉框共用一个列表：先加入保存结果，再重新读取服务端分类。
@@ -276,6 +297,7 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
     <Modal.Body>
       <p className="text-muted small">先预览，再确认入账。含收支两方向的完整流水只需上传一次，系统会逐行分类；退款抵减原支出，不计为收入。未关联退款可在预览中选择原支出。原始文件不会保存在青盈。</p>
       {error && <Alert variant="danger" role="alert">{error}</Alert>}
+      {categoryError && <Alert variant="warning" role="alert">自定义分类暂未加载：{categoryError} <Button variant="link" disabled={busy || categoryLoading} onClick={refreshCategories}>{categoryLoading ? '读取中…' : '重试分类列表'}</Button></Alert>}
       {message && <Alert variant="success" role="status">{message}</Alert>}
       {ledgerError && <Alert variant="warning" role="status">账本暂未刷新，已完成的操作无需再次提交。 <Button variant="link" disabled={busy} onClick={async () => { setBusy(true); await refreshLedger(); setBusy(false); }}>只刷新账本</Button></Alert>}
       <div className="d-flex flex-wrap gap-2 align-items-end mb-3">
