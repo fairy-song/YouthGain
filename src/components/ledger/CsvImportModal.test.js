@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import CsvImportModal from './CsvImportModal';
 import { dateKey } from '../FinanceVisuals';
@@ -684,4 +684,26 @@ test('category retry preserves preview and checkbox choices without retransmitti
   expect(screen.getByLabelText('选择第 2 行')).not.toBeChecked();
   expect(previewBillImport).toHaveBeenCalledTimes(1);
   expect(confirmBillImport).not.toHaveBeenCalled();
+});
+
+
+test('late initial catalog cannot remove a category that has just been created', async () => {
+  let resolveOld;
+  listBillCategories.mockReturnValueOnce(new Promise(resolve => { resolveOld = resolve; })).mockResolvedValue([]);
+  listBillImports.mockResolvedValue([]);
+  const added = { id: 'new-category', name: '新教材费', accounting_type: 'expense', active: true };
+  createBillCategory.mockResolvedValue(added);
+  previewBillImport.mockResolvedValue({ source: 'standard', sha256: 'late', counts: { import: 1, review: 0, duplicate: 0 }, rows: [{ row_id: 2, transaction_type: 'expense', amount: '10', category: '餐饮', decision: 'import' }] });
+  render(<CsvImportModal onClose={jest.fn()} onSaved={jest.fn()} />);
+  fireEvent.change(screen.getByLabelText(/文件（CSV/), { target: { files: [new File(['synthetic'], 'synthetic.csv')] } });
+  fireEvent.click(screen.getByRole('button', { name: '预览账单' }));
+  fireEvent.click(await screen.findByRole('button', { name: '自定义分类', exact: true }));
+  const dialog = await screen.findByRole('dialog', { name: '新增自定义分类' });
+  fireEvent.change(within(dialog).getByLabelText('分类名称'), { target: { value: added.name } });
+  fireEvent.click(within(dialog).getByRole('button', { name: '保存分类' }));
+  await screen.findByText(/已新增“新教材费”/);
+  await act(async () => { resolveOld([]); });
+  expect(screen.getByLabelText('重命名分类 新教材费')).toBeInTheDocument();
+  const menu = await openCategory('第 2 行分类');
+  expect(within(menu).getByRole('option', { name: /新教材费/ })).toBeVisible();
 });

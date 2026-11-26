@@ -100,7 +100,14 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
     finally { if (id === categoryRequest.current) setCategoryLoading(false); }
   }, []);
   useEffect(() => { refreshCategories(); return () => { categoryRequest.current += 1; }; }, [refreshCategories]);
-  const upsertOption = option => setCustomOptions(current => [option, ...current.filter(row => row.id !== option.id)]);
+  const invalidateCategoryReads = () => {
+    categoryRequest.current += 1;
+    setCategoryLoading(false);
+  };
+  const upsertOption = option => {
+    invalidateCategoryReads();
+    setCustomOptions(current => [option, ...current.filter(row => row.id !== option.id)]);
+  };
   const categoryCreated = async option => {
     // 所有下拉框共用一个列表：先加入保存结果，再重新读取服务端分类。
     upsertOption(option);
@@ -108,6 +115,7 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
     try {
       const rows = await listBillCategories();
       setCustomOptions([option, ...rows.filter(row => row.id !== option.id)]);
+      setCategoryError('');
       setError('');
     } catch (e) {
       // 分类已经保存成功；刷新失败时保留它，避免用户重复创建。
@@ -119,6 +127,7 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
     setBusy(true);
     try {
       await deleteBillCategory(id);
+      invalidateCategoryReads();
       setCustomOptions(current => current.filter(option => option.id !== id));
       setBulkCategory(current => current === id ? '' : current);
       const clearReferences = (current, rows) => Object.fromEntries(Object.entries(current).flatMap(([rowId, change]) => {
@@ -143,6 +152,7 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
       try {
         const rows = await listBillCategories();
         setCustomOptions(rows.filter(option => option.id !== id));
+        setCategoryError('');
         setError('');
       } catch (e) { setError(`分类已删除，其他分类暂未刷新：${errorText(e)}`); }
       setMessage('自定义分类已删除，预览和分类管理已更新。使用它的预览行已恢复系统分类，请核对后导入；已入账记录保持不变。');
@@ -342,7 +352,7 @@ export default function CsvImportModal({ onClose, onSaved, entryMode = 'expense'
           </tr>;
         })}</tbody></Table></div>
       </div>}
-      <BillCategoryManager options={customOptions} disabled={busy} onUpdated={upsertOption} onError={setError} onBusyChange={setChildBusy} />
+      <BillCategoryManager options={customOptions} disabled={busy} onUpdated={upsertOption} onBusyChange={setChildBusy} />
     </Modal.Body>
     <Modal.Footer><Button variant="outline-secondary" disabled={busy} onClick={requestClose}>完成</Button></Modal.Footer>
   </Modal>

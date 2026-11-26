@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Alert, Button, Form, Modal } from 'react-bootstrap';
 import { createBillCategory, updateBillCategory } from '../../services/api';
 
@@ -56,24 +56,38 @@ export function BillCategoryCreateModal({ defaultType = 'expense', onClose, onCr
   </Modal>;
 }
 
-export function BillCategoryManager({ options, disabled, onUpdated, onError, onBusyChange }) {
+export function BillCategoryManager({ options, disabled, onUpdated, onBusyChange }) {
   const [names, setNames] = useState({});
   const [saving, setSaving] = useState('');
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+  const savingRef = useRef(false);
   const save = async (option, values) => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setNotice(''); setError('');
     setSaving(option.id);
     onBusyChange?.(true);
-    try { onUpdated(await updateBillCategory(option.id, values)); }
-    catch (error) { onError(error?.response?.data?.message || error?.message || '分类修改失败'); }
-    finally { setSaving(''); onBusyChange?.(false); }
+    try {
+      onUpdated(await updateBillCategory(option.id, values));
+      if (Object.hasOwn(values, 'name')) {
+        setNames(current => { const next = { ...current }; delete next[option.id]; return next; });
+        setNotice('名称已保存');
+      } else setNotice(values.active ? '已启用' : '已停用');
+    }
+    catch (error) { setError(error?.response?.data?.message || error?.message || '分类修改失败'); }
+    finally { savingRef.current = false; setSaving(''); onBusyChange?.(false); }
   };
   return <details className="mt-3"><summary>管理我的自定义分类（{options.length}）</summary>
     <p className="small text-muted mt-2">重命名只影响以后选择的名称；历史记录保留当时名称和金额。停用后不能新选，可再次启用。</p>
     {!options.length && <p className="small text-muted">暂无自定义分类，可通过“自定义分类”按钮新增。</p>}
-    {options.map(option => <div className="d-flex flex-wrap gap-2 align-items-center mb-2" key={option.id}>
-      <Form.Control size="sm" style={{ maxWidth: 220 }} aria-label={`重命名分类 ${option.name}`} value={names[option.id] ?? option.name} maxLength={50} disabled={disabled || !!saving} onChange={e => setNames({ ...names, [option.id]: e.target.value })} />
+    {error && <Alert variant="danger" role="alert">{error}</Alert>}
+    {notice && <p role="status" className="small text-success">{notice}</p>}
+    {options.map(option => <Form onSubmit={event => { event.preventDefault(); const name = names[option.id]?.trim(); if (!disabled && !saving && name && name !== option.name) save(option, { name }); }} className="d-flex flex-wrap gap-2 align-items-center mb-2" key={option.id}>
+      <Form.Control size="sm" style={{ maxWidth: 220 }} aria-label={`重命名分类 ${option.name}`} value={names[option.id] ?? option.name} maxLength={50} disabled={disabled || !!saving} onChange={e => { setNames({ ...names, [option.id]: e.target.value }); setNotice(''); }} />
       <span className="small">{accountingLabels[option.accounting_type]}</span>
-      <Button size="sm" variant="outline-secondary" disabled={disabled || !!saving || !names[option.id]?.trim() || names[option.id] === option.name} onClick={() => save(option, { name: names[option.id] })}>保存名称</Button>
+      <Button type="submit" size="sm" variant="outline-secondary" disabled={disabled || !!saving || !names[option.id]?.trim() || names[option.id].trim() === option.name}>保存名称</Button>
       <Button size="sm" variant="outline-secondary" disabled={disabled || !!saving} onClick={() => save(option, { active: !option.active })}>{option.active ? '停用' : '启用'}</Button>
-    </div>)}
+    </Form>)}
   </details>;
 }
